@@ -23,6 +23,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  canCreateCourses Boolean @default(false)
+  deleted     Boolean  @default(false)
 }
 
 
@@ -35,6 +37,7 @@ model Course {
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  deleted     Boolean  @default(false)
 }
 
 model Enrollment {
@@ -48,6 +51,7 @@ model Enrollment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
 }
 
 enum EnrollmentType {
@@ -60,4 +64,8 @@ model Assignment {
   id        String   @id @default(cuid())
   name      String
   description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
 }

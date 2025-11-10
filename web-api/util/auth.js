@@ -43,5 +43,6 @@ export const sanitizeUser = (user, dbUser = null) => {
     lastName: user.lastName,
     profilePictureUrl: user.profilePictureUrl,
     localUserId: dbUser?.id ?? null,
+    canCreateCourses: dbUser?.canCreateCourses ?? false,
   };
 };
