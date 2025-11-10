@@ -54,3 +54,25 @@ export const Select = ({
     </>
   );
 };
+
+export const Textarea = ({
+  value,
+  onChange,
+  placeholder,
+  className = "",
+  label,
+  ...props
+}) => {
+  return (
+    <>
+      {label ? <label className={styles.label}>{label}</label> : null}
+      <textarea
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={classnames(styles.input, className)}
+        {...props}
+      />
+    </>
+  );
+};

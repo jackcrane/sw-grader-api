@@ -3,7 +3,7 @@ import { Modal } from "../modal/Modal";
 import { Row } from "../flex/Flex";
 import { Button } from "../button/Button";
 import { Section } from "../form/Section";
-import { Input, Select } from "../input/Input";
+import { Input, Select, Textarea } from "../input/Input";
 
 export const CreateAssignmentModal = ({
   open,
@@ -230,8 +230,12 @@ export const CreateAssignmentModal = ({
         </Row>
       }
     >
+      <Section title="Assignment Details">
+        <Input label="Name" placeholder="e.g., HW 1" value={name} />
+        <Textarea label="Description" />
+      </Section>
       <Section
-        title="Details"
+        title="Part Upload"
         subtitle={
           <>
             <p>Tell us some basic details about your part.</p>

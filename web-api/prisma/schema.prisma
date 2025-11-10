@@ -66,7 +66,19 @@ model Assignment {
   name      String
   description String?
 
+  unitSystem String
+  pointsPossible Int
+  gradeVisibility GradeVisibility
+
+  volume Float
+  surfaceArea Float
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
+}
+
+enum GradeVisibility {
+  INSTANT
+  ON_DUE_DATE
 }
