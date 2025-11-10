@@ -25,3 +25,32 @@ export const Input = ({
     </>
   );
 };
+
+export const Select = ({
+  value,
+  onChange,
+  placeholder,
+  className = "",
+  label,
+  options,
+  ...props
+}) => {
+  return (
+    <>
+      {label ? <label className={styles.label}>{label}</label> : null}
+      <select
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={classnames(styles.input, className)}
+        {...props}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+};

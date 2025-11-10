@@ -5,6 +5,10 @@ import LoginPage from "./routes/LoginPage";
 import ErrorScreen from "./routes/ErrorScreen";
 import LandingPage from "./routes/LandingPage";
 import { AppLander } from "./routes/AppLander";
+import { CourseLayout } from "./routes/course/CourseLayout";
+import { CourseOverview } from "./routes/course/CourseOverview";
+import { CourseRoster } from "./routes/course/CourseRoster";
+import { CourseGradebook } from "./routes/course/CourseGradebook";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
@@ -32,6 +36,18 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/:courseId/*"
+        element={
+          <ProtectedRoute>
+            <CourseLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<CourseOverview />} />
+        <Route path="gradebook" element={<CourseGradebook />} />
+        <Route path="roster" element={<CourseRoster />} />
+      </Route>
       <Route
         path="*"
         element={<Navigate to={auth.isAuthenticated ? "/app" : "/"} replace />}

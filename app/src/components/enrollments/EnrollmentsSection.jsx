@@ -47,25 +47,24 @@ export const EnrollmentsSection = ({
               />
             ))}
           </div>
-          <Spacer />
         </>
       )}
 
-      <Spacer size={3} />
-
       {user.canCreateCourses && (
-        <Button onClick={() => setNewCourseModalOpen(true)}>
-          + Create a new course
-        </Button>
+        <>
+          <Spacer size={3} />
+          <Button onClick={() => setNewCourseModalOpen(true)}>
+            + Create a new course
+          </Button>
+          <CreateCourseModal
+            open={newCourseModalOpen}
+            onClose={() => setNewCourseModalOpen(false)}
+            onCreateCourse={async (courseDetails) => {
+              await createEnrollment?.(courseDetails);
+            }}
+          />
+        </>
       )}
-
-      <CreateCourseModal
-        open={newCourseModalOpen}
-        onClose={() => setNewCourseModalOpen(false)}
-        onCreateCourse={async (courseDetails) => {
-          await createEnrollment?.(courseDetails);
-        }}
-      />
     </div>
   );
 };

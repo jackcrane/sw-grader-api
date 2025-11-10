@@ -1,0 +1,58 @@
+.list {
+  display: flex;
+  flex-direction: row;
+}
+
+.side {
+  flex: 1;
+}
+
+.side.left {
+  border-right: 1px solid var(--border);
+}
+
+.assignment {
+  text-decoration: none;
+  color: inherit;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  justify-content: space-between;
+  transition: background 100ms ease;
+  cursor: pointer;
+}
+
+.assignment:hover {
+  background: color-mix(in srgb, var(--body) 60%, var(--surface));
+}
+
+.a:last-child .assignment {
+  border-bottom: none;
+}
+
+.assignment h2 {
+  font-size: 1.2em;
+  margin-bottom: 0px;
+  color: var(--body-contrast-primary);
+  text-decoration: none;
+}
+
+.assignment p {
+  font-size: 0.8em;
+  color: var(--body-contrast-primary);
+  text-decoration: none;
+}
+
+.a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
