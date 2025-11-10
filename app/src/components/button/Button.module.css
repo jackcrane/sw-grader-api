@@ -1,8 +1,8 @@
 /* Button.module.css */
 .button {
   border: 1px solid var(--border);
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
   background: var(--body);
   color: var(--surface-contrast-primary);
   cursor: pointer;
@@ -12,4 +12,5 @@
 .primary {
   background: var(--action);
   color: var(--action-contrast-primary);
+  border-color: var(--action);
 }
