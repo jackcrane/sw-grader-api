@@ -3,23 +3,26 @@ import styles from "./AssignmentList.module.css";
 import classNames from "classnames";
 import { H2 } from "../typography/Typography";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
-import { useAuthContext } from "../../context/AuthContext";
 import { CreateAssignmentModal } from "../createAssignmentModal/CreateAssignmentModal";
+import { useAssignments } from "../../hooks/useAssignments";
 
 export const AssignmentList = ({ courseId, enrollmentType }) => {
-  const assignments = [
-    { name: "HW 1", dueDate: "2023-01-01", id: "hw-1" },
-    { name: "HW 2", dueDate: "2023-01-02", id: "hw-2" },
-    { name: "HW 3", dueDate: "2023-01-03", id: "hw-3" },
-  ];
+  const { assignments, loading, error, createAssignment } =
+    useAssignments(courseId);
 
   const [newAssignmentModalOpen, setNewAssignmentModalOpen] = useState(false);
+  const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
+
+  const handleCreateAssignment = async (payload) => {
+    await createAssignment(payload);
+    setNewAssignmentModalOpen(false);
+  };
 
   return (
     <>
       <div className={styles.list}>
         <div className={classNames(styles.side, styles.left)}>
-          {["TEACHER", "TA"].includes(enrollmentType) && (
+          {canManageAssignments && (
             <div
               className={styles.assignment}
               onClick={() => setNewAssignmentModalOpen(true)}
@@ -31,15 +34,42 @@ export const AssignmentList = ({ courseId, enrollmentType }) => {
               <PencilSimple size={24} />
             </div>
           )}
-          {assignments.map((assignment) => (
+          {loading && <p>Loading assignments...</p>}
+          {error && (
+            <p style={{ color: "#b00020" }}>
+              Failed to load assignments: {error.message}
+            </p>
+          )}
+          {!loading && !error && (!assignments || assignments.length === 0) && (
+            <p
+              style={{
+                padding: 16,
+              }}
+            >
+              No assignments yet.
+            </p>
+          )}
+          {(assignments || []).map((assignment) => (
             <a
+              key={assignment.id}
               href={`/${courseId}/assignments/${assignment.id}`}
               className={styles.a}
             >
               <div className={styles.assignment}>
                 <div>
                   <H2>{assignment.name}</H2>
-                  <p>{new Date(assignment.dueDate).toLocaleDateString()}</p>
+                  <p>
+                    {assignment.pointsPossible} pts • {assignment.unitSystem}
+                  </p>
+                  {assignment.dueDate && (
+                    <p>
+                      Due{" "}
+                      {new Date(assignment.dueDate).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  )}
                 </div>
                 <CaretRight size={24} />
               </div>
@@ -50,11 +80,11 @@ export const AssignmentList = ({ courseId, enrollmentType }) => {
           Select an assignment to view details
         </div>
       </div>
-      {["TEACHER", "TA"].includes(enrollmentType) && (
+      {canManageAssignments && (
         <CreateAssignmentModal
           open={newAssignmentModalOpen}
           onClose={() => setNewAssignmentModalOpen(false)}
-          onCreateAssignment={() => setNewAssignmentModalOpen(false)}
+          onCreateAssignment={handleCreateAssignment}
           courseId={courseId}
         />
       )}

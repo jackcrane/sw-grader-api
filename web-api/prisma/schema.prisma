@@ -72,6 +72,9 @@ model Assignment {
 
   volume Float
   surfaceArea Float
+  tolerancePercent Float
+
+  dueDate DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

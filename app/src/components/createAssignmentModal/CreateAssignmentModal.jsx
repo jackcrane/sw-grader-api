@@ -5,6 +5,14 @@ import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
 
+const getInitialPartDetails = () => ({
+  volume: "",
+  surfaceArea: "",
+  centerOfMass: { x: "", y: "", z: "" },
+  screenshotB64: "",
+  units: {},
+});
+
 export const CreateAssignmentModal = ({
   open,
   onClose,
@@ -12,16 +20,15 @@ export const CreateAssignmentModal = ({
   courseId,
 }) => {
   // form state
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [correctFile, setCorrectFile] = useState(null); // File | null
   const [unitSystem, setUnitSystem] = useState("SI"); // "SI" | "MMGS" | "CGS" | "IPS"
   const [pointsPossible, setPointsPossible] = useState("");
   const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
-  const [partDetails, setPartDetails] = useState({
-    volume: "",
-    surfaceArea: "",
-    centerOfMass: { x: "", y: "", z: "" },
-    screenshotB64: "",
-  });
+  const [dueDate, setDueDate] = useState("");
+  const [tolerancePercent, setTolerancePercent] = useState("0.1");
+  const [partDetails, setPartDetails] = useState(getInitialPartDetails);
 
   // ui state
   const [submitting, setSubmitting] = useState(false);
@@ -31,19 +38,18 @@ export const CreateAssignmentModal = ({
   // reset when closing
   useEffect(() => {
     if (!open) {
+      setName("");
+      setDescription("");
       setCorrectFile(null);
       setUnitSystem("SI");
       setPointsPossible("");
       setGradeVisibility("INSTANT");
+      setDueDate("");
+      setTolerancePercent("0.1");
       setSubmitting(false);
       setPrescanState("idle");
       setPrescanError(null);
-      setPartDetails({
-        volume: "",
-        surfaceArea: "",
-        centerOfMass: { x: "", y: "", z: "" },
-        screenshotB64: "",
-      });
+      setPartDetails(getInitialPartDetails());
     }
   }, [open]);
 
@@ -104,6 +110,7 @@ export const CreateAssignmentModal = ({
                 z: data?.centerOfMass?.z ?? "",
               },
               screenshotB64: data?.screenshotB64 ?? "",
+              units: data?.units ?? {},
             });
           } catch (error) {
             console.error("Failed to parse prescan response", error);
@@ -128,24 +135,51 @@ export const CreateAssignmentModal = ({
   // simple validation
   const isValid = useMemo(() => {
     const pts = Number(pointsPossible);
+    const vol = Number(partDetails.volume);
+    const area = Number(partDetails.surfaceArea);
+    const tol = Number(tolerancePercent);
+    const dueDateTime = new Date(dueDate);
     return (
+      Boolean(name.trim()) &&
+      Boolean(dueDate) &&
+      !Number.isNaN(dueDateTime.getTime()) &&
       correctFile instanceof File &&
       ["SI", "MMGS", "CGS", "IPS"].includes(unitSystem) &&
       Number.isFinite(pts) &&
+      Number.isFinite(vol) &&
+      Number.isFinite(area) &&
+      Number.isFinite(tol) &&
       pts > 0 &&
+      vol > 0 &&
+      area > 0 &&
+      tol > 0 &&
       (correctFile?.name?.toLowerCase?.() || "").endsWith(".sldprt")
     );
-  }, [correctFile, unitSystem, pointsPossible]);
+  }, [
+    name,
+    dueDate,
+    correctFile,
+    unitSystem,
+    pointsPossible,
+    partDetails,
+    tolerancePercent,
+  ]);
 
   const handleCreateAssignment = async () => {
     if (!onCreateAssignment || !isValid) return;
     try {
       setSubmitting(true);
+      const dueDateISO = new Date(dueDate).toISOString();
       await onCreateAssignment({
-        correctFile, // File
+        name: name.trim(),
+        description: description.trim() || null,
+        dueDate: dueDateISO,
         unitSystem, // "SI" | "MMGS" | "CGS" | "IPS"
         pointsPossible: Number(pointsPossible), // number
         gradeVisibility, // "INSTANT" | "ON_DUE_DATE"
+        volume: Number(partDetails.volume),
+        surfaceArea: Number(partDetails.surfaceArea),
+        tolerancePercent: Number(tolerancePercent),
       });
       onClose?.();
     } catch (error) {
@@ -160,12 +194,7 @@ export const CreateAssignmentModal = ({
     setCorrectFile(nextFile);
     setPrescanState("idle");
     setPrescanError(null);
-    setPartDetails({
-      volume: "",
-      surfaceArea: "",
-      centerOfMass: { x: "", y: "", z: "" },
-      screenshotB64: "",
-    });
+    setPartDetails(getInitialPartDetails());
   };
 
   const handleUnitSystemChange = (e) => {
@@ -210,6 +239,12 @@ export const CreateAssignmentModal = ({
       ? "#b00020"
       : "#555";
 
+  const formatUnitLabel = (label, unitKey) => {
+    const unitSuffix = partDetails.units?.[unitKey];
+    if (!unitSuffix) return label;
+    return `${label} (${unitSuffix})`;
+  };
+
   return (
     <Modal
       title="Create a new Assignment"
@@ -231,8 +266,25 @@ export const CreateAssignmentModal = ({
       }
     >
       <Section title="Assignment Details">
-        <Input label="Name" placeholder="e.g., HW 1" value={name} />
-        <Textarea label="Description" />
+        <Input
+          label="Name"
+          placeholder="e.g., HW 1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <Textarea
+          label="Description"
+          placeholder="What is this assignment about?"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={4}
+        />
+        <Input
+          label="Due date"
+          type="datetime-local"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
       </Section>
       <Section
         title="Part Upload"
@@ -292,13 +344,13 @@ export const CreateAssignmentModal = ({
         }
       >
         <Input
-          label="Volume"
+          label={formatUnitLabel("Volume", "volume")}
           type="number"
           value={partDetails.volume}
           onChange={handlePartDetailChange("volume")}
         />
         <Input
-          label="Surface Area"
+          label={formatUnitLabel("Surface Area", "surfaceArea")}
           type="number"
           value={partDetails.surfaceArea}
           onChange={handlePartDetailChange("surfaceArea")}
@@ -306,7 +358,10 @@ export const CreateAssignmentModal = ({
         <Input
           label="Tolerance percent (recommended 0.1%-0.5%)"
           type="number"
-          value={0.1}
+          value={tolerancePercent}
+          onChange={(e) => setTolerancePercent(e.target.value)}
+          min={0}
+          step="0.01"
         />
       </Section>
 
