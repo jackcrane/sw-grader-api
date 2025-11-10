@@ -1,8 +1,10 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const API_TARGET = process.env.VITE_API_TARGET || "http://localhost:3000";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
