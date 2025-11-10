@@ -26,7 +26,7 @@ export const get = async (req, res) => {
         error: "missing_authorization_code",
       });
     }
-    return res.redirect("/login");
+    return res.redirect("/api/auth/login");
   }
 
   try {
@@ -51,6 +51,8 @@ export const get = async (req, res) => {
     if (acceptsJson(req)) {
       return res.status(401).json({ authenticated: false, error: reason });
     }
-    return res.redirect("/login");
+    return res.redirect("/api/auth/login");
   }
 };
+
+export const additionalPaths = ["/callback"];

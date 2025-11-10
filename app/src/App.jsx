@@ -4,7 +4,7 @@ import { useAuth } from "./hooks/useAuth";
 
 const ProtectedRoute = ({ isAuthenticated, children }) => {
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/api/auth/login" replace />;
   }
 
   return children;
@@ -75,7 +75,7 @@ const App = () => {
     <BrowserRouter>
       <Routes>
         <Route
-          path="/login"
+          path="/api/auth/login"
           element={
             <LoginPage
               login={auth.login}
@@ -99,7 +99,10 @@ const App = () => {
         <Route
           path="*"
           element={
-            <Navigate to={auth.isAuthenticated ? "/" : "/login"} replace />
+            <Navigate
+              to={auth.isAuthenticated ? "/" : "/api/auth/login"}
+              replace
+            />
           }
         />
       </Routes>

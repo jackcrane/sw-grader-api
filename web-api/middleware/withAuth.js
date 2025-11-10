@@ -8,7 +8,7 @@ import {
 async function withAuth(req, res, next) {
   const cookieValue = getSessionCookie(req);
   if (!cookieValue) {
-    return res.redirect("/login");
+    return res.redirect("/api/auth/login");
   }
 
   const session = loadSessionFromCookie(cookieValue);
@@ -21,7 +21,7 @@ async function withAuth(req, res, next) {
 
   // If the cookie is missing, redirect to login
   if (!authenticated && reason === "no_session_cookie_provided") {
-    return res.redirect("/login");
+    return res.redirect("/api/auth/login");
   }
 
   // If the session is invalid, attempt to refresh
@@ -29,7 +29,7 @@ async function withAuth(req, res, next) {
     const { authenticated, sealedSession } = await session.refresh();
 
     if (!authenticated) {
-      return res.redirect("/login");
+      return res.redirect("/api/auth/login");
     }
 
     // update the cookie
@@ -41,7 +41,7 @@ async function withAuth(req, res, next) {
     // Failed to refresh access token, redirect user to login page
     // after deleting the cookie
     res.clearCookie("wos-session");
-    res.redirect("/login");
+    res.redirect("/api/auth/login");
   }
 }
 

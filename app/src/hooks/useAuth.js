@@ -56,13 +56,10 @@ export const useAuth = () => {
     setIsAuthenticated(Boolean(payload?.authenticated));
   }, []);
 
-  const isUnauthorizedError = useCallback(
-    (err) => {
-      const status = err?.status ?? err?.info?.status;
-      return status === 401 || status === 403;
-    },
-    []
-  );
+  const isUnauthorizedError = useCallback((err) => {
+    const status = err?.status ?? err?.info?.status;
+    return status === 401 || status === 403;
+  }, []);
 
   const refreshSession = useCallback(
     async ({ suppressLoadingState = false } = {}) => {
@@ -76,27 +73,18 @@ export const useAuth = () => {
 
       try {
         const payload = await fetchJson("/api/auth/session");
-        if (
-          !isMountedRef.current ||
-          refreshInFlight.current !== requestId
-        ) {
+        if (!isMountedRef.current || refreshInFlight.current !== requestId) {
           return;
         }
         updateSessionFromPayload(payload);
       } catch (err) {
-        if (
-          !isMountedRef.current ||
-          refreshInFlight.current !== requestId
-        ) {
+        if (!isMountedRef.current || refreshInFlight.current !== requestId) {
           return;
         }
         updateSessionFromPayload(null);
         setError(isUnauthorizedError(err) ? null : err);
       } finally {
-        if (
-          isMountedRef.current &&
-          refreshInFlight.current === requestId
-        ) {
+        if (isMountedRef.current && refreshInFlight.current === requestId) {
           refreshInFlight.current = 0;
           setIsLoading(false);
         }

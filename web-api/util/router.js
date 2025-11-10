@@ -195,7 +195,7 @@ export const normalizeHandlers = (maybeHandlers) => {
  * Recursively traverses the routes directory and registers routes with Express.
  * If an exported handler is a generator function (sync or async), it will be wired
  * as a Server-Sent Events endpoint automatically.
- * Supported named exports: all, get, post, put, patch, head, options, query, del
+ * Supported named exports: get, post, put, patch, head, options, query, del
  *
  * @param {express.Application} app
  * @param {string} routesDir - Absolute path to the routes directory.
@@ -225,13 +225,7 @@ export const registerRoutes = async (app, routesDir) => {
       const routePath = getRoutePathFromFile(filePath, routesDir);
       const routeModule = await import(pathToFileURL(filePath).href);
 
-      // --- NEW: catch-all handler (registered first) ---
-      if (routeModule.all) {
-        const allHandlers = normalizeHandlers(routeModule.all);
-        app.all(routePath, ...allHandlers);
-      }
-
-      // Supported HTTP methods (specific verbs)
+      // Supported HTTP methods
       ["get", "post", "put", "patch", "head", "options", "query"].forEach(
         (method) => {
           if (!routeModule[method]) return;
