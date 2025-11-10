@@ -31,6 +31,7 @@ export const CreateAssignmentModal = ({
   const [partDetails, setPartDetails] = useState(getInitialPartDetails);
 
   // ui state
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [prescanState, setPrescanState] = useState("idle"); // "idle" | "uploading" | "success" | "error"
   const [prescanError, setPrescanError] = useState(null);
@@ -50,6 +51,7 @@ export const CreateAssignmentModal = ({
       setPrescanState("idle");
       setPrescanError(null);
       setPartDetails(getInitialPartDetails());
+      setValidationAttempted(false);
     }
   }, [open]);
 
@@ -132,29 +134,28 @@ export const CreateAssignmentModal = ({
     };
   }, [correctFile, unitSystem, courseId]);
 
-  // simple validation
-  const isValid = useMemo(() => {
+  const validationErrors = useMemo(() => {
     const pts = Number(pointsPossible);
     const vol = Number(partDetails.volume);
     const area = Number(partDetails.surfaceArea);
     const tol = Number(tolerancePercent);
     const dueDateTime = new Date(dueDate);
-    return (
-      Boolean(name.trim()) &&
-      Boolean(dueDate) &&
-      !Number.isNaN(dueDateTime.getTime()) &&
-      correctFile instanceof File &&
-      ["SI", "MMGS", "CGS", "IPS"].includes(unitSystem) &&
-      Number.isFinite(pts) &&
-      Number.isFinite(vol) &&
-      Number.isFinite(area) &&
-      Number.isFinite(tol) &&
-      pts > 0 &&
-      vol > 0 &&
-      area > 0 &&
-      tol > 0 &&
-      (correctFile?.name?.toLowerCase?.() || "").endsWith(".sldprt")
-    );
+    const unitSystems = ["SI", "MMGS", "CGS", "IPS"];
+    const hasValidUnitSystem = unitSystems.includes(unitSystem);
+    const hasFile = correctFile instanceof File;
+    const fileName = correctFile?.name?.toLowerCase?.() || "";
+    const hasValidFile = hasFile && fileName.endsWith(".sldprt");
+
+    return {
+      name: !name.trim(),
+      dueDate: !dueDate || Number.isNaN(dueDateTime.getTime()),
+      correctFile: !hasValidFile,
+      unitSystem: !hasValidUnitSystem,
+      pointsPossible: !Number.isFinite(pts) || pts <= 0,
+      volume: !Number.isFinite(vol) || vol <= 0,
+      surfaceArea: !Number.isFinite(area) || area <= 0,
+      tolerancePercent: !Number.isFinite(tol) || tol <= 0,
+    };
   }, [
     name,
     dueDate,
@@ -165,7 +166,15 @@ export const CreateAssignmentModal = ({
     tolerancePercent,
   ]);
 
+  const isValid = useMemo(
+    () => Object.values(validationErrors).every((hasError) => !hasError),
+    [validationErrors]
+  );
+
+  const showInvalid = (key) => validationAttempted && validationErrors[key];
+
   const handleCreateAssignment = async () => {
+    setValidationAttempted(true);
     if (!onCreateAssignment || !isValid) return;
     try {
       setSubmitting(true);
@@ -258,7 +267,7 @@ export const CreateAssignmentModal = ({
           <Button
             onClick={handleCreateAssignment}
             variant="primary"
-            disabled={!isValid || submitting}
+            disabled={submitting}
           >
             {submitting ? "Creating..." : "Create assignment"}
           </Button>
@@ -271,6 +280,7 @@ export const CreateAssignmentModal = ({
           placeholder="e.g., HW 1"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          invalid={showInvalid("name")}
         />
         <Textarea
           label="Description"
@@ -284,6 +294,7 @@ export const CreateAssignmentModal = ({
           type="datetime-local"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
+          invalid={showInvalid("dueDate")}
         />
       </Section>
       <Section
@@ -298,6 +309,7 @@ export const CreateAssignmentModal = ({
           label="Unit System"
           value={unitSystem}
           onChange={handleUnitSystemChange}
+          invalid={showInvalid("unitSystem")}
           options={[
             { value: "SI", label: "MKS (SI)" },
             { value: "MMGS", label: "mmGS" },
@@ -312,6 +324,7 @@ export const CreateAssignmentModal = ({
           accept=".sldprt"
           // your Input likely forwards the native event
           onChange={handleFileChange}
+          invalid={showInvalid("correctFile")}
         />
         {prescanMessage && (
           <p
@@ -348,12 +361,14 @@ export const CreateAssignmentModal = ({
           type="number"
           value={partDetails.volume}
           onChange={handlePartDetailChange("volume")}
+          invalid={showInvalid("volume")}
         />
         <Input
           label={formatUnitLabel("Surface Area", "surfaceArea")}
           type="number"
           value={partDetails.surfaceArea}
           onChange={handlePartDetailChange("surfaceArea")}
+          invalid={showInvalid("surfaceArea")}
         />
         <Input
           label="Tolerance percent (recommended 0.1%-0.5%)"
@@ -362,6 +377,7 @@ export const CreateAssignmentModal = ({
           onChange={(e) => setTolerancePercent(e.target.value)}
           min={0}
           step="0.01"
+          invalid={showInvalid("tolerancePercent")}
         />
       </Section>
 
@@ -374,6 +390,7 @@ export const CreateAssignmentModal = ({
           onChange={(e) => setPointsPossible(e.target.value)}
           min={1}
           step={1}
+          invalid={showInvalid("pointsPossible")}
         />
         <Select
           label="Grade Visibility"

@@ -9,6 +9,7 @@ export const Input = ({
   placeholder,
   className = "",
   label,
+  invalid = false,
   ...props
 }) => {
   return (
@@ -19,7 +20,13 @@ export const Input = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={classnames(styles.input, className)}
+        className={classnames(
+          styles.input,
+          {
+            [styles.inputInvalid]: invalid,
+          },
+          className
+        )}
         {...props}
       />
     </>
@@ -33,6 +40,7 @@ export const Select = ({
   className = "",
   label,
   options,
+  invalid = false,
   ...props
 }) => {
   return (
@@ -42,7 +50,13 @@ export const Select = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={classnames(styles.input, className)}
+        className={classnames(
+          styles.input,
+          {
+            [styles.inputInvalid]: invalid,
+          },
+          className
+        )}
         {...props}
       >
         {options.map((option) => (
@@ -61,6 +75,7 @@ export const Textarea = ({
   placeholder,
   className = "",
   label,
+  invalid = false,
   ...props
 }) => {
   return (
@@ -70,7 +85,13 @@ export const Textarea = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={classnames(styles.input, className)}
+        className={classnames(
+          styles.input,
+          {
+            [styles.inputInvalid]: invalid,
+          },
+          className
+        )}
         {...props}
       />
     </>

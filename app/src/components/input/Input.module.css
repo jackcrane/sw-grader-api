@@ -16,6 +16,11 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 20%, transparent);
 }
 
+.inputInvalid {
+  border-color: var(--danger, #b00020);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #b00020) 30%, transparent);
+}
+
 .label {
   color: var(--surface-contrast-secondary);
   font-weight: 400;
