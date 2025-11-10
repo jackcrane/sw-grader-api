@@ -1,0 +1,15 @@
+/* Button.module.css */
+.button {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--body);
+  color: var(--surface-contrast-primary);
+  cursor: pointer;
+  display: block;
+}
+
+.primary {
+  background: var(--action);
+  color: var(--action-contrast-primary);
+}
