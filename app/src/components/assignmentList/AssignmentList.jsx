@@ -1,17 +1,23 @@
 import React, { useState } from "react";
-import styles from "./AssignmentList.module.css";
+import { NavLink, useParams } from "react-router-dom";
 import classNames from "classnames";
-import { H2 } from "../typography/Typography";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
+import styles from "./AssignmentList.module.css";
+import { H2 } from "../typography/Typography";
 import { CreateAssignmentModal } from "../createAssignmentModal/CreateAssignmentModal";
 import { useAssignments } from "../../hooks/useAssignments";
 
-export const AssignmentList = ({ courseId, enrollmentType }) => {
+export const AssignmentList = ({
+  courseId,
+  enrollmentType,
+  detailsPane = null,
+}) => {
   const { assignments, loading, error, createAssignment } =
     useAssignments(courseId);
 
   const [newAssignmentModalOpen, setNewAssignmentModalOpen] = useState(false);
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
+  const { assignmentId: activeAssignmentId } = useParams();
 
   const handleCreateAssignment = async (payload) => {
     await createAssignment(payload);
@@ -49,35 +55,46 @@ export const AssignmentList = ({ courseId, enrollmentType }) => {
               No assignments yet.
             </p>
           )}
-          {(assignments || []).map((assignment) => (
-            <a
-              key={assignment.id}
-              href={`/${courseId}/assignments/${assignment.id}`}
-              className={styles.a}
-            >
-              <div className={styles.assignment}>
-                <div>
-                  <H2>{assignment.name}</H2>
-                  <p>
-                    {assignment.pointsPossible} pts • {assignment.unitSystem}
-                  </p>
-                  {assignment.dueDate && (
+          {(assignments || []).map((assignment) => {
+            const isActive = assignment.id === activeAssignmentId;
+
+            return (
+              <NavLink
+                key={assignment.id}
+                to={`/${courseId}/assignments/${assignment.id}`}
+                className={styles.a}
+              >
+                <div
+                  className={classNames(styles.assignment, {
+                    [styles.assignmentActive]: isActive,
+                  })}
+                >
+                  <div>
+                    <H2>{assignment.name}</H2>
                     <p>
-                      Due{" "}
-                      {new Date(assignment.dueDate).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
+                      {assignment.pointsPossible} pts • {assignment.unitSystem}
                     </p>
-                  )}
+                    {assignment.dueDate && (
+                      <p>
+                        Due{" "}
+                        {new Date(assignment.dueDate).toLocaleString(
+                          undefined,
+                          {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <CaretRight size={24} />
                 </div>
-                <CaretRight size={24} />
-              </div>
-            </a>
-          ))}
+              </NavLink>
+            );
+          })}
         </div>
         <div className={classNames(styles.side, styles.right)}>
-          Select an assignment to view details
+          {detailsPane || "Select an assignment to view details"}
         </div>
       </div>
       {canManageAssignments && (

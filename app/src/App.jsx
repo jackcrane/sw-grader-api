@@ -9,6 +9,8 @@ import { CourseLayout } from "./routes/course/CourseLayout";
 import { CourseOverview } from "./routes/course/CourseOverview";
 import { CourseRoster } from "./routes/course/CourseRoster";
 import { CourseGradebook } from "./routes/course/CourseGradebook";
+import { AssignmentDetails } from "./routes/course/AssignmentDetails";
+import { AssignmentDetailsPlaceholder } from "./routes/course/AssignmentDetailsPlaceholder";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
@@ -44,9 +46,15 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<CourseOverview />} />
         <Route path="gradebook" element={<CourseGradebook />} />
         <Route path="roster" element={<CourseRoster />} />
+        <Route path="" element={<CourseOverview />}>
+          <Route index element={<AssignmentDetailsPlaceholder />} />
+          <Route
+            path="assignments/:assignmentId"
+            element={<AssignmentDetails />}
+          />
+        </Route>
       </Route>
       <Route
         path="*"

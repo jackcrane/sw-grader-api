@@ -10,6 +10,16 @@ import React, {
 import { fetchJson } from "../utils/fetchJson";
 
 const AuthContext = createContext(null);
+const VIEW_AS_STORAGE_KEY = "fb:viewAsStudent";
+
+const readStoredViewPreference = () => {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(VIEW_AS_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
 
 // ---- internal stateful hook; used ONLY by the provider ----
 const useProvideAuth = () => {
@@ -21,6 +31,9 @@ const useProvideAuth = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isMountedRef = useRef(true);
   const refreshInFlight = useRef(0);
+  const [viewAsStudent, setViewAsStudent] = useState(
+    () => readStoredViewPreference()
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -28,6 +41,18 @@ const useProvideAuth = () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        VIEW_AS_STORAGE_KEY,
+        viewAsStudent ? "true" : "false"
+      );
+    } catch {
+      // ignore storage failures
+    }
+  }, [viewAsStudent]);
 
   const updateSessionFromPayload = useCallback((payload) => {
     if (!isMountedRef.current) return;
@@ -113,6 +138,8 @@ const useProvideAuth = () => {
     isLoggingIn,
     isLoggingOut,
     refreshSession,
+    viewAsStudent,
+    setViewAsStudent,
   };
 };
 

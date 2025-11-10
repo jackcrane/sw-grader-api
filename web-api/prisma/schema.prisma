@@ -23,6 +23,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  submissions Submission[]
   canCreateCourses Boolean @default(false)
   deleted     Boolean  @default(false)
 }
@@ -76,6 +77,8 @@ model Assignment {
 
   dueDate DateTime?
 
+  submissions Submission[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
@@ -84,4 +87,21 @@ model Assignment {
 enum GradeVisibility {
   INSTANT
   ON_DUE_DATE
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  assignmentId String
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  volume Float?
+  surfaceArea Float?
+
+  grade Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
 }

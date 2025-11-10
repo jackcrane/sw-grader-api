@@ -1,0 +1,91 @@
+.container {
+  width: 100%;
+}
+
+.title {
+  margin-bottom: 4px;
+}
+
+.meta {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.description {
+  margin-bottom: 16px;
+  color: #333;
+  white-space: pre-line;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface) 70%, white);
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.statSubtext {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.uploadBox {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: transparent;
+}
+
+.uploadHelper {
+  color: #555;
+  margin: -4px 0 4px 0;
+}
+
+.fileInput {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.status {
+  font-size: 0.85rem;
+  margin-top: -4px;
+}
+
+.statusSuccess {
+  color: #0a7d29;
+}
+
+.statusError {
+  color: #b00020;
+}
+
+.submissionInfo {
+  font-size: 0.9rem;
+  color: #333;
+  margin-top: 8px;
+}

@@ -17,8 +17,10 @@ const postJson = async (url, body) => {
   return response.json();
 };
 
-export const useEnrollments = () => {
-  const { data, error, isLoading, mutate } = useSWR("/api/enrollments");
+export const useEnrollments = ({ enabled = true } = {}) => {
+  const { data, error, isLoading, mutate } = useSWR(
+    enabled ? "/api/enrollments" : null
+  );
 
   const createEnrollment = async (payload) => {
     const createdEnrollment = await postJson("/api/enrollments", payload);

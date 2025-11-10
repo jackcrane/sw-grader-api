@@ -1,12 +1,15 @@
 import { WidthFix } from "../widthfix/WidthFix";
 import styles from "./Header.module.css";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "../../../assets/featurebench-body.svg";
 import { ArrowRightIcon, UserIcon } from "@phosphor-icons/react";
 import { useAuthContext } from "../../context/AuthContext";
+import { useEnrollments } from "../../hooks/useEnrollments";
 
 export const Header = () => {
-  const { user, logout, login } = useAuthContext();
+  const { user, logout, login, viewAsStudent, setViewAsStudent } =
+    useAuthContext();
+  const { enrollments } = useEnrollments({ enabled: Boolean(user) });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -32,6 +35,18 @@ export const Header = () => {
     };
   }, []);
 
+  const canViewAsStudent = useMemo(() => {
+    if (!user) return false;
+    return (enrollments ?? []).some((enrollment) =>
+      ["TEACHER", "TA"].includes(enrollment.type)
+    );
+  }, [enrollments, user]);
+
+  const handleToggleStudentView = () => {
+    setViewAsStudent((value) => !value);
+    setIsMenuOpen(false);
+  };
+
   return (
     <header className={styles.header}>
       <WidthFix>
@@ -54,6 +69,16 @@ export const Header = () => {
               </button>
               {isMenuOpen && (
                 <div className={styles.dropdown} role="menu">
+                  {canViewAsStudent && (
+                    <button
+                      type="button"
+                      className={styles.dropdownItem}
+                      onClick={handleToggleStudentView}
+                      role="menuitem"
+                    >
+                      {viewAsStudent ? "Exit student view" : "View as student"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.dropdownItem}
