@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -5,6 +6,13 @@ const API_TARGET = process.env.VITE_API_TARGET || "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ["react", "react-dom"],
+    alias: {
+      react: path.resolve(__dirname, "node_modules/react"),
+      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
+    },
+  },
   server: {
     proxy: {
       "/api": {

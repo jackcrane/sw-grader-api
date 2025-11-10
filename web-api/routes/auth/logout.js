@@ -16,7 +16,7 @@ const respond = (req, res, payload, status = 200) => {
   return res.redirect("/");
 };
 
-export const logoutHandler = async (req, res) => {
+export const all = async (req, res) => {
   const cookieValue = getSessionCookie(req);
 
   if (!cookieValue) {
@@ -36,6 +36,3 @@ export const logoutHandler = async (req, res) => {
     return respond(req, res, { success: false, error: message }, 400);
   }
 };
-
-export const get = logoutHandler;
-export const post = logoutHandler;

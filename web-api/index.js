@@ -6,9 +6,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { registerRoutes } from "./util/router.js";
-import { loginHandler } from "./routes/auth/login.js";
-import { callbackHandler } from "./routes/auth/callback.js";
-import { logoutHandler } from "./routes/auth/logout.js";
 
 dotenv.config();
 
@@ -20,12 +17,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const routesDir = path.join(__dirname, "routes");
 
-const registerPublicRoutes = () => {
-  app.get("/login", loginHandler);
-  app.get("/callback", callbackHandler);
-  app.all("/logout", logoutHandler);
-};
-
 const serveFrontend = () => {
   const frontendDir = path.resolve(__dirname, "../app/dist");
   if (!fs.existsSync(frontendDir)) {
@@ -36,7 +27,6 @@ const serveFrontend = () => {
   app.use(express.static(frontendDir));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
-    if (["/login", "/logout", "/callback"].includes(req.path)) return next();
 
     return res.sendFile(path.join(frontendDir, "index.html"));
   });
@@ -44,7 +34,6 @@ const serveFrontend = () => {
 
 const startServer = async () => {
   await registerRoutes(app, routesDir);
-  registerPublicRoutes();
   serveFrontend();
 
   const port = process.env.PORT || 3000;

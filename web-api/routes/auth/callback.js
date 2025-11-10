@@ -14,8 +14,10 @@ const buildRedirectResponse = (req, res, user) => {
   return res.redirect(redirectPath);
 };
 
-export const callbackHandler = async (req, res) => {
+export const get = async (req, res) => {
   const code = req.query.code;
+
+  console.log("code", code);
 
   if (!code) {
     if (acceptsJson(req)) {
@@ -39,6 +41,7 @@ export const callbackHandler = async (req, res) => {
       });
 
     const { user, sealedSession } = authenticateResponse;
+    console.log("user", user);
 
     res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
 
@@ -51,5 +54,3 @@ export const callbackHandler = async (req, res) => {
     return res.redirect("/login");
   }
 };
-
-export const get = callbackHandler;
