@@ -1,64 +1,17 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
-
-const ProtectedRoute = ({ isAuthenticated, children }) => {
-  if (!isAuthenticated) {
-    return <Navigate to="/api/auth/login" replace />;
-  }
-
-  return children;
-};
-
-const LoginPage = ({ login, isLoggingIn, isAuthenticated }) => {
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return (
-    <main>
-      <h1>Welcome</h1>
-      <p>You need to sign in to view the dashboard.</p>
-      <button type="button" onClick={() => login?.()} disabled={isLoggingIn}>
-        {isLoggingIn ? "Opening login…" : "Sign in"}
-      </button>
-    </main>
-  );
-};
-
-const Dashboard = ({ user, logout, isLoggingOut }) => (
-  <main>
-    <header>
-      <h1>
-        Hello, {user?.firstName} {user?.lastName}
-      </h1>
-      <p>{user?.email}</p>
-    </header>
-    <section>
-      <h2>Raw profile</h2>
-      <pre>{JSON.stringify(user, null, 2)}</pre>
-    </section>
-    <button type="button" onClick={() => logout?.()} disabled={isLoggingOut}>
-      {isLoggingOut ? "Signing out…" : "Sign out"}
-    </button>
-  </main>
-);
-
-const ErrorScreen = ({ error, login, isLoggingIn }) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <p>{error.message}</p>
-    <button type="button" onClick={() => login?.()} disabled={isLoggingIn}>
-      {isLoggingIn ? "Opening login…" : "Try logging in"}
-    </button>
-  </main>
-);
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./routes/LoginPage";
+import ErrorScreen from "./routes/ErrorScreen";
+import LandingPage from "./routes/LandingPage";
+import { AppLander } from "./routes/AppLander";
 
 const App = () => {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <main>Checking your session…</main>;
+    return <main>Checking your session...</main>;
   }
 
   if (auth.error) {
@@ -75,6 +28,16 @@ const App = () => {
     <BrowserRouter>
       <Routes>
         <Route
+          path="/"
+          element={
+            <LandingPage
+              login={auth.login}
+              isLoggingIn={auth.isLoggingIn}
+              isAuthenticated={auth.isAuthenticated}
+            />
+          }
+        />
+        <Route
           path="/api/auth/login"
           element={
             <LoginPage
@@ -85,10 +48,10 @@ const App = () => {
           }
         />
         <Route
-          path="/"
+          path="/app"
           element={
             <ProtectedRoute isAuthenticated={auth.isAuthenticated}>
-              <Dashboard
+              <AppLander
                 user={auth.user}
                 logout={auth.logout}
                 isLoggingOut={auth.isLoggingOut}
@@ -99,10 +62,7 @@ const App = () => {
         <Route
           path="*"
           element={
-            <Navigate
-              to={auth.isAuthenticated ? "/" : "/api/auth/login"}
-              replace
-            />
+            <Navigate to={auth.isAuthenticated ? "/app" : "/"} replace />
           }
         />
       </Routes>
