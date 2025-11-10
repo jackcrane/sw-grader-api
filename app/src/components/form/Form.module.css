@@ -1,8 +1,15 @@
 .section {
   display: flex;
-  dlex-direction: row;
+  flex-direction: row;
   gap: 16px;
   padding: 0px 16px;
+}
+
+@media screen and (max-width: 550px) {
+  .section {
+    flex-direction: column;
+    gap: 16px;
+  }
 }
 
 .titletext {
