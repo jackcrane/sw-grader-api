@@ -55,6 +55,7 @@ export const AssignmentList = ({ courseId, enrollmentType }) => {
           open={newAssignmentModalOpen}
           onClose={() => setNewAssignmentModalOpen(false)}
           onCreateAssignment={() => setNewAssignmentModalOpen(false)}
+          courseId={courseId}
         />
       )}
     </>

@@ -16,6 +16,12 @@ export const CreateAssignmentModal = ({
   const [unitSystem, setUnitSystem] = useState("SI"); // "SI" | "MMGS" | "CGS" | "IPS"
   const [pointsPossible, setPointsPossible] = useState("");
   const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
+  const [partDetails, setPartDetails] = useState({
+    volume: "",
+    surfaceArea: "",
+    centerOfMass: { x: "", y: "", z: "" },
+    screenshotB64: "",
+  });
 
   // ui state
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +38,12 @@ export const CreateAssignmentModal = ({
       setSubmitting(false);
       setPrescanState("idle");
       setPrescanError(null);
+      setPartDetails({
+        volume: "",
+        surfaceArea: "",
+        centerOfMass: { x: "", y: "", z: "" },
+        screenshotB64: "",
+      });
     }
   }, [open]);
 
@@ -81,6 +93,21 @@ export const CreateAssignmentModal = ({
         }
 
         if (!cancelled) {
+          try {
+            const data = await response.json();
+            setPartDetails({
+              volume: data?.volume ?? "",
+              surfaceArea: data?.surfaceArea ?? "",
+              centerOfMass: {
+                x: data?.centerOfMass?.x ?? "",
+                y: data?.centerOfMass?.y ?? "",
+                z: data?.centerOfMass?.z ?? "",
+              },
+              screenshotB64: data?.screenshotB64 ?? "",
+            });
+          } catch (error) {
+            console.error("Failed to parse prescan response", error);
+          }
           setPrescanState("success");
         }
       } catch (error) {
@@ -133,6 +160,12 @@ export const CreateAssignmentModal = ({
     setCorrectFile(nextFile);
     setPrescanState("idle");
     setPrescanError(null);
+    setPartDetails({
+      volume: "",
+      surfaceArea: "",
+      centerOfMass: { x: "", y: "", z: "" },
+      screenshotB64: "",
+    });
   };
 
   const handleUnitSystemChange = (e) => {
@@ -142,6 +175,23 @@ export const CreateAssignmentModal = ({
       setPrescanState("idle");
       setPrescanError(null);
     }
+  };
+
+  const handlePartDetailChange = (key) => (e) => {
+    setPartDetails((prev) => ({
+      ...prev,
+      [key]: e.target.value,
+    }));
+  };
+
+  const handleCenterOfMassChange = (axis) => (e) => {
+    setPartDetails((prev) => ({
+      ...prev,
+      centerOfMass: {
+        ...prev.centerOfMass,
+        [axis]: e.target.value,
+      },
+    }));
   };
 
   const prescanMessage =
@@ -188,6 +238,17 @@ export const CreateAssignmentModal = ({
           </>
         }
       >
+        <Select
+          label="Unit System"
+          value={unitSystem}
+          onChange={handleUnitSystemChange}
+          options={[
+            { value: "SI", label: "MKS (SI)" },
+            { value: "MMGS", label: "mmGS" },
+            { value: "CGS", label: "CGS" },
+            { value: "IPS", label: "IPS" },
+          ]}
+        />
         <Input
           label="Correct File"
           placeholder="Upload a .sldprt"
@@ -207,25 +268,42 @@ export const CreateAssignmentModal = ({
             {prescanMessage}
           </p>
         )}
-        <Select
-          label="Unit System"
-          value={unitSystem}
-          onChange={handleUnitSystemChange}
-          options={[
-            { value: "SI", label: "MKS (SI)" },
-            { value: "MMGS", label: "mmGS" },
-            { value: "CGS", label: "CGS" },
-            { value: "IPS", label: "IPS" },
-          ]}
-        />
       </Section>
 
-      <Section title="Part Details">
-        <Input label="Volume" type="number" />
-        <Input label="Surface Area" type="number" />
-        <Input label="Center of Mass (x)" type="number" />
-        <Input label="Center of Mass (y)" type="number" />
-        <Input label="Center of Mass (z)" type="number" />
+      <Section
+        title="Part Details"
+        subtitle={
+          partDetails.screenshotB64 ? (
+            <img
+              src={`data:image/png;base64,${partDetails.screenshotB64}`}
+              alt="Part preview"
+              style={{
+                width: "100%",
+                maxWidth: 320,
+                borderRadius: 8,
+                border: "1px solid #e1e1e1",
+              }}
+            />
+          ) : undefined
+        }
+      >
+        <Input
+          label="Volume"
+          type="number"
+          value={partDetails.volume}
+          onChange={handlePartDetailChange("volume")}
+        />
+        <Input
+          label="Surface Area"
+          type="number"
+          value={partDetails.surfaceArea}
+          onChange={handlePartDetailChange("surfaceArea")}
+        />
+        <Input
+          label="Tolerance percent (recommended 0.1%-0.5%)"
+          type="number"
+          value={0.1}
+        />
       </Section>
 
       <Section title="Grading" last={true}>
