@@ -58,8 +58,10 @@ export const getRoutePathFromFile = (filePath, routesDir) => {
  */
 export const wrapSSEIfGenerator = (handler) => {
   const isGenFn =
-    utilTypes.isGeneratorFunction(handler) ||
-    utilTypes.isAsyncGeneratorFunction(handler);
+    handler &&
+    handler.constructor &&
+    (handler.constructor.name === "GeneratorFunction" ||
+      handler.constructor.name === "AsyncGeneratorFunction");
   if (!isGenFn) return handler;
 
   // Convert sync generator to async iterator for unified handling

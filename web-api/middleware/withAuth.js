@@ -1,11 +1,17 @@
-import { workos } from "../util/workos.js";
-import cookieParser from "cookie-parser";
+import {
+  getSessionCookie,
+  loadSessionFromCookie,
+  sessionCookieOptions,
+  SESSION_COOKIE_NAME,
+} from "../util/auth.js";
 
 async function withAuth(req, res, next) {
-  const session = workos.userManagement.loadSealedSession({
-    sessionData: req.cookies["wos-session"],
-    cookiePassword: process.env.WORKOS_COOKIE_PASSWORD,
-  });
+  const cookieValue = getSessionCookie(req);
+  if (!cookieValue) {
+    return res.redirect("/login");
+  }
+
+  const session = loadSessionFromCookie(cookieValue);
 
   const { authenticated, reason } = await session.authenticate();
 
@@ -27,12 +33,7 @@ async function withAuth(req, res, next) {
     }
 
     // update the cookie
-    res.cookie("wos-session", sealedSession, {
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-    });
+    res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
 
     // Redirect to the same route to ensure the updated cookie is used
     return res.redirect(req.originalUrl);
