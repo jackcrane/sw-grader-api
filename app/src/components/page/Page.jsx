@@ -7,7 +7,7 @@ export const Page = ({ children }) => {
       <Header />
       <main
         style={{
-          paddingTop: 64,
+          paddingTop: 48,
         }}
       >
         <WidthFix>{children}</WidthFix>

@@ -1,8 +1,11 @@
 import React from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { Page } from "../components/page/Page";
+import { useAuthContext } from "../context/AuthContext";
 
-const LandingPage = ({ login, isLoggingIn, isAuthenticated }) => {
+const LandingPage = () => {
+  const { login, isLoggingIn, isAuthenticated } = useAuthContext();
+
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
   }
@@ -16,11 +19,7 @@ const LandingPage = ({ login, isLoggingIn, isAuthenticated }) => {
         </header>
         <section>
           <p>Ready to get started?</p>
-          <button
-            type="button"
-            onClick={() => login?.()}
-            disabled={isLoggingIn}
-          >
+          <button type="button" onClick={() => login?.()} disabled={isLoggingIn}>
             {isLoggingIn ? "Opening login…" : "Sign in with your account"}
           </button>
         </section>
