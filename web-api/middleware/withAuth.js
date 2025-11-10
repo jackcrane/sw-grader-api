@@ -1,9 +1,11 @@
 import {
   getSessionCookie,
   loadSessionFromCookie,
+  sanitizeUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "../util/auth.js";
+import { syncUserFromWorkOs } from "../util/users.js";
 
 async function withAuth(req, res, next) {
   const cookieValue = getSessionCookie(req);
@@ -13,9 +15,11 @@ async function withAuth(req, res, next) {
 
   const session = loadSessionFromCookie(cookieValue);
 
-  const { authenticated, reason } = await session.authenticate();
+  const { authenticated, reason, user } = await session.authenticate();
 
   if (authenticated) {
+    const dbUser = await syncUserFromWorkOs(user);
+    req.user = sanitizeUser(user, dbUser);
     return next();
   }
 

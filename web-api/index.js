@@ -25,11 +25,11 @@ const serveFrontend = () => {
   }
 
   app.use(express.static(frontendDir));
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api")) return next();
+  // app.get("*", (req, res, next) => {
+  //   if (req.path.startsWith("/api")) return next();
 
-    return res.sendFile(path.join(frontendDir, "index.html"));
-  });
+  //   return res.sendFile(path.join(frontendDir, "index.html"));
+  // });
 };
 
 const startServer = async () => {

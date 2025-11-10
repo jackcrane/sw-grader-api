@@ -19,7 +19,7 @@ export const AppLander = () => {
           <h2>Raw profile</h2>
           <pre>{JSON.stringify(user, null, 2)}</pre>
         </section>
-        {JSON.stringify(enrollments, null, 2)}
+        {/* {JSON.stringify(enrollments, null, 2)} */}
       </main>
     </Page>
   );

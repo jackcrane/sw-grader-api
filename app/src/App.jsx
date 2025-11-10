@@ -6,6 +6,8 @@ import ErrorScreen from "./routes/ErrorScreen";
 import LandingPage from "./routes/LandingPage";
 import { AppLander } from "./routes/AppLander";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
+import { SWRConfig } from "swr";
+import { fetchJson } from "./utils/fetchJson";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
@@ -40,9 +42,11 @@ const AppRoutes = () => {
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <SWRConfig value={{ fetcher: fetchJson }}>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </SWRConfig>
   </AuthProvider>
 );
 
