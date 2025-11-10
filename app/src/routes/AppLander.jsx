@@ -12,13 +12,16 @@ export const AppLander = () => {
           <h1>
             Hello, {user?.firstName} {user?.lastName}
           </h1>
-          <p>{user?.email}</p>
         </header>
         <section>
           <h2>Raw profile</h2>
           <pre>{JSON.stringify(user, null, 2)}</pre>
         </section>
-        <button type="button" onClick={() => logout?.()} disabled={isLoggingOut}>
+        <button
+          type="button"
+          onClick={() => logout?.()}
+          disabled={isLoggingOut}
+        >
           {isLoggingOut ? "Signing out…" : "Sign out"}
         </button>
       </main>

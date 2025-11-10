@@ -33,13 +33,15 @@ export const acceptsJson = (req) => {
   );
 };
 
-export const sanitizeUser = (user) => {
+export const sanitizeUser = (user, dbUser = null) => {
   if (!user) return null;
   return {
     id: user.id,
+    workosId: user.id,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
     profilePictureUrl: user.profilePictureUrl,
+    localUserId: dbUser?.id ?? null,
   };
 };

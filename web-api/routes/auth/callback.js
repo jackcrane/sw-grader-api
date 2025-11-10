@@ -1,9 +1,11 @@
 import {
   acceptsJson,
+  sanitizeUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "../../util/auth.js";
 import { workos } from "../../util/workos.js";
+import { syncUserFromWorkOs } from "../../util/users.js";
 
 const buildRedirectResponse = (req, res, user) => {
   if (acceptsJson(req)) {
@@ -41,11 +43,12 @@ export const get = async (req, res) => {
       });
 
     const { user, sealedSession } = authenticateResponse;
-    console.log("user", user);
+    const dbUser = await syncUserFromWorkOs(user);
+    const sanitizedUser = sanitizeUser(user, dbUser);
 
     res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
 
-    return buildRedirectResponse(req, res, user);
+    return buildRedirectResponse(req, res, sanitizedUser);
   } catch (error) {
     const reason = error?.message || "authentication_failed";
     if (acceptsJson(req)) {

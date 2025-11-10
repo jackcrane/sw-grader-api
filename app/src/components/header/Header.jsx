@@ -1,12 +1,36 @@
 import { WidthFix } from "../widthfix/WidthFix";
 import styles from "./Header.module.css";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import logo from "../../../assets/featurebench-body.svg";
 import { ArrowRightIcon, UserIcon } from "@phosphor-icons/react";
 import { useAuthContext } from "../../context/AuthContext";
 
 export const Header = () => {
   const { user, logout, login } = useAuthContext();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   return (
     <header className={styles.header}>
@@ -17,10 +41,30 @@ export const Header = () => {
           </a>
           <div style={{ flex: 1 }}></div>
           {user ? (
-            <a href="/app" className={styles.link}>
-              <UserIcon />
-              {user.firstName} {user.lastName}
-            </a>
+            <div className={styles.profile} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.profileButton}
+                onClick={() => setIsMenuOpen((value) => !value)}
+                aria-haspopup="true"
+                aria-expanded={isMenuOpen}
+              >
+                <UserIcon />
+                {user.firstName} {user.lastName}
+              </button>
+              {isMenuOpen && (
+                <div className={styles.dropdown} role="menu">
+                  <button
+                    type="button"
+                    className={styles.dropdownItem}
+                    onClick={logout}
+                    role="menuitem"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <a
               onClick={login}

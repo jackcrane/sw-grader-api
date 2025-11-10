@@ -48,3 +48,58 @@
 .logolink:hover {
   opacity: 0.7;
 }
+
+.profile {
+  position: relative;
+}
+
+.profileButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--primary-contrast-secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 100ms ease;
+}
+
+.profileButton:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary) 90%,
+    var(--primary-contrast-primary)
+  );
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--primary-contrast-primary);
+  color: var(--primary);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  padding: 8px 0;
+  z-index: 10;
+}
+
+.dropdownItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dropdownItem:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}

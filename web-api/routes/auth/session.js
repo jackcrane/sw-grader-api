@@ -4,6 +4,7 @@ import {
   loadSessionFromCookie,
   sanitizeUser,
 } from "../../util/auth.js";
+import { syncUserFromWorkOs } from "../../util/users.js";
 
 const unauthenticatedResponse = (res) =>
   res.status(401).json({ authenticated: false });
@@ -28,9 +29,11 @@ export const get = async (req, res) => {
         .json({ authenticated: false, error: reason || "unauthenticated" });
     }
 
+    const dbUser = await syncUserFromWorkOs(user);
+
     return res.json({
       authenticated: true,
-      user: sanitizeUser(user),
+      user: sanitizeUser(user, dbUser),
     });
   } catch (error) {
     return res
