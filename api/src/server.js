@@ -49,10 +49,10 @@ app.get("/", (_req, res) => {
       </label>
       <button type="submit">Upload</button>
     </form>
+    <p>Or POST /analyze?unitSystem=ips&screenshot=true with multipart 'file'.</p>
   `);
 });
 
-// Upload .sldprt → JSON mass props (converted) + optional screenshot
 app.post("/analyze", upload.single("file"), async (req, res) => {
   const unitSystem = normalizeUnitSystem(
     req.query.unitSystem ?? req.body?.unitSystem
@@ -69,13 +69,12 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
 
   try {
-    // 1) Run C# tool in SI, optionally with screenshot
+    // Run the C# tool (SI), optionally with screenshot
     const si = await runSwMassProps(SW_MASS_EXE, filePath, { screenshot });
 
-    // 2) Convert units if requested
+    // Convert to requested units; pass through screenshot/screenshotError fields
     const out = convertFromSI(si, unitSystem);
 
-    // 3) (If screenshot existed in SI output, it just passes through unchanged)
     await safeUnlink(filePath);
     return res.json(out);
   } catch (err) {
