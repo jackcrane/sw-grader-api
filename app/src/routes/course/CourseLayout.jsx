@@ -125,7 +125,7 @@ export const CourseLayout = () => {
 
   if (loading) {
     return (
-      <Page>
+      <Page title="FeatureBench – Loading course">
         <Card>
           <p>Loading course...</p>
         </Card>
@@ -165,10 +165,15 @@ export const CourseLayout = () => {
       : null,
   ].filter(Boolean);
 
-  const courseName = enrollment.course?.name ?? "Course";
+  const courseNameRaw = enrollment.course?.name ?? "";
+  const courseName = courseNameRaw.trim() || "Course";
   const courseAbbr = enrollment.course?.abbr;
   const studentInviteCode = enrollment.course?.studentInviteCode;
   const taInviteCode = enrollment.course?.taInviteCode;
+  const pageTitle =
+    courseNameRaw.trim().length > 0
+      ? `${courseName} – FeatureBench`
+      : "FeatureBench";
 
   const shouldShowInviteCard =
     hasStaffPrivileges &&
@@ -183,7 +188,7 @@ export const CourseLayout = () => {
   };
 
   return (
-    <Page>
+    <Page title={pageTitle}>
       <header style={{ marginTop: 16 }}>
         <H1>{courseName}</H1>
         {courseAbbr && <p style={{ color: "#555" }}>{courseAbbr}</p>}

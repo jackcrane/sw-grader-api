@@ -1,7 +1,17 @@
+import { useEffect } from "react";
 import { Header } from "../header/Header";
 import { WidthFix } from "../widthfix/WidthFix";
 
-export const Page = ({ children }) => {
+const DEFAULT_TITLE = "FeatureBench";
+
+export const Page = ({ children, title = DEFAULT_TITLE }) => {
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    document.title = title;
+  }, [title]);
+
   return (
     <>
       <Header />
