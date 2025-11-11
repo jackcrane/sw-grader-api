@@ -16,3 +16,11 @@ C:\Users\Jack\source\repos\SwExtractor\SwExtractor\obj\Debug\net8.0\refint\SwExt
 C:\Users\Jack\source\repos\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.pdb
 C:\Users\Jack\source\repos\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.genruntimeconfig.cache
 C:\Users\Jack\source\repos\SwExtractor\SwExtractor\obj\Debug\net8.0\ref\SwExtractor.dll
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.AssemblyInfoInputs.cache
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.AssemblyInfo.cs
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.csproj.CoreCompileInputs.cache
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.sourcelink.json
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.dll
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\refint\SwExtractor.dll
+C:\Users\Jack\Documents\programming\sw-grader-api\SwExtractor\SwExtractor\obj\Debug\net8.0\SwExtractor.pdb

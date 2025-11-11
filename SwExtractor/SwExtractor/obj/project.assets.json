@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Jack\\source\\repos\\SwExtractor\\SwExtractor\\SwExtractor.csproj",
+      "projectUniqueName": "C:\\Users\\Jack\\Documents\\programming\\sw-grader-api\\SwExtractor\\SwExtractor\\SwExtractor.csproj",
       "projectName": "SwExtractor",
-      "projectPath": "C:\\Users\\Jack\\source\\repos\\SwExtractor\\SwExtractor\\SwExtractor.csproj",
+      "projectPath": "C:\\Users\\Jack\\Documents\\programming\\sw-grader-api\\SwExtractor\\SwExtractor\\SwExtractor.csproj",
       "packagesPath": "C:\\Users\\Jack\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Jack\\source\\repos\\SwExtractor\\SwExtractor\\obj\\",
+      "outputPath": "C:\\Users\\Jack\\Documents\\programming\\sw-grader-api\\SwExtractor\\SwExtractor\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
