@@ -1,4 +1,4 @@
-import { Header } from "../Header/Header";
+import { Header } from "../header/Header";
 import { WidthFix } from "../widthfix/WidthFix";
 
 export const Page = ({ children }) => {
