@@ -28,6 +28,7 @@ export const AssignmentDetails = () => {
     assignment,
     stats,
     userSubmission,
+    userSubmissions,
     loading,
     error,
     refetch,
@@ -39,11 +40,37 @@ export const AssignmentDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  const hasSubmission = Boolean(userSubmission);
+  const submissions =
+    (userSubmissions && userSubmissions.length > 0 && userSubmissions) ||
+    (userSubmission ? [userSubmission] : []);
+  const sortedSubmissions = submissions
+    .map((submission) => ({
+      ...submission,
+      sortTimestamp: submission?.updatedAt ?? submission?.createdAt ?? null,
+    }))
+    .sort((a, b) => {
+      const aTime = a.sortTimestamp ? new Date(a.sortTimestamp).getTime() : 0;
+      const bTime = b.sortTimestamp ? new Date(b.sortTimestamp).getTime() : 0;
+      return bTime - aTime;
+    });
+  const hasSubmission = sortedSubmissions.length > 0;
+  const latestSubmission = hasSubmission ? sortedSubmissions[0] : null;
   const submissionTimestamp =
-    userSubmission?.updatedAt ?? userSubmission?.createdAt;
+    latestSubmission?.updatedAt ?? latestSubmission?.createdAt;
 
   const dueDateLabel = formatDateTime(assignment?.dueDate);
+
+  const formatSubmissionGrade = (submission) => {
+    const gradeValue = Number(submission?.grade);
+    if (!Number.isFinite(gradeValue)) {
+      return "Pending";
+    }
+    const pointsPossibleValue = Number(assignment?.pointsPossible);
+    if (Number.isFinite(pointsPossibleValue)) {
+      return `${gradeValue}/${pointsPossibleValue}`;
+    }
+    return `${gradeValue}`;
+  };
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
@@ -139,7 +166,10 @@ export const AssignmentDetails = () => {
         </p>
       )}
       {assignment.description && (
-        <p className={styles.description}>{assignment.description}</p>
+        <>
+          <p className={styles.description}>{assignment.description}</p>
+          {isStudent && <div className={styles.sectionDivider} />}
+        </>
       )}
 
       {statsCards && !isStudent && (
@@ -179,14 +209,36 @@ export const AssignmentDetails = () => {
               {successMessage}
             </p>
           )}
-          {hasSubmission && (
-            <div className={styles.submissionInfo}>
-              Last submitted {formatDateTime(submissionTimestamp)} – Grade:{" "}
-              {Number.isFinite(userSubmission?.grade)
-                ? `${userSubmission.grade}/${assignment.pointsPossible}`
-                : "Pending"}
-            </div>
-          )}
+        </div>
+      )}
+
+      {isStudent && hasSubmission && (
+        <div className={styles.submissionHistory}>
+          <div className={styles.historyDivider} />
+          <div className={styles.submissionList}>
+            {sortedSubmissions.map((submission, index) => {
+              const attemptNumber = sortedSubmissions.length - index;
+              const timestamp =
+                submission?.updatedAt ?? submission?.createdAt ?? null;
+              return (
+                <React.Fragment key={submission?.id ?? index}>
+                  <div className={styles.submissionEntry}>
+                    <div className={styles.submissionAttempt}>
+                      Attempt {attemptNumber}
+                    </div>
+                    <div className={styles.submissionDetails}>
+                      <span>{formatDateTime(timestamp)}</span>
+                      <span>Grade: {formatSubmissionGrade(submission)}</span>
+                    </div>
+                  </div>
+                  {index < sortedSubmissions.length - 1 && (
+                    <div className={styles.rowDivider} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <div className={styles.historyDivider} />
         </div>
       )}
 

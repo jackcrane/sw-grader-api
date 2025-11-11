@@ -127,34 +127,21 @@ export const post = [
         volumeDiff <= tolerance && surfaceDiff <= tolerance;
       const grade = withinTolerance ? assignment.pointsPossible : 0;
 
-      const existingSubmission = await prisma.submission.findFirst({
-        where: {
-          userId,
-          assignmentId,
-          deleted: false,
-        },
-      });
-
       const submissionData = {
         volume: measuredVolume,
         surfaceArea: measuredSurfaceArea,
         grade,
       };
 
-      const submission = existingSubmission
-        ? await prisma.submission.update({
-            where: { id: existingSubmission.id },
-            data: submissionData,
-          })
-        : await prisma.submission.create({
-            data: {
-              ...submissionData,
-              assignmentId,
-              userId,
-            },
-          });
+      const submission = await prisma.submission.create({
+        data: {
+          ...submissionData,
+          assignmentId,
+          userId,
+        },
+      });
 
-      return res.status(existingSubmission ? 200 : 201).json({
+      return res.status(201).json({
         submission,
         analysis: {
           volume: measuredVolume,

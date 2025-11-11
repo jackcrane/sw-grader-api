@@ -13,6 +13,7 @@ export const useAssignmentDetails = (courseId, assignmentId) => {
     assignment: data?.assignment ?? null,
     stats: data?.stats ?? null,
     userSubmission: data?.userSubmission ?? null,
+    userSubmissions: data?.userSubmissions ?? [],
     loading: isLoading,
     error,
     refetch: mutate,

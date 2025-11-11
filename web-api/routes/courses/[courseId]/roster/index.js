@@ -93,19 +93,29 @@ export const get = [
             assignmentId: true,
             updatedAt: true,
           },
+          orderBy: {
+            updatedAt: "desc",
+          },
         })
       : [];
 
     const submissionsByUser = submissions.reduce((acc, submission) => {
       if (!acc[submission.userId]) {
-        acc[submission.userId] = [];
+        acc[submission.userId] = {};
       }
-      acc[submission.userId].push({
-        id: submission.id,
-        grade: submission.grade,
-        assignmentId: submission.assignmentId,
-        updatedAt: submission.updatedAt,
-      });
+      const existing = acc[submission.userId][submission.assignmentId];
+      const existingDate = existing ? new Date(existing.updatedAt).getTime() : -Infinity;
+      const submissionDate = submission.updatedAt
+        ? new Date(submission.updatedAt).getTime()
+        : -Infinity;
+      if (!existing || submissionDate > existingDate) {
+        acc[submission.userId][submission.assignmentId] = {
+          id: submission.id,
+          grade: submission.grade,
+          assignmentId: submission.assignmentId,
+          updatedAt: submission.updatedAt,
+        };
+      }
       return acc;
     }, {});
 
@@ -113,7 +123,7 @@ export const get = [
       id: entry.id,
       type: entry.type,
       user: buildUserSummary(entry.user),
-      submissions: submissionsByUser[entry.userId] ?? [],
+      submissions: Object.values(submissionsByUser[entry.userId] ?? {}),
     }));
 
     return res.json({

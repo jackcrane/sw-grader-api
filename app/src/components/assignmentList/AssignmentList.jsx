@@ -94,7 +94,11 @@ export const AssignmentList = ({
           })}
         </div>
         <div className={classNames(styles.side, styles.right)}>
-          {detailsPane || "Select an assignment to view details"}
+          {detailsPane || (
+            <div className={styles.emptyState}>
+              Select an assignment to view details
+            </div>
+          )}
         </div>
       </div>
       {canManageAssignments && (

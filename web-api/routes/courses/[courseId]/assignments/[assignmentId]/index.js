@@ -61,11 +61,28 @@ const getSubmissionStats = async (courseId, assignmentId, pointsPossible) => {
     select: {
       id: true,
       grade: true,
+      userId: true,
+      updatedAt: true,
     },
   });
 
-  const submittedCount = submissions.length;
-  const correctCount = submissions.filter((submission) => {
+  const latestByUser = new Map();
+  submissions
+    .sort((a, b) => {
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .forEach((submission) => {
+      if (!latestByUser.has(submission.userId)) {
+        latestByUser.set(submission.userId, submission);
+      }
+    });
+
+  const latestSubmissions = Array.from(latestByUser.values());
+
+  const submittedCount = latestSubmissions.length;
+  const correctCount = latestSubmissions.filter((submission) => {
     const gradeValue = Number(submission.grade);
     if (!Number.isFinite(gradeValue)) return false;
     if (!Number.isFinite(pointsPossible) || pointsPossible <= 0) {
@@ -102,16 +119,22 @@ export const get = [
       return res.status(404).json({ error: "Assignment not found." });
     }
 
-    const userSubmission = await prisma.submission.findFirst({
-      where: {
-        userId,
-        assignmentId,
-        deleted: false,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
+    const userSubmissions =
+      (await prisma.submission.findMany({
+        where: {
+          userId,
+          assignmentId,
+          deleted: false,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      })) ?? [];
+
+    const userSubmission =
+      userSubmissions.length > 0
+        ? userSubmissions[userSubmissions.length - 1]
+        : null;
 
     const canViewStats = ["TEACHER", "TA"].includes(enrollment.type);
     const stats = canViewStats
@@ -122,6 +145,7 @@ export const get = [
       assignment,
       stats,
       userSubmission,
+      userSubmissions,
     });
   },
 ];

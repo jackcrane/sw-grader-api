@@ -1,5 +1,7 @@
 .container {
   width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .title {
@@ -16,6 +18,18 @@
   margin-bottom: 16px;
   color: #333;
   white-space: pre-line;
+}
+
+.sectionDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 16px -16px 24px;
+}
+
+.historyDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 8px -16px;
 }
 
 .statsGrid {
@@ -88,4 +102,42 @@
   font-size: 0.9rem;
   color: #333;
   margin-top: 8px;
+}
+
+.submissionHistory {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submissionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submissionEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.submissionAttempt {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.submissionDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.rowDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 4px -16px;
 }
