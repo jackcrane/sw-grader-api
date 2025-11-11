@@ -11,7 +11,7 @@ import { registerRoutes } from "./util/router.js";
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 
 const __filename = fileURLToPath(import.meta.url);

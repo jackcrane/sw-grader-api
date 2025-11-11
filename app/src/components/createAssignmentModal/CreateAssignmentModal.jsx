@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../modal/Modal";
-import { Row } from "../flex/Flex";
+import { Col, Row } from "../flex/Flex";
 import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
@@ -152,7 +152,7 @@ const SignatureSection = ({
     <Section
       title={`Part Signature ${index + 1}`}
       subtitle={
-        <>
+        <Col gap={8} align="flex-start">
           {isFirst ? (
             <p>
               Tell us some basic details about your part. Uploading a correct
@@ -183,7 +183,7 @@ const SignatureSection = ({
               }}
             />
           )}
-        </>
+        </Col>
       }
     >
       {!isFirst && (

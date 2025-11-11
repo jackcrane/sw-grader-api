@@ -22,6 +22,7 @@ export const Col = ({ children, align = "center", justify }) => {
         display: "flex",
         alignItems: align,
         justifyContent: justify,
+        flexDirection: "column",
       }}
     >
       {children}

@@ -24,6 +24,7 @@ export const SubmissionPreviewModal = ({
   screenshotUrl,
   gradeValue,
   gradeLabel,
+  feedback,
   downloadUrl,
   downloadFilename,
   error,
@@ -79,6 +80,11 @@ export const SubmissionPreviewModal = ({
             <p className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}>
               Grade earned: <strong>{gradeLabel ?? "Pending"}</strong>
             </p>
+            {feedback && (
+              <div className={styles.feedback}>
+                <strong>Hint:</strong> {feedback}
+              </div>
+            )}
           </>
         )}
         {status === "error" && (

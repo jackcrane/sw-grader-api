@@ -80,6 +80,7 @@ model Assignment {
   dueDate DateTime?
 
   submissions Submission[]
+  signatures AssignmentSignature[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,6 +90,11 @@ model Assignment {
 enum GradeVisibility {
   INSTANT
   ON_DUE_DATE
+}
+
+enum AssignmentSignatureType {
+  CORRECT
+  INCORRECT
 }
 
 model Submission {
@@ -107,8 +113,37 @@ model Submission {
   screenshotUrl String?
 
   grade Float?
+  feedback String?
+  matchingSignatureId String?
+  matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
+}
+
+model AssignmentSignature {
+  id        String   @id @default(cuid())
+  assignmentId String
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  sortOrder Int
+  type AssignmentSignatureType
+  unitSystem String
+  volume Float
+  surfaceArea Float
+  centerOfMassX Float?
+  centerOfMassY Float?
+  centerOfMassZ Float?
+  screenshotB64 String?
+  feedback String?
+  pointsAwarded Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
+
+  submissions Submission[]
+
+  @@unique([assignmentId, sortOrder])
 }

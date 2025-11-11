@@ -63,6 +63,7 @@ export const AssignmentDetails = () => {
     screenshotUrl: null,
     gradeValue: null,
     gradeLabel: null,
+    feedback: null,
     error: null,
     downloadUrl: null,
     downloadFilename: null,
@@ -114,6 +115,7 @@ export const AssignmentDetails = () => {
       screenshotUrl: null,
       gradeValue: null,
       gradeLabel: null,
+      feedback: null,
       error: null,
       downloadUrl: null,
       downloadFilename: null,
@@ -133,6 +135,7 @@ export const AssignmentDetails = () => {
       screenshotUrl: null,
       gradeValue: null,
       gradeLabel: null,
+      feedback: null,
       downloadUrl: null,
       downloadFilename: null,
       error: null,
@@ -172,6 +175,8 @@ export const AssignmentDetails = () => {
       }
 
       const submissionPayload = payload?.submission ?? null;
+      const hintFeedback =
+        submissionPayload?.feedback ?? payload?.analysis?.feedback ?? null;
 
       setSelectedFile(null);
       setSuccessMessage("Submission uploaded successfully.");
@@ -183,6 +188,7 @@ export const AssignmentDetails = () => {
         gradeLabel: formatSubmissionGrade({
           grade: successGradeValue,
         }),
+        feedback: hintFeedback,
         downloadUrl: submissionPayload?.fileUrl ?? null,
         downloadFilename: submissionPayload?.fileName ?? null,
         error: null,
@@ -195,6 +201,7 @@ export const AssignmentDetails = () => {
         screenshotUrl: null,
         gradeValue: null,
         gradeLabel: null,
+        feedback: null,
         downloadUrl: null,
         downloadFilename: null,
         error: err?.message || "Failed to upload submission.",
@@ -214,6 +221,7 @@ export const AssignmentDetails = () => {
       gradeLabel: formatSubmissionGrade({
         grade: previewGradeValue,
       }),
+      feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename:
         submission?.fileName ||
@@ -418,14 +426,15 @@ export const AssignmentDetails = () => {
         </div>
       )}
       <SubmissionPreviewModal
-        open={previewModalOpen}
-        status={previewModalState.status}
-        screenshotUrl={previewModalState.screenshotUrl}
-        gradeValue={previewModalState.gradeValue}
-        gradeLabel={previewModalState.gradeLabel}
-        downloadUrl={previewModalState.downloadUrl}
-        downloadFilename={previewModalState.downloadFilename}
-        error={previewModalState.error}
+      open={previewModalOpen}
+      status={previewModalState.status}
+      screenshotUrl={previewModalState.screenshotUrl}
+      gradeValue={previewModalState.gradeValue}
+      gradeLabel={previewModalState.gradeLabel}
+      feedback={previewModalState.feedback}
+      downloadUrl={previewModalState.downloadUrl}
+      downloadFilename={previewModalState.downloadFilename}
+      error={previewModalState.error}
         onClose={closePreviewModal}
       />
     </div>

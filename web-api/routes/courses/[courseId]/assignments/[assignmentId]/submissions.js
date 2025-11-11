@@ -75,6 +75,17 @@ const bufferFromBase64 = (value) => {
   }
 };
 
+const signaturesInclude = {
+  signatures: {
+    where: {
+      deleted: false,
+    },
+    orderBy: {
+      sortOrder: "asc",
+    },
+  },
+};
+
 const ensureEnrollment = async (userId, courseId) => {
   if (!userId || !courseId) return null;
 
@@ -97,6 +108,7 @@ const readAssignment = async (assignmentId) => {
       id: assignmentId,
       deleted: false,
     },
+    include: signaturesInclude,
   });
 };
 
@@ -105,6 +117,107 @@ const computePercentDiff = (expected, actual) => {
     return Number.isFinite(actual) ? 0 : Infinity;
   }
   return (Math.abs(actual - expected) / Math.abs(expected)) * 100;
+};
+
+const evaluateSubmissionAgainstSignatures = ({
+  assignment,
+  measuredVolume,
+  measuredSurfaceArea,
+  tolerance,
+}) => {
+  const activeSignatures = Array.isArray(assignment?.signatures)
+    ? assignment.signatures.filter((signature) => !signature.deleted)
+    : [];
+
+  const evaluateSignature = (signature) => {
+    if (!signature) return null;
+    const volumeDiff = computePercentDiff(signature.volume, measuredVolume);
+    const surfaceDiff = computePercentDiff(
+      signature.surfaceArea,
+      measuredSurfaceArea
+    );
+    return {
+      signature,
+      volumeDiff,
+      surfaceDiff,
+      withinTolerance: volumeDiff <= tolerance && surfaceDiff <= tolerance,
+    };
+  };
+
+  const buildAssignmentDiffs = () => {
+    const volumeDiff = computePercentDiff(assignment.volume, measuredVolume);
+    const surfaceDiff = computePercentDiff(
+      assignment.surfaceArea,
+      measuredSurfaceArea
+    );
+    return {
+      signature: null,
+      volumeDiff,
+      surfaceDiff,
+      withinTolerance: volumeDiff <= tolerance && surfaceDiff <= tolerance,
+    };
+  };
+
+  if (activeSignatures.length === 0) {
+    const fallbackDiffs = buildAssignmentDiffs();
+    return {
+      grade: fallbackDiffs.withinTolerance ? assignment.pointsPossible : 0,
+      feedback: null,
+      matchingSignatureId: null,
+      matchedType: null,
+      diffs: fallbackDiffs,
+    };
+  }
+
+  const correctMatch =
+    activeSignatures
+      .filter((signature) => signature.type === "CORRECT")
+      .map(evaluateSignature)
+      .find((result) => result && result.withinTolerance) ?? null;
+
+  if (correctMatch) {
+    return {
+      grade: assignment.pointsPossible,
+      feedback: null,
+      matchingSignatureId: correctMatch.signature.id,
+      matchedType: "CORRECT",
+      diffs: correctMatch,
+    };
+  }
+
+  const incorrectMatch =
+    activeSignatures
+      .filter((signature) => signature.type === "INCORRECT")
+      .map(evaluateSignature)
+      .find((result) => result && result.withinTolerance) ?? null;
+
+  if (incorrectMatch) {
+    const rawPoints = Number(incorrectMatch.signature.pointsAwarded);
+    const awarded =
+      Number.isFinite(rawPoints) && rawPoints >= 0 ? rawPoints : 0;
+    return {
+      grade: Math.min(awarded, assignment.pointsPossible),
+      feedback: incorrectMatch.signature.feedback || null,
+      matchingSignatureId: incorrectMatch.signature.id,
+      matchedType: "INCORRECT",
+      diffs: incorrectMatch,
+    };
+  }
+
+  const referenceSignature =
+    activeSignatures.find((signature) => signature.type === "CORRECT") ??
+    activeSignatures[0] ??
+    null;
+  const referenceDiffs =
+    evaluateSignature(referenceSignature) ?? buildAssignmentDiffs();
+
+  return {
+    grade: referenceDiffs.withinTolerance ? assignment.pointsPossible : 0,
+    feedback: null,
+    matchingSignatureId: referenceSignature?.id ?? null,
+    matchedType: referenceSignature?.type ?? null,
+    diffs: referenceDiffs,
+  };
 };
 
 export const post = [
@@ -178,19 +291,14 @@ export const post = [
         });
       }
 
-      const volumeDiff = computePercentDiff(
-        assignment.volume,
-        measuredVolume
-      );
-      const surfaceDiff = computePercentDiff(
-        assignment.surfaceArea,
-        measuredSurfaceArea
-      );
       const tolerance = Number(assignment.tolerancePercent) || 0;
-
-      const withinTolerance =
-        volumeDiff <= tolerance && surfaceDiff <= tolerance;
-      const grade = withinTolerance ? assignment.pointsPossible : 0;
+      const evaluation = evaluateSubmissionAgainstSignatures({
+        assignment,
+        measuredVolume,
+        measuredSurfaceArea,
+        tolerance,
+      });
+      const grade = evaluation.grade;
 
       const fileUpload = await uploadObject({
         key: buildSubmissionAssetKey({
@@ -224,6 +332,8 @@ export const post = [
         volume: measuredVolume,
         surfaceArea: measuredSurfaceArea,
         grade,
+        feedback: evaluation.feedback ?? null,
+        matchingSignatureId: evaluation.matchingSignatureId ?? null,
         fileKey: fileUpload?.key,
         fileUrl: fileUpload?.url,
         fileName: file.originalname ?? null,
@@ -246,9 +356,16 @@ export const post = [
         analysis: {
           volume: measuredVolume,
           surfaceArea: measuredSurfaceArea,
-          volumeDiffPercent: volumeDiff,
-          surfaceDiffPercent: surfaceDiff,
-          withinTolerance,
+          volumeDiffPercent:
+            evaluation.diffs?.volumeDiff ??
+            computePercentDiff(assignment.volume, measuredVolume),
+          surfaceDiffPercent:
+            evaluation.diffs?.surfaceDiff ??
+            computePercentDiff(assignment.surfaceArea, measuredSurfaceArea),
+          withinTolerance: evaluation.diffs?.withinTolerance ?? false,
+          matchedSignatureId: evaluation.matchingSignatureId ?? null,
+          matchedSignatureType: evaluation.matchedType ?? null,
+          feedback: evaluation.feedback ?? null,
         },
       });
     } catch (error) {

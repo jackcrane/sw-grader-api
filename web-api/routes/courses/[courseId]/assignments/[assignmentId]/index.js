@@ -5,6 +5,17 @@ import {
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
 
+const signaturesInclude = {
+  signatures: {
+    where: {
+      deleted: false,
+    },
+    orderBy: {
+      sortOrder: "asc",
+    },
+  },
+};
+
 const ensureEnrollment = async (userId, courseId) => {
   if (!userId || !courseId) return null;
 
@@ -27,6 +38,7 @@ const readAssignment = async (assignmentId) => {
       id: assignmentId,
       deleted: false,
     },
+    include: signaturesInclude,
   });
 };
 
