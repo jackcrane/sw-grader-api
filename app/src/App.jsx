@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Page } from "./components/page/Page";
 import LoginPage from "./routes/LoginPage";
 import ErrorScreen from "./routes/ErrorScreen";
 import LandingPage from "./routes/LandingPage";
@@ -20,7 +21,11 @@ const AppRoutes = () => {
   const auth = useAuthContext();
 
   if (auth.isLoading) {
-    return <main>Checking your session...</main>;
+    return (
+      <Page title="FeatureBench – Checking your session">
+        Checking your session…
+      </Page>
+    );
   }
 
   if (auth.error) {
