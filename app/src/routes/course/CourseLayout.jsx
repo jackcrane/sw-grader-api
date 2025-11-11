@@ -73,6 +73,8 @@ export const CourseLayout = () => {
 
   const courseName = enrollment.course?.name ?? "Course";
   const courseAbbr = enrollment.course?.abbr;
+  const studentInviteCode = enrollment.course?.studentInviteCode;
+  const taInviteCode = enrollment.course?.taInviteCode;
 
   return (
     <Page>
@@ -80,6 +82,36 @@ export const CourseLayout = () => {
         <H1>{courseName}</H1>
         {courseAbbr && <p style={{ color: "#555" }}>{courseAbbr}</p>}
       </header>
+      {hasStaffPrivileges && (studentInviteCode || taInviteCode) && (
+        <>
+          <Spacer />
+          <Card>
+            <div style={{ marginBottom: 8, fontWeight: 600 }}>
+              Share invite codes
+            </div>
+            <p style={{ margin: 0, color: "#555", fontSize: 14 }}>
+              Students and staff can join this course using the codes below.
+            </p>
+            <Spacer />
+            {studentInviteCode && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
+                  Student code
+                </div>
+                <code style={{ fontSize: 16 }}>{studentInviteCode}</code>
+              </div>
+            )}
+            {taInviteCode && (
+              <div>
+                <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
+                  TA / instructor code
+                </div>
+                <code style={{ fontSize: 16 }}>{taInviteCode}</code>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
       <nav className={styles.tabs}>
         {tabs.map(({ path, label, end, isActiveOverride }) => (
           <NavLink

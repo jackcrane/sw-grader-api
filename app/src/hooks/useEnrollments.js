@@ -10,8 +10,15 @@ const postJson = async (url, body) => {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "Request failed");
+    let message = "Request failed";
+    try {
+      const payload = await response.json();
+      message = payload?.message ?? message;
+    } catch {
+      const text = await response.text();
+      message = text || message;
+    }
+    throw new Error(message);
   }
 
   return response.json();

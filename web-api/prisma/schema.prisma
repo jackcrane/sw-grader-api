@@ -34,6 +34,8 @@ model Course {
   id        String   @id @default(cuid())
   name      String
   abbr      String
+  studentInviteCode String? @unique
+  taInviteCode      String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

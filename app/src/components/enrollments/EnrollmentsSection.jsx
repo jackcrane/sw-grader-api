@@ -7,6 +7,7 @@ import { Spinner } from "../spinner/Spinner";
 import { CreateCourseModal } from "./CreateCourseModal";
 import { EnrollmentRow } from "./EnrollmentRow";
 import { useAuthContext } from "../../context/AuthContext";
+import { Input } from "../input/Input";
 
 export const EnrollmentsSection = ({
   loading,
@@ -14,8 +15,26 @@ export const EnrollmentsSection = ({
   createEnrollment,
 }) => {
   const [newCourseModalOpen, setNewCourseModalOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState(null);
   const enrollmentsList = enrollments ?? [];
   const { user } = useAuthContext();
+
+  const handleJoinCourse = async () => {
+    const trimmedCode = inviteCode.trim();
+    if (!trimmedCode || !createEnrollment) return;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      await createEnrollment({ inviteCode: trimmedCode });
+      setInviteCode("");
+    } catch (err) {
+      setJoinError(err?.message ?? "Failed to join course");
+    } finally {
+      setJoining(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -48,6 +67,32 @@ export const EnrollmentsSection = ({
             ))}
           </div>
         </>
+      )}
+
+      <Spacer size={3} />
+      <Lead>Have an invite code?</Lead>
+      <Spacer />
+      <Input
+        label="Enter invite code"
+        value={inviteCode}
+        onChange={(event) => {
+          setInviteCode(event.target.value);
+          if (joinError) {
+            setJoinError(null);
+          }
+        }}
+        placeholder="e.g., STU-1A2B3C"
+      />
+      <Spacer />
+      <Button
+        variant="primary"
+        disabled={!inviteCode.trim() || joining}
+        onClick={handleJoinCourse}
+      >
+        {joining ? "Joining..." : "Join course"}
+      </Button>
+      {joinError && (
+        <p style={{ color: "#b00020", marginTop: 8 }}>{joinError}</p>
       )}
 
       {user.canCreateCourses && (
