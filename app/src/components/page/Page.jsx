@@ -8,6 +8,7 @@ export const Page = ({ children }) => {
       <main
         style={{
           paddingTop: 48,
+          paddinBottom: 64,
         }}
       >
         <WidthFix>{children}</WidthFix>

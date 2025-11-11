@@ -14,7 +14,8 @@
 }
 
 .details {
-  padding: 24px;
+  padding: 16px;
+  background: var(--surface);
 }
 
 .listHeader {
@@ -22,8 +23,23 @@
   border-bottom: 1px solid var(--border);
 }
 
+.listHeader h2,
+.studentName {
+  font-size: 1.2em;
+  color: var(--body-contrast-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.listHeader p,
+.studentMeta {
+  font-size: 0.8em;
+  color: var(--body-contrast-primary);
+  margin: 0;
+}
+
 .state {
-  padding: 24px;
+  padding: 16px;
   color: var(--body-contrast-secondary);
 }
 
@@ -35,7 +51,13 @@
 .detailContent {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+}
+
+.sectionDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 8px -16px;
 }
 
 .detailHeader h2 {
@@ -80,19 +102,11 @@
   margin-top: 4px;
 }
 
-.sectionCard {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 20px;
-  background: var(--surface);
-}
-
 .sectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 12px;
 }
 
 .sectionTitle {
@@ -106,12 +120,12 @@
   font-size: 0.9rem;
 }
 
-.actionsCard {
+.manageSection {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .studentRow {
@@ -135,12 +149,11 @@
 
 .studentName {
   font-weight: 600;
-  margin-bottom: 4px;
+  line-height: 1.2;
 }
 
 .studentMeta {
-  font-size: 0.85rem;
-  color: var(--body-contrast-secondary);
+  color: var(--body-contrast-primary);
 }
 
 .actions {
@@ -155,26 +168,47 @@
   border: 1px solid #b00020;
 }
 
-.tableWrapper {
-  overflow-x: auto;
+.gradeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.gradeTable {
-  width: 100%;
-  border-collapse: collapse;
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.gradeTable th,
-.gradeTable td {
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
+.gradeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
-.gradeTable th {
+.gradeValues {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  min-width: 120px;
+  gap: 4px;
+}
+
+.gradeValue {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.gradePercent {
   font-size: 0.85rem;
-  text-transform: uppercase;
   color: var(--body-contrast-secondary);
+}
+
+.rowDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 4px -16px;
 }
 
 .assignmentName {

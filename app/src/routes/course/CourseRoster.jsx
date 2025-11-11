@@ -199,10 +199,10 @@ export const CourseRoster = () => {
               onClick={() => setSelectedEnrollmentId(entry.id)}
             >
               <div>
-                <div className={styles.studentName}>{formatName(entry.user)}</div>
-                <div className={styles.studentMeta}>
+                <h2 className={styles.studentName}>{formatName(entry.user)}</h2>
+                <p className={styles.studentMeta}>
                   {entry.user?.email || "No email"} • {roleLabels[entry.type] ?? entry.type}
-                </div>
+                </p>
               </div>
             </button>
           );
@@ -220,6 +220,7 @@ export const CourseRoster = () => {
                 {roleLabels[activeEnrollment.type] ?? activeEnrollment.type}
               </p>
             </div>
+            <div className={styles.sectionDivider} />
             <div className={styles.statsGrid}>
               {statsCards.map((card) => (
                 <div key={card.label} className={styles.statCard}>
@@ -229,35 +230,41 @@ export const CourseRoster = () => {
                 </div>
               ))}
             </div>
+
             {canManageRoster && (
-              <div className={classNames(styles.sectionCard, styles.actionsCard)}>
-                <div>
-                  <div className={styles.sectionTitle}>Manage access</div>
-                  <p className={styles.sectionMeta}>
-                    Promote standout students to TAs or remove inactive accounts.
-                  </p>
+              <>
+                <div className={styles.sectionDivider} />
+                <div className={styles.manageSection}>
+                  <div>
+                    <div className={styles.sectionTitle}>Manage access</div>
+                    <p className={styles.sectionMeta}>
+                      Promote standout students to TAs or remove inactive accounts.
+                    </p>
+                  </div>
+                  <div className={styles.actions}>
+                    <Button
+                      onClick={handleToggleRole}
+                      disabled={pendingAction === "role"}
+                    >
+                      {activeEnrollment.type === "STUDENT"
+                        ? "Promote to TA"
+                        : "Demote to Student"}
+                    </Button>
+                    <Button
+                      onClick={handleRemove}
+                      disabled={pendingAction === "remove"}
+                      className={styles.removeButton}
+                    >
+                      Remove from course
+                    </Button>
+                  </div>
                 </div>
-                <div className={styles.actions}>
-                  <Button
-                    onClick={handleToggleRole}
-                    disabled={pendingAction === "role"}
-                  >
-                    {activeEnrollment.type === "STUDENT"
-                      ? "Promote to TA"
-                      : "Demote to Student"}
-                  </Button>
-                  <Button
-                    onClick={handleRemove}
-                    disabled={pendingAction === "remove"}
-                    className={styles.removeButton}
-                  >
-                    Remove from course
-                  </Button>
-                </div>
-              </div>
+                {actionError && <p className={styles.error}>{actionError}</p>}
+              </>
             )}
-            {actionError && <p className={styles.error}>{actionError}</p>}
-            <div className={styles.sectionCard}>
+
+            <div className={styles.sectionDivider} />
+            <div className={styles.gradeSection}>
               <div className={styles.sectionHeader}>
                 <div>
                   <div className={styles.sectionTitle}>Assignment grades</div>
@@ -269,44 +276,42 @@ export const CourseRoster = () => {
               {assignments.length === 0 ? (
                 <p className={styles.state}>No assignments available yet.</p>
               ) : (
-                <div className={styles.tableWrapper}>
-                  <table className={styles.gradeTable}>
-                    <thead>
-                      <tr>
-                        <th>Assignment</th>
-                        <th>Grade</th>
-                        <th>Percent</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignments.map((assignment) => {
-                        const submission = submissions.find(
-                          (entry) => entry.assignmentId === assignment.id
-                        );
-                        const gradeValue = Number(submission?.grade);
-                        const pointsPossible = Number(assignment.pointsPossible);
-                        const hasGrade = Number.isFinite(gradeValue);
-                        const percent =
-                          hasGrade &&
-                          Number.isFinite(pointsPossible) &&
-                          pointsPossible > 0
-                            ? `${((gradeValue / pointsPossible) * 100).toFixed(1)}%`
-                            : "–";
-                        return (
-                          <tr key={assignment.id}>
-                            <td>
-                              <div className={styles.assignmentName}>{assignment.name}</div>
-                              <div className={styles.assignmentMeta}>
-                                {pointsPossible} pts
-                              </div>
-                            </td>
-                            <td>{hasGrade ? `${gradeValue}/${pointsPossible}` : "–"}</td>
-                            <td>{percent}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className={styles.gradeList}>
+                  {assignments.map((assignment, index) => {
+                    const submission = submissions.find(
+                      (entry) => entry.assignmentId === assignment.id
+                    );
+                    const gradeValue = Number(submission?.grade);
+                    const pointsPossible = Number(assignment.pointsPossible);
+                    const hasGrade = Number.isFinite(gradeValue);
+                    const percent =
+                      hasGrade &&
+                      Number.isFinite(pointsPossible) &&
+                      pointsPossible > 0
+                        ? `${((gradeValue / pointsPossible) * 100).toFixed(1)}%`
+                        : "–";
+                    return (
+                      <React.Fragment key={assignment.id}>
+                        <div className={styles.gradeRow}>
+                          <div>
+                            <div className={styles.assignmentName}>{assignment.name}</div>
+                            <div className={styles.assignmentMeta}>
+                              {pointsPossible} pts
+                            </div>
+                          </div>
+                          <div className={styles.gradeValues}>
+                            <span className={styles.gradeValue}>
+                              {hasGrade ? `${gradeValue}/${pointsPossible}` : "—"}
+                            </span>
+                            <span className={styles.gradePercent}>{percent}</span>
+                          </div>
+                        </div>
+                        {index < assignments.length - 1 && (
+                          <div className={styles.rowDivider} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -37,7 +37,10 @@ export const CourseLayout = () => {
   const [studentCodeVisible, setStudentCodeVisible] = useState(false);
   const [taCodeVisible, setTaCodeVisible] = useState(false);
   const [inviteCardError, setInviteCardError] = useState(null);
-  const [regenerating, setRegenerating] = useState({ student: false, ta: false });
+  const [regenerating, setRegenerating] = useState({
+    student: false,
+    ta: false,
+  });
 
   const inviteDismissKey = useMemo(
     () => (courseId ? `courseInviteCardDismissed:${courseId}` : null),
@@ -215,12 +218,27 @@ export const CourseLayout = () => {
             <Spacer />
             {studentInviteCode && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    color: "#777",
+                  }}
+                >
                   Student code
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <code style={{ fontSize: 16 }}>
-                    {studentCodeVisible ? studentInviteCode : maskCode(studentInviteCode)}
+                    {studentCodeVisible
+                      ? studentInviteCode
+                      : maskCode(studentInviteCode)}
                   </code>
                   <Button
                     onClick={() => setStudentCodeVisible((prev) => !prev)}
@@ -240,10 +258,23 @@ export const CourseLayout = () => {
             )}
             {taInviteCode && (
               <div>
-                <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    color: "#777",
+                  }}
+                >
                   TA / instructor code
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <code style={{ fontSize: 16 }}>
                     {taCodeVisible ? taInviteCode : maskCode(taInviteCode)}
                   </code>
@@ -264,7 +295,9 @@ export const CourseLayout = () => {
               </div>
             )}
             {inviteCardError && (
-              <p style={{ color: "#b00020", marginTop: 12 }}>{inviteCardError}</p>
+              <p style={{ color: "#b00020", marginTop: 12 }}>
+                {inviteCardError}
+              </p>
             )}
           </Card>
         </>
@@ -277,7 +310,7 @@ export const CourseLayout = () => {
             end={end}
             className={({ isActive }) =>
               `${styles.tab} ${
-                (isActiveOverride ?? isActive) ? styles.active : ""
+                isActiveOverride ?? isActive ? styles.active : ""
               }`
             }
           >

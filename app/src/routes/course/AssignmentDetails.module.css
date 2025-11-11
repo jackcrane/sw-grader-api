@@ -23,7 +23,7 @@
 .sectionDivider {
   width: calc(100% + 32px);
   border-bottom: 1px solid var(--border);
-  margin: 16px -16px 24px;
+  margin: 16px -16px16px;
 }
 
 .historyDivider {
