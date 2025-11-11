@@ -171,13 +171,58 @@ export const get = [
             },
           },
           orderBy: {
-            updatedAt: "desc",
+            createdAt: "asc",
           },
         })
       : [];
-    const teacherSubmissions = canViewStats
-      ? await withSignedAssetUrlsMany(teacherSubmissionsRaw)
-      : [];
+    let teacherSubmissions = [];
+    if (canViewStats) {
+      const getSubmissionTimestamp = (submission) => {
+        if (!submission) return 0;
+        const dateValue = submission.updatedAt ?? submission.createdAt;
+        const timestamp = dateValue ? new Date(dateValue).getTime() : 0;
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
+
+      const submissionsByUser = new Map();
+      teacherSubmissionsRaw.forEach((submission) => {
+        const userIdKey = submission?.userId;
+        if (!userIdKey) return;
+
+        const existing = submissionsByUser.get(userIdKey);
+        if (existing) {
+          existing.attemptCount += 1;
+          const existingTimestamp = getSubmissionTimestamp(existing.latest);
+          const submissionTimestamp = getSubmissionTimestamp(submission);
+          if (submissionTimestamp >= existingTimestamp) {
+            existing.latest = submission;
+          }
+        } else {
+          submissionsByUser.set(userIdKey, {
+            latest: submission,
+            attemptCount: 1,
+          });
+        }
+      });
+
+      const latestSubmissions = Array.from(submissionsByUser.values())
+        .map((entry) => entry.latest)
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            getSubmissionTimestamp(b) -
+            getSubmissionTimestamp(a)
+        );
+
+      const signedSubmissions = await withSignedAssetUrlsMany(
+        latestSubmissions
+      );
+      teacherSubmissions = signedSubmissions.map((submission) => ({
+        ...submission,
+        attemptCount:
+          submissionsByUser.get(submission.userId)?.attemptCount ?? 0,
+      }));
+    }
 
     return res.json({
       assignment,

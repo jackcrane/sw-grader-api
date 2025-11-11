@@ -30,6 +30,14 @@ const formatName = (user) => {
   return full || user.email || "Unnamed student";
 };
 
+const formatAttemptCount = (value) => {
+  const count = Number(value);
+  if (!Number.isFinite(count) || count <= 0) {
+    return "0 attempts";
+  }
+  return count === 1 ? "1 attempt" : `${count} attempts`;
+};
+
 export const AssignmentDetails = () => {
   const { courseId, enrollmentType } = useOutletContext();
   const { assignmentId } = useParams();
@@ -231,6 +239,12 @@ export const AssignmentDetails = () => {
     ];
   }, [stats]);
 
+  const teacherStudentCount = teacherSubmissions.length;
+  const teacherTotalAttempts = teacherSubmissions.reduce(
+    (sum, submission) => sum + (Number(submission?.attemptCount) || 0),
+    0
+  );
+
   if (loading) {
     return <p>Loading assignment...</p>;
   }
@@ -364,7 +378,9 @@ export const AssignmentDetails = () => {
           <div className={styles.teacherSubmissionsHeader}>
             <div className={styles.sectionTitle}>Student submissions</div>
             <p className={styles.sectionMeta}>
-              {teacherSubmissions.length} attempts recorded
+              Latest submission from {teacherStudentCount} student
+              {teacherStudentCount === 1 ? "" : "s"} · {teacherTotalAttempts} attempt
+              {teacherTotalAttempts === 1 ? "" : "s"}
             </p>
           </div>
           <div className={styles.teacherSubmissionList}>
@@ -380,6 +396,7 @@ export const AssignmentDetails = () => {
                     <div className={styles.teacherSubmissionDetails}>
                       <span>{formatDateTime(submission.updatedAt)}</span>
                       <span>Grade: {formatSubmissionGrade(submission)}</span>
+                      <span>{formatAttemptCount(submission.attemptCount)}</span>
                     </div>
                   </div>
                   <Button onClick={() => showSubmissionInModal(submission)}>
