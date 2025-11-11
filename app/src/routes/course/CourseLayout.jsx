@@ -295,6 +295,7 @@ export const CourseLayout = () => {
             isViewingAsStudent,
             hasStaffPrivileges,
             regenerateInviteCode: rotateInviteCode,
+            viewerEnrollmentType: enrollment.type,
           }}
         />
       </Card>

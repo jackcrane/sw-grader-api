@@ -1,0 +1,187 @@
+.roster {
+  display: flex;
+  min-height: 420px;
+}
+
+.column {
+  flex: 1;
+}
+
+.left {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.details {
+  padding: 24px;
+}
+
+.listHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.state {
+  padding: 24px;
+  color: var(--body-contrast-secondary);
+}
+
+.error {
+  padding: 16px;
+  color: #b00020;
+}
+
+.detailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detailHeader h2 {
+  margin: 0;
+}
+
+.detailMeta {
+  color: #555;
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--surface) 70%, white);
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.statSubtext {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+  margin-top: 4px;
+}
+
+.sectionCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--surface);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sectionMeta {
+  color: var(--body-contrast-secondary);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.actionsCard {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.studentRow {
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.studentRow:hover {
+  background: color-mix(in srgb, var(--surface) 80%, var(--border));
+}
+
+.studentRowActive {
+  background: color-mix(in srgb, var(--surface) 60%, var(--border));
+}
+
+.studentName {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.studentMeta {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.removeButton {
+  background: color-mix(in srgb, #b00020 8%, white);
+  color: #b00020;
+  border: 1px solid #b00020;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.gradeTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gradeTable th,
+.gradeTable td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.gradeTable th {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--body-contrast-secondary);
+}
+
+.assignmentName {
+  font-weight: 600;
+}
+
+.assignmentMeta {
+  font-size: 0.8rem;
+  color: var(--body-contrast-secondary);
+}
