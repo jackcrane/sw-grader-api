@@ -103,6 +103,34 @@ export const uploadObject = async ({
   };
 };
 
+export const downloadObject = async (key) => {
+  if (!client || !bucket) {
+    throw new Error("S3 client is not configured.");
+  }
+  if (!key) {
+    throw new Error("S3 download requires a key.");
+  }
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  const response = await client.send(command);
+  if (!response.Body) return null;
+
+  if (typeof response.Body.transformToByteArray === "function") {
+    const arrayBuffer = await response.Body.transformToByteArray();
+    return Buffer.from(arrayBuffer);
+  }
+
+  const chunks = [];
+  for await (const chunk of response.Body) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+};
+
 export const getSignedDownloadUrl = async (
   key,
   { expiresInSeconds = 900, responseDisposition } = {}

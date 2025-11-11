@@ -7,12 +7,17 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { registerRoutes } from "./util/router.js";
+import { startGraderHealthMonitor } from "./services/graderHealth.js";
+import { startPendingSubmissionWorker } from "./services/pendingSubmissionWorker.js";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
+
+startGraderHealthMonitor();
+startPendingSubmissionWorker();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

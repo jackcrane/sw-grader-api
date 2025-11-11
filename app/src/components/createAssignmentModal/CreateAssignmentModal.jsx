@@ -4,6 +4,7 @@ import { Col, Row } from "../flex/Flex";
 import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
+import { useGraderStatus } from "../../hooks/useGraderStatus";
 
 const getInitialPartDetails = () => ({
   volume: "",
@@ -46,6 +47,16 @@ const formatDateTimeLocalInput = (value) => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+const offlineBannerStyle = {
+  background: "#fff4d6",
+  border: "1px solid #f5c97b",
+  borderRadius: 8,
+  padding: 12,
+  fontSize: 14,
+  color: "#8a5b00",
+  marginBottom: 12,
+};
+
 const SignatureSection = ({
   index,
   isFirst,
@@ -56,6 +67,7 @@ const SignatureSection = ({
   onChange,
   onDelete,
   canDelete,
+  graderOnline,
 }) => {
   const {
     unitSystem,
@@ -70,6 +82,7 @@ const SignatureSection = ({
 
   useEffect(() => {
     if (!courseId || !file || !unitSystem) return;
+    if (graderOnline === false) return;
     const isSldprt = (file.name?.toLowerCase?.() || "").endsWith(".sldprt");
     if (!isSldprt) return;
 
@@ -137,7 +150,7 @@ const SignatureSection = ({
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, unitSystem, courseId]);
+  }, [file, unitSystem, courseId, graderOnline]);
 
   const showInvalid = (key) => validationAttempted && signatureErrors?.[key];
 
@@ -225,21 +238,28 @@ const SignatureSection = ({
         options={unitSystemOptions}
       />
 
-      <Input
-        label="Signature File"
-        placeholder="Upload a .sldprt (optional)"
-        type="file"
-        accept=".sldprt"
-        onChange={(e) => {
-          const nextFile = e.target.files?.[0] ?? null;
-          onChange({
-            file: nextFile,
-            prescanState: "idle",
-            prescanError: null,
-            partDetails: getInitialPartDetails(),
-          });
-        }}
-      />
+      {graderOnline === false ? (
+        <div style={offlineBannerStyle}>
+          The grader is offline, so signature uploads are temporarily
+          unavailable. Enter the measurements manually to continue.
+        </div>
+      ) : (
+        <Input
+          label="Signature File"
+          placeholder="Upload a .sldprt (optional)"
+          type="file"
+          accept=".sldprt"
+          onChange={(e) => {
+            const nextFile = e.target.files?.[0] ?? null;
+            onChange({
+              file: nextFile,
+              prescanState: "idle",
+              prescanError: null,
+              partDetails: getInitialPartDetails(),
+            });
+          }}
+        />
+      )}
 
       {prescanMessage && (
         <p style={{ fontSize: 12, marginTop: 4, color: prescanColor }}>
@@ -303,6 +323,7 @@ export const CreateAssignmentModal = ({
   mode = "create",
   assignment = null,
 }) => {
+  const { online: graderOnline } = useGraderStatus();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pointsPossible, setPointsPossible] = useState("");
@@ -318,6 +339,7 @@ export const CreateAssignmentModal = ({
 
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
+  const graderOffline = graderOnline === false;
 
   const resetForm = useCallback(() => {
     setName("");
@@ -638,6 +660,13 @@ export const CreateAssignmentModal = ({
         </Row>
       }
     >
+      {graderOffline && (
+        <div style={{ ...offlineBannerStyle, marginBottom: 16 }}>
+          The SolidWorks grader is currently offline. You can still create or
+          edit assignments, but signature uploads are disabled until it comes
+          back online.
+        </div>
+      )}
       <Section title="Assignment Details">
         <Input
           label="Name"
@@ -674,6 +703,7 @@ export const CreateAssignmentModal = ({
           onChange={(partial) => updateSignature(idx, partial)}
           onDelete={() => deleteSignature(idx)}
           canDelete={canDeleteSignature(idx)}
+          graderOnline={graderOnline}
         />
       ))}
 

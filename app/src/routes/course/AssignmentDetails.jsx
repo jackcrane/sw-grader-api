@@ -3,6 +3,7 @@ import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
+import { useGraderStatus } from "../../hooks/useGraderStatus";
 import styles from "./AssignmentDetails.module.css";
 
 const formatDateTime = (value) => {
@@ -51,6 +52,7 @@ export const AssignmentDetails = () => {
     refetch,
     teacherSubmissions,
   } = useAssignmentDetails(courseId, assignmentId);
+  const { online: graderOnline } = useGraderStatus();
 
   const isStudent = enrollmentType === "STUDENT";
   const [selectedFile, setSelectedFile] = useState(null);
@@ -88,11 +90,12 @@ export const AssignmentDetails = () => {
     latestSubmission?.updatedAt ?? latestSubmission?.createdAt;
 
   const dueDateLabel = formatDateTime(assignment?.dueDate);
+  const graderOffline = graderOnline === false;
 
   const formatSubmissionGrade = (submission) => {
     const gradeValue = Number(submission?.grade);
     if (!Number.isFinite(gradeValue)) {
-      return "Pending";
+      return "Not yet graded";
     }
     const pointsPossibleValue = Number(assignment?.pointsPossible);
     if (Number.isFinite(pointsPossibleValue)) {
@@ -128,18 +131,33 @@ export const AssignmentDetails = () => {
       return;
     }
 
+    const shouldShowModal = !graderOffline;
+
     setUploading(true);
-    setPreviewModalOpen(true);
-    setPreviewModalState({
-      status: "loading",
-      screenshotUrl: null,
-      gradeValue: null,
-      gradeLabel: null,
-      feedback: null,
-      downloadUrl: null,
-      downloadFilename: null,
-      error: null,
-    });
+    setPreviewModalOpen(shouldShowModal);
+    setPreviewModalState(
+      shouldShowModal
+        ? {
+            status: "loading",
+            screenshotUrl: null,
+            gradeValue: null,
+            gradeLabel: null,
+            feedback: null,
+            downloadUrl: null,
+            downloadFilename: null,
+            error: null,
+          }
+        : {
+            status: "idle",
+            screenshotUrl: null,
+            gradeValue: null,
+            gradeLabel: null,
+            feedback: null,
+            downloadUrl: null,
+            downloadFilename: null,
+            error: null,
+          }
+    );
     setUploadError(null);
     setSuccessMessage(null);
 
@@ -177,35 +195,47 @@ export const AssignmentDetails = () => {
       const submissionPayload = payload?.submission ?? null;
       const hintFeedback =
         submissionPayload?.feedback ?? payload?.analysis?.feedback ?? null;
+      const autoGradingPending =
+        payload?.autoGradingPending ??
+        submissionPayload?.autoGradingPending ??
+        submissionPayload?.grade == null;
 
       setSelectedFile(null);
-      setSuccessMessage("Submission uploaded successfully.");
+      setSuccessMessage(
+        autoGradingPending
+          ? "Submission queued for grading. We'll grade it once the worker is online."
+          : "Submission uploaded successfully."
+      );
       const successGradeValue = submissionPayload?.grade ?? null;
-      setPreviewModalState({
-        status: "success",
-        screenshotUrl: submissionPayload?.screenshotUrl ?? null,
-        gradeValue: successGradeValue,
-        gradeLabel: formatSubmissionGrade({
-          grade: successGradeValue,
-        }),
-        feedback: hintFeedback,
-        downloadUrl: submissionPayload?.fileUrl ?? null,
-        downloadFilename: submissionPayload?.fileName ?? null,
-        error: null,
-      });
+      if (shouldShowModal) {
+        setPreviewModalState({
+          status: "success",
+          screenshotUrl: submissionPayload?.screenshotUrl ?? null,
+          gradeValue: successGradeValue,
+          gradeLabel: formatSubmissionGrade({
+            grade: successGradeValue,
+          }),
+          feedback: hintFeedback,
+          downloadUrl: submissionPayload?.fileUrl ?? null,
+          downloadFilename: submissionPayload?.fileName ?? null,
+          error: null,
+        });
+      }
       await refetch();
     } catch (err) {
       setUploadError(err?.message || "Failed to upload submission.");
-      setPreviewModalState({
-        status: "error",
-        screenshotUrl: null,
-        gradeValue: null,
-        gradeLabel: null,
-        feedback: null,
-        downloadUrl: null,
-        downloadFilename: null,
-        error: err?.message || "Failed to upload submission.",
-      });
+      if (shouldShowModal) {
+        setPreviewModalState({
+          status: "error",
+          screenshotUrl: null,
+          gradeValue: null,
+          gradeLabel: null,
+          feedback: null,
+          downloadUrl: null,
+          downloadFilename: null,
+          error: err?.message || "Failed to upload submission.",
+        });
+      }
     } finally {
       setUploading(false);
     }
@@ -304,6 +334,13 @@ export const AssignmentDetails = () => {
           <p className={styles.uploadHelper}>
             Submit a .sldprt file to get graded automatically.
           </p>
+          {graderOffline && (
+            <p className={styles.statusWarning}>
+              Auto-grading is temporarily offline. You can still submit, and
+              we&rsquo;ll grade it automatically once the worker comes back
+              online.
+            </p>
+          )}
           <input
             type="file"
             accept=".sldprt"

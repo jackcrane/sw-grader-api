@@ -1,5 +1,7 @@
 import multer from "multer";
 import { withAuth } from "#withAuth";
+import { analyzePart } from "../../../../services/analyzerClient.js";
+import { isGraderOnline } from "../../../../services/graderHealth.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -9,7 +11,6 @@ const upload = multer({
 });
 
 const ALLOWED_UNIT_SYSTEMS = new Set(["SI", "MMGS", "CGS", "IPS"]);
-const ANALYZE_ENDPOINT = "https://jack-pc.jackcrane.rocks/analyze";
 
 export const post = [
   withAuth,
@@ -34,33 +35,21 @@ export const post = [
         .json({ error: "Only .sldprt files can be prescanned." });
     }
 
+    if (!isGraderOnline()) {
+      return res.status(503).json({
+        error: "The grader is offline. Try again once it comes back online.",
+      });
+    }
+
     try {
-      const endpoint = new URL(ANALYZE_ENDPOINT);
-      endpoint.searchParams.set("unitSystem", unitSystem);
-      endpoint.searchParams.set("screenshot", "true");
-
-      const formData = new FormData();
-      const blob = new Blob([file.buffer], {
-        type: file.mimetype || "application/octet-stream",
-      });
-      formData.append("file", blob, file.originalname);
-
-      const upstreamResponse = await fetch(endpoint, {
-        method: "POST",
-        body: formData,
+      const analysis = await analyzePart({
+        fileBuffer: file.buffer,
+        filename: file.originalname || "signature.sldprt",
+        mimeType: file.mimetype || "application/octet-stream",
+        unitSystem,
       });
 
-      const responseBuffer = Buffer.from(
-        await upstreamResponse.arrayBuffer()
-      );
-      const contentType = upstreamResponse.headers.get("content-type");
-
-      res.status(upstreamResponse.status);
-      if (contentType) {
-        res.setHeader("content-type", contentType);
-      }
-
-      return res.send(responseBuffer);
+      return res.status(200).json(analysis);
     } catch (error) {
       console.error("Prescan forward failed", error);
       return res

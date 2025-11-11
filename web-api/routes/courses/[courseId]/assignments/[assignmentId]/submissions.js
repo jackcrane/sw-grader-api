@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import multer from "multer";
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
@@ -7,6 +6,15 @@ import {
   withSignedAssetUrls,
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
+import { analyzePart } from "../../../../../services/analyzerClient.js";
+import {
+  buildSubmissionAssetKey,
+  bufferFromBase64,
+  computePercentDiff,
+  evaluateSubmissionAgainstSignatures,
+  getExtension,
+} from "../../../../../services/submissionUtils.js";
+import { isGraderOnline } from "../../../../../services/graderHealth.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -14,66 +22,6 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024,
   },
 });
-
-const ANALYZE_ENDPOINT = "https://jack-pc.jackcrane.rocks/analyze";
-const SUBMISSION_ASSET_PREFIX = "submissions";
-
-const sanitizeKeySegment = (value, fallback = "item") => {
-  if (!value) return fallback;
-  return String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 64) || fallback;
-};
-
-const getExtension = (filename, fallback = "") => {
-  if (!filename || typeof filename !== "string") return fallback;
-  const lastDot = filename.lastIndexOf(".");
-  if (lastDot === -1 || lastDot === filename.length - 1) {
-    return fallback;
-  }
-  return filename.slice(lastDot).toLowerCase();
-};
-
-const buildSubmissionAssetKey = ({
-  courseId,
-  assignmentId,
-  userId,
-  type,
-  extension,
-}) => {
-  const safeExtension = extension?.startsWith(".")
-    ? extension.toLowerCase()
-    : extension
-    ? `.${extension.toLowerCase()}`
-    : "";
-  const unique = `${Date.now()}-${crypto.randomUUID()}`;
-  return [
-    SUBMISSION_ASSET_PREFIX,
-    sanitizeKeySegment(courseId, "course"),
-    sanitizeKeySegment(assignmentId, "assignment"),
-    sanitizeKeySegment(userId, "user"),
-    `${type}-${unique}${safeExtension}`,
-  ]
-    .filter(Boolean)
-    .join("/");
-};
-
-const bufferFromBase64 = (value) => {
-  if (!value || typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const payload = trimmed.includes(",")
-    ? trimmed.substring(trimmed.indexOf(",") + 1)
-    : trimmed;
-  try {
-    return Buffer.from(payload, "base64");
-  } catch {
-    return null;
-  }
-};
 
 const signaturesInclude = {
   signatures: {
@@ -112,114 +60,6 @@ const readAssignment = async (assignmentId) => {
   });
 };
 
-const computePercentDiff = (expected, actual) => {
-  if (!Number.isFinite(expected) || expected === 0) {
-    return Number.isFinite(actual) ? 0 : Infinity;
-  }
-  return (Math.abs(actual - expected) / Math.abs(expected)) * 100;
-};
-
-const evaluateSubmissionAgainstSignatures = ({
-  assignment,
-  measuredVolume,
-  measuredSurfaceArea,
-  tolerance,
-}) => {
-  const activeSignatures = Array.isArray(assignment?.signatures)
-    ? assignment.signatures.filter((signature) => !signature.deleted)
-    : [];
-
-  const evaluateSignature = (signature) => {
-    if (!signature) return null;
-    const volumeDiff = computePercentDiff(signature.volume, measuredVolume);
-    const surfaceDiff = computePercentDiff(
-      signature.surfaceArea,
-      measuredSurfaceArea
-    );
-    return {
-      signature,
-      volumeDiff,
-      surfaceDiff,
-      withinTolerance: volumeDiff <= tolerance && surfaceDiff <= tolerance,
-    };
-  };
-
-  const buildAssignmentDiffs = () => {
-    const volumeDiff = computePercentDiff(assignment.volume, measuredVolume);
-    const surfaceDiff = computePercentDiff(
-      assignment.surfaceArea,
-      measuredSurfaceArea
-    );
-    return {
-      signature: null,
-      volumeDiff,
-      surfaceDiff,
-      withinTolerance: volumeDiff <= tolerance && surfaceDiff <= tolerance,
-    };
-  };
-
-  if (activeSignatures.length === 0) {
-    const fallbackDiffs = buildAssignmentDiffs();
-    return {
-      grade: fallbackDiffs.withinTolerance ? assignment.pointsPossible : 0,
-      feedback: null,
-      matchingSignatureId: null,
-      matchedType: null,
-      diffs: fallbackDiffs,
-    };
-  }
-
-  const correctMatch =
-    activeSignatures
-      .filter((signature) => signature.type === "CORRECT")
-      .map(evaluateSignature)
-      .find((result) => result && result.withinTolerance) ?? null;
-
-  if (correctMatch) {
-    return {
-      grade: assignment.pointsPossible,
-      feedback: null,
-      matchingSignatureId: correctMatch.signature.id,
-      matchedType: "CORRECT",
-      diffs: correctMatch,
-    };
-  }
-
-  const incorrectMatch =
-    activeSignatures
-      .filter((signature) => signature.type === "INCORRECT")
-      .map(evaluateSignature)
-      .find((result) => result && result.withinTolerance) ?? null;
-
-  if (incorrectMatch) {
-    const rawPoints = Number(incorrectMatch.signature.pointsAwarded);
-    const awarded =
-      Number.isFinite(rawPoints) && rawPoints >= 0 ? rawPoints : 0;
-    return {
-      grade: Math.min(awarded, assignment.pointsPossible),
-      feedback: incorrectMatch.signature.feedback || null,
-      matchingSignatureId: incorrectMatch.signature.id,
-      matchedType: "INCORRECT",
-      diffs: incorrectMatch,
-    };
-  }
-
-  const referenceSignature =
-    activeSignatures.find((signature) => signature.type === "CORRECT") ??
-    activeSignatures[0] ??
-    null;
-  const referenceDiffs =
-    evaluateSignature(referenceSignature) ?? buildAssignmentDiffs();
-
-  return {
-    grade: referenceDiffs.withinTolerance ? assignment.pointsPossible : 0,
-    feedback: null,
-    matchingSignatureId: referenceSignature?.id ?? null,
-    matchedType: referenceSignature?.type ?? null,
-    diffs: referenceDiffs,
-  };
-};
-
 export const post = [
   withAuth,
   upload.single("file"),
@@ -255,51 +95,6 @@ export const post = [
     }
 
     try {
-      const endpoint = new URL(ANALYZE_ENDPOINT);
-      endpoint.searchParams.set("unitSystem", assignment.unitSystem);
-      endpoint.searchParams.set("screenshot", "true");
-
-      const formData = new FormData();
-      const blob = new Blob([file.buffer], {
-        type: file.mimetype || "application/octet-stream",
-      });
-      formData.append("file", blob, file.originalname);
-
-      const upstreamResponse = await fetch(endpoint, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!upstreamResponse.ok) {
-        const fallback = await upstreamResponse.text();
-        return res.status(upstreamResponse.status).json({
-          error: fallback || "Unable to grade submission.",
-        });
-      }
-
-      const result = await upstreamResponse.json();
-      const measuredVolume = Number(result?.volume);
-      const measuredSurfaceArea = Number(result?.surfaceArea);
-      const screenshotB64 = result?.screenshot ?? result?.screenshotB64 ?? "";
-
-      if (
-        !Number.isFinite(measuredVolume) ||
-        !Number.isFinite(measuredSurfaceArea)
-      ) {
-        return res.status(502).json({
-          error: "Analyzer response missing volume or surface area.",
-        });
-      }
-
-      const tolerance = Number(assignment.tolerancePercent) || 0;
-      const evaluation = evaluateSubmissionAgainstSignatures({
-        assignment,
-        measuredVolume,
-        measuredSurfaceArea,
-        tolerance,
-      });
-      const grade = evaluation.grade;
-
       const fileUpload = await uploadObject({
         key: buildSubmissionAssetKey({
           courseId,
@@ -312,67 +107,118 @@ export const post = [
         contentType: file.mimetype || "application/octet-stream",
       });
 
+      let measuredVolume = null;
+      let measuredSurfaceArea = null;
+      let evaluation = null;
       let screenshotUpload = null;
-      const screenshotBuffer = bufferFromBase64(screenshotB64);
-      if (screenshotBuffer) {
-        screenshotUpload = await uploadObject({
-          key: buildSubmissionAssetKey({
-            courseId,
-            assignmentId,
-            userId,
-            type: "screenshot",
-            extension: ".png",
-          }),
-          body: screenshotBuffer,
-          contentType: "image/png",
-        });
-      }
+      let deferred = false;
 
-      const submissionData = {
-        volume: measuredVolume,
-        surfaceArea: measuredSurfaceArea,
-        grade,
-        feedback: evaluation.feedback ?? null,
-        matchingSignatureId: evaluation.matchingSignatureId ?? null,
-        fileKey: fileUpload?.key,
-        fileUrl: fileUpload?.url,
-        fileName: file.originalname ?? null,
-        screenshotKey: screenshotUpload?.key ?? null,
-        screenshotUrl: screenshotUpload?.url ?? null,
-      };
+      if (isGraderOnline()) {
+        try {
+          const analysis = await analyzePart({
+            fileBuffer: file.buffer,
+            filename: file.originalname || "submission.sldprt",
+            mimeType: file.mimetype || "application/octet-stream",
+            unitSystem: assignment.unitSystem,
+          });
+
+          measuredVolume = Number(analysis?.volume);
+          measuredSurfaceArea = Number(analysis?.surfaceArea);
+
+          if (
+            Number.isFinite(measuredVolume) &&
+            Number.isFinite(measuredSurfaceArea)
+          ) {
+            const tolerance = Number(assignment.tolerancePercent) || 0;
+            evaluation = evaluateSubmissionAgainstSignatures({
+              assignment,
+              measuredVolume,
+              measuredSurfaceArea,
+              tolerance,
+            });
+
+            const screenshotBuffer = bufferFromBase64(
+              analysis?.screenshot ?? analysis?.screenshotB64 ?? ""
+            );
+            if (screenshotBuffer) {
+              screenshotUpload = await uploadObject({
+                key: buildSubmissionAssetKey({
+                  courseId,
+                  assignmentId,
+                  userId,
+                  type: "screenshot",
+                  extension: ".png",
+                }),
+                body: screenshotBuffer,
+                contentType: "image/png",
+              });
+            }
+          } else {
+            deferred = true;
+          }
+        } catch (error) {
+          console.error("Immediate grading failed", error);
+          deferred = true;
+        }
+      } else {
+        deferred = true;
+      }
 
       const submission = await prisma.submission.create({
         data: {
-          ...submissionData,
+          volume: evaluation ? measuredVolume : null,
+          surfaceArea: evaluation ? measuredSurfaceArea : null,
+          grade: evaluation?.grade ?? null,
+          feedback: evaluation?.feedback ?? null,
+          matchingSignatureId: evaluation?.matchingSignatureId ?? null,
+          fileKey: fileUpload?.key,
+          fileUrl: fileUpload?.url,
+          fileName: file.originalname ?? null,
+          screenshotKey: screenshotUpload?.key ?? null,
+          screenshotUrl: screenshotUpload?.url ?? null,
           assignmentId,
           userId,
         },
       });
 
       const submissionWithSignedUrls = await withSignedAssetUrls(submission);
+      const autoGradingPending = !evaluation;
 
       return res.status(201).json({
-        submission: submissionWithSignedUrls,
-        analysis: {
-          volume: measuredVolume,
-          surfaceArea: measuredSurfaceArea,
-          volumeDiffPercent:
-            evaluation.diffs?.volumeDiff ??
-            computePercentDiff(assignment.volume, measuredVolume),
-          surfaceDiffPercent:
-            evaluation.diffs?.surfaceDiff ??
-            computePercentDiff(assignment.surfaceArea, measuredSurfaceArea),
-          withinTolerance: evaluation.diffs?.withinTolerance ?? false,
-          matchedSignatureId: evaluation.matchingSignatureId ?? null,
-          matchedSignatureType: evaluation.matchedType ?? null,
-          feedback: evaluation.feedback ?? null,
+        submission: {
+          ...submissionWithSignedUrls,
+          autoGradingPending,
         },
+        analysis: evaluation
+          ? {
+              volume: measuredVolume,
+              surfaceArea: measuredSurfaceArea,
+              volumeDiffPercent:
+                evaluation.diffs?.volumeDiff ??
+                computePercentDiff(assignment.volume, measuredVolume),
+              surfaceDiffPercent:
+                evaluation.diffs?.surfaceDiff ??
+                computePercentDiff(
+                  assignment.surfaceArea,
+                  measuredSurfaceArea
+                ),
+              withinTolerance: evaluation.diffs?.withinTolerance ?? false,
+              matchedSignatureId: evaluation.matchingSignatureId ?? null,
+              matchedSignatureType: evaluation.matchedType ?? null,
+              feedback: evaluation.feedback ?? null,
+            }
+          : null,
+        message:
+          deferred || autoGradingPending
+            ? "Submission received. Auto-grading will run when the grader is online."
+            : undefined,
+        autoGradingPending,
       });
     } catch (error) {
       console.error("Submission grading failed", error);
       return res
-        .status(502)
-        .json({ error: "Unable to analyze the uploaded part." });
+        .status(500)
+        .json({ error: "Unable to store the submitted assignment." });
     }
   },
 ];

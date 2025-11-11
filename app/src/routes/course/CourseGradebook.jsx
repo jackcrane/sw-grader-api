@@ -6,6 +6,8 @@ import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import styles from "./CourseGradebook.module.css";
 
+const NOT_GRADED_LABEL = "Not yet graded";
+
 const roleLabels = {
   STUDENT: "Student",
   TA: "Teaching assistant",
@@ -29,14 +31,14 @@ const formatGradeCell = (submission, assignment) => {
   const pointsPossible = Number(assignment?.pointsPossible);
 
   if (!Number.isFinite(gradeValue)) {
-    return { label: "—", percent: "–", status: "missing" };
+    return { label: NOT_GRADED_LABEL, percent: "—", status: "missing" };
   }
 
   const label = Number.isFinite(pointsPossible)
     ? `${gradeValue}/${pointsPossible}`
     : `${gradeValue}`;
 
-  let percent = "–";
+  let percent = "—";
   if (Number.isFinite(pointsPossible) && pointsPossible > 0) {
     const clamped = Math.min(Math.max(gradeValue, 0), pointsPossible);
     percent = `${((clamped / pointsPossible) * 100).toFixed(1)}%`;

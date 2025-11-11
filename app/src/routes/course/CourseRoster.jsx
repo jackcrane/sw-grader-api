@@ -10,6 +10,8 @@ import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
 import styles from "./CourseRoster.module.css";
 
+const NOT_GRADED_LABEL = "Not yet graded";
+
 const roleLabels = {
   STUDENT: "Student",
   TA: "Teaching assistant",
@@ -45,7 +47,7 @@ const nextRole = (type) => (type === "STUDENT" ? "TA" : "STUDENT");
 
 const formatGradeLabel = (gradeValue, pointsPossible) => {
   const numeric = Number(gradeValue);
-  if (!Number.isFinite(numeric)) return "Pending";
+  if (!Number.isFinite(numeric)) return NOT_GRADED_LABEL;
   if (Number.isFinite(pointsPossible)) {
     return `${numeric}/${pointsPossible}`;
   }
@@ -379,12 +381,20 @@ export const CourseRoster = () => {
                     const gradeValue = Number(submission?.grade);
                     const pointsPossible = Number(assignment.pointsPossible);
                     const hasGrade = Number.isFinite(gradeValue);
+                    const pointsLabel = Number.isFinite(pointsPossible)
+                      ? `${pointsPossible} pts`
+                      : "Ungraded";
+                    const gradeLabel = hasGrade
+                      ? Number.isFinite(pointsPossible)
+                        ? `${gradeValue}/${pointsPossible}`
+                        : `${gradeValue}`
+                      : NOT_GRADED_LABEL;
                     const percent =
                       hasGrade &&
                       Number.isFinite(pointsPossible) &&
                       pointsPossible > 0
                         ? `${((gradeValue / pointsPossible) * 100).toFixed(1)}%`
-                        : "–";
+                        : "—";
                     return (
                       <React.Fragment key={assignment.id}>
                         <div className={styles.gradeRow}>
@@ -393,12 +403,12 @@ export const CourseRoster = () => {
                               {assignment.name}
                             </div>
                             <div className={styles.assignmentMeta}>
-                              {pointsPossible} pts
+                              {pointsLabel}
                             </div>
                           </div>
                           <div className={styles.gradeValues}>
                             <span className={styles.gradeValue}>
-                              {hasGrade ? `${gradeValue}/${pointsPossible}` : "—"}
+                              {gradeLabel}
                             </span>
                             <span className={styles.gradePercent}>{percent}</span>
                           </div>

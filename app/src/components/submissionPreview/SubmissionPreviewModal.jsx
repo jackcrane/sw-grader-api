@@ -78,7 +78,7 @@ export const SubmissionPreviewModal = ({
               </div>
             )}
             <p className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}>
-              Grade earned: <strong>{gradeLabel ?? "Pending"}</strong>
+              Grade earned: <strong>{gradeLabel ?? "Not yet graded"}</strong>
             </p>
             {feedback && (
               <div className={styles.feedback}>

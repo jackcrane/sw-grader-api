@@ -98,6 +98,15 @@
   color: #b00020;
 }
 
+.statusWarning {
+  color: #8a5200;
+  background: #fff7e0;
+  border: 1px solid #f2c479;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
 .submissionInfo {
   font-size: 0.9rem;
   color: #333;
