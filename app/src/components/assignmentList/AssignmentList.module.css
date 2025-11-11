@@ -66,3 +66,31 @@
 .emptyState {
   padding: 16px;
 }
+
+.assignmentActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconButton {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 100ms ease;
+}
+
+.iconButton:hover {
+  background: color-mix(in srgb, var(--body) 80%, var(--surface));
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

@@ -12,16 +12,42 @@ export const AssignmentList = ({
   enrollmentType,
   detailsPane = null,
 }) => {
-  const { assignments, loading, error, createAssignment } =
+  const { assignments, loading, error, createAssignment, updateAssignment } =
     useAssignments(courseId);
 
-  const [newAssignmentModalOpen, setNewAssignmentModalOpen] = useState(false);
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("create");
+  const [assignmentBeingEdited, setAssignmentBeingEdited] = useState(null);
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
   const { assignmentId: activeAssignmentId } = useParams();
 
   const handleCreateAssignment = async (payload) => {
     await createAssignment(payload);
-    setNewAssignmentModalOpen(false);
+    handleCloseModal();
+  };
+
+  const handleUpdateAssignment = async (assignmentId, payload) => {
+    await updateAssignment(assignmentId, payload);
+    handleCloseModal();
+  };
+
+  const openCreateModal = () => {
+    setModalMode("create");
+    setAssignmentBeingEdited(null);
+    setAssignmentModalOpen(true);
+  };
+
+  const openEditModal = (assignment) => {
+    if (!canManageAssignments) return;
+    setModalMode("edit");
+    setAssignmentBeingEdited(assignment);
+    setAssignmentModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setAssignmentModalOpen(false);
+    setAssignmentBeingEdited(null);
+    setModalMode("create");
   };
 
   return (
@@ -31,7 +57,7 @@ export const AssignmentList = ({
           {canManageAssignments && (
             <div
               className={styles.assignment}
-              onClick={() => setNewAssignmentModalOpen(true)}
+              onClick={openCreateModal}
             >
               <div>
                 <H2>New Assignment</H2>
@@ -87,7 +113,23 @@ export const AssignmentList = ({
                       </p>
                     )}
                   </div>
-                  <CaretRight size={24} />
+                  <div className={styles.assignmentActions}>
+                    {canManageAssignments && (
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        aria-label={`Edit ${assignment.name}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openEditModal(assignment);
+                        }}
+                      >
+                        <PencilSimple size={18} />
+                      </button>
+                    )}
+                    <CaretRight size={24} />
+                  </div>
                 </div>
               </NavLink>
             );
@@ -103,10 +145,13 @@ export const AssignmentList = ({
       </div>
       {canManageAssignments && (
         <CreateAssignmentModal
-          open={newAssignmentModalOpen}
-          onClose={() => setNewAssignmentModalOpen(false)}
+          open={assignmentModalOpen}
+          onClose={handleCloseModal}
           onCreateAssignment={handleCreateAssignment}
+          onUpdateAssignment={handleUpdateAssignment}
           courseId={courseId}
+          mode={modalMode}
+          assignment={assignmentBeingEdited}
         />
       )}
     </>

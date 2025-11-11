@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../modal/Modal";
 import { Col, Row } from "../flex/Flex";
 import { Button } from "../button/Button";
@@ -13,7 +13,8 @@ const getInitialPartDetails = () => ({
   units: {},
 });
 
-const getInitialSignature = (unitSystem = "SI") => ({
+const getInitialSignature = (unitSystem = "SI", overrides = {}) => ({
+  id: null,
   unitSystem,
   file: null, // File | null
   partDetails: getInitialPartDetails(),
@@ -22,6 +23,7 @@ const getInitialSignature = (unitSystem = "SI") => ({
   type: "CORRECT", // "CORRECT" | "INCORRECT" (first signature is always treated as CORRECT)
   pointsAwarded: "",
   feedback: "",
+  ...overrides,
 });
 
 const unitSystemOptions = [
@@ -30,6 +32,19 @@ const unitSystemOptions = [
   { value: "CGS", label: "CGS" },
   { value: "IPS", label: "IPS" },
 ];
+
+const formatDateTimeLocalInput = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 const SignatureSection = ({
   index,
@@ -282,7 +297,10 @@ export const CreateAssignmentModal = ({
   open,
   onClose,
   onCreateAssignment,
+  onUpdateAssignment,
   courseId,
+  mode = "create",
+  assignment = null,
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -296,19 +314,115 @@ export const CreateAssignmentModal = ({
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setName("");
-      setDescription("");
-      setPointsPossible("");
-      setGradeVisibility("INSTANT");
-      setDueDate("");
-      setTolerancePercent("0.1");
-      setSubmitting(false);
-      setValidationAttempted(false);
-      setSignatures([getInitialSignature("SI")]);
+  const isEditMode = mode === "edit" && Boolean(assignment);
+  const prevOpenRef = useRef(false);
+
+  const resetForm = useCallback(() => {
+    setName("");
+    setDescription("");
+    setPointsPossible("");
+    setGradeVisibility("INSTANT");
+    setDueDate("");
+    setTolerancePercent("0.1");
+    setSubmitting(false);
+    setValidationAttempted(false);
+    setSignatures([getInitialSignature("SI")]);
+  }, []);
+
+  const hydrateFromAssignment = useCallback(() => {
+    if (!assignment) {
+      resetForm();
+      return;
     }
-  }, [open]);
+
+    const signatureUnitFallback =
+      assignment.signatures?.[0]?.unitSystem || assignment.unitSystem || "SI";
+
+    const normalizedSignatures =
+      assignment.signatures && assignment.signatures.length > 0
+        ? assignment.signatures.map((signature, index) => {
+            const signatureUnit = signature.unitSystem || signatureUnitFallback;
+            return getInitialSignature(signatureUnit, {
+              id: signature.id,
+              unitSystem: signatureUnit,
+              partDetails: {
+                volume:
+                  signature.volume === null || signature.volume === undefined
+                    ? ""
+                    : String(signature.volume),
+                surfaceArea:
+                  signature.surfaceArea === null ||
+                  signature.surfaceArea === undefined
+                    ? ""
+                    : String(signature.surfaceArea),
+                centerOfMass: {
+                  x:
+                    signature.centerOfMassX === null ||
+                    signature.centerOfMassX === undefined
+                      ? ""
+                      : String(signature.centerOfMassX),
+                  y:
+                    signature.centerOfMassY === null ||
+                    signature.centerOfMassY === undefined
+                      ? ""
+                      : String(signature.centerOfMassY),
+                  z:
+                    signature.centerOfMassZ === null ||
+                    signature.centerOfMassZ === undefined
+                      ? ""
+                      : String(signature.centerOfMassZ),
+                },
+                screenshotB64: signature.screenshotB64 ?? "",
+                units: signature.units ?? {},
+              },
+              prescanState: signature.screenshotB64 ? "success" : "idle",
+              prescanError: null,
+              type: index === 0 ? "CORRECT" : signature.type || "CORRECT",
+              pointsAwarded:
+                index === 0 || signature.type !== "INCORRECT"
+                  ? ""
+                  : signature.pointsAwarded === null ||
+                    signature.pointsAwarded === undefined
+                  ? ""
+                  : String(signature.pointsAwarded),
+              feedback: signature.feedback ?? "",
+            });
+          })
+        : [getInitialSignature(signatureUnitFallback)];
+
+    setName(assignment.name ?? "");
+    setDescription(assignment.description ?? "");
+    setPointsPossible(
+      assignment.pointsPossible === null ||
+        assignment.pointsPossible === undefined
+        ? ""
+        : String(assignment.pointsPossible)
+    );
+    setGradeVisibility(assignment.gradeVisibility ?? "INSTANT");
+    setDueDate(formatDateTimeLocalInput(assignment.dueDate));
+    setTolerancePercent(
+      assignment.tolerancePercent === null ||
+        assignment.tolerancePercent === undefined
+        ? "0.1"
+        : String(assignment.tolerancePercent)
+    );
+    setSignatures(normalizedSignatures);
+    setValidationAttempted(false);
+    setSubmitting(false);
+  }, [assignment, resetForm]);
+
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      if (isEditMode) {
+        hydrateFromAssignment();
+      } else {
+        resetForm();
+      }
+    } else if (!open && prevOpenRef.current) {
+      resetForm();
+    }
+    prevOpenRef.current = open;
+  }, [open, isEditMode, hydrateFromAssignment, resetForm]);
 
   const signaturesErrors = useMemo(() => {
     const ptsPossibleNum = Number(pointsPossible);
@@ -402,15 +516,16 @@ export const CreateAssignmentModal = ({
     });
   };
 
-  const handleCreateAssignment = async () => {
+  const handleSubmitAssignment = async () => {
     setValidationAttempted(true);
-    if (!onCreateAssignment || !isValid) return;
+    if (!isValid) return;
 
     try {
       setSubmitting(true);
       const dueDateISO = new Date(dueDate).toISOString();
 
       const signaturePayloads = signatures.map((s, i) => ({
+        id: s.id ?? null,
         order: i + 1,
         type: i === 0 ? "CORRECT" : s.type,
         unitSystem: s.unitSystem,
@@ -425,7 +540,7 @@ export const CreateAssignmentModal = ({
         feedback: i > 0 && s.type === "INCORRECT" ? s.feedback || null : null,
       }));
 
-      await onCreateAssignment({
+      const payload = {
         name: name.trim(),
         description: description.trim() || null,
         dueDate: dueDateISO,
@@ -433,19 +548,47 @@ export const CreateAssignmentModal = ({
         gradeVisibility,
         tolerancePercent: Number(tolerancePercent),
         signatures: signaturePayloads,
-      });
+      };
+
+      if (isEditMode) {
+        if (!assignment?.id || !onUpdateAssignment) {
+          throw new Error("Missing assignment or update handler.");
+        }
+        await onUpdateAssignment(assignment.id, payload);
+      } else {
+        if (!onCreateAssignment) {
+          throw new Error("Missing create handler.");
+        }
+        await onCreateAssignment(payload);
+      }
 
       onClose?.();
     } catch (error) {
-      console.error("Failed to create assignment", error);
+      console.error(
+        isEditMode
+          ? "Failed to update assignment"
+          : "Failed to create assignment",
+        error
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const modalTitle = isEditMode
+    ? "Edit Assignment"
+    : "Create a new Assignment";
+  const primaryButtonLabel = submitting
+    ? isEditMode
+      ? "Saving..."
+      : "Creating..."
+    : isEditMode
+    ? "Save changes"
+    : "Create assignment";
+
   return (
     <Modal
-      title="Create a new Assignment"
+      title={modalTitle}
       open={open}
       onClose={onClose}
       footer={
@@ -454,11 +597,11 @@ export const CreateAssignmentModal = ({
             Cancel
           </Button>
           <Button
-            onClick={handleCreateAssignment}
+            onClick={handleSubmitAssignment}
             variant="primary"
             disabled={submitting}
           >
-            {submitting ? "Creating..." : "Create assignment"}
+            {primaryButtonLabel}
           </Button>
         </Row>
       }

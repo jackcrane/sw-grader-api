@@ -27,11 +27,34 @@ export const useAssignments = (courseId) => {
     return createdAssignment;
   };
 
+  const updateAssignment = async (assignmentId, payload) => {
+    if (!courseId) {
+      throw new Error("courseId is required to update an assignment");
+    }
+    if (!assignmentId) {
+      throw new Error("assignmentId is required to update an assignment");
+    }
+
+    const updatedAssignment = await fetchJson(
+      `/api/courses/${courseId}/assignments/${assignmentId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    await mutate();
+    return updatedAssignment;
+  };
+
   return {
     assignments: data,
     loading: isLoading,
     error,
     refetch: mutate,
     createAssignment,
+    updateAssignment,
   };
 };

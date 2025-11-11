@@ -1,6 +1,11 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import {
+  ALLOWED_VISIBILITY,
+  ValidationError,
+  normalizeSignaturesPayload,
+} from "../validation.js";
+import {
   withSignedAssetUrls,
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
@@ -243,5 +248,192 @@ export const get = [
       userSubmissions,
       teacherSubmissions,
     });
+  },
+];
+
+export const patch = [
+  withAuth,
+  async (req, res) => {
+    const { courseId, assignmentId } = req.params;
+    const userId = req.user.localUserId ?? req.user.id;
+
+    const enrollment = await ensureEnrollment(userId, courseId);
+    if (!enrollment) {
+      return res.status(404).json({ error: "Course enrollment not found." });
+    }
+
+    if (!["TEACHER", "TA"].includes(enrollment.type)) {
+      return res
+        .status(403)
+        .json({ error: "Only instructors can edit assignments." });
+    }
+
+    const existingAssignment = await readAssignment(assignmentId);
+    if (!existingAssignment) {
+      return res.status(404).json({ error: "Assignment not found." });
+    }
+
+    const {
+      name,
+      description,
+      pointsPossible,
+      gradeVisibility,
+      tolerancePercent,
+      dueDate,
+      signatures,
+    } = req.body ?? {};
+
+    const trimmedName = name?.trim();
+    if (!trimmedName) {
+      return res.status(400).json({ error: "Assignment name is required." });
+    }
+
+    if (!ALLOWED_VISIBILITY.has(gradeVisibility)) {
+      return res.status(400).json({
+        error: "gradeVisibility must be either INSTANT or ON_DUE_DATE.",
+      });
+    }
+
+    const numericPoints = Number(pointsPossible);
+    const numericTolerance = Number(tolerancePercent);
+    const dueDateValue = dueDate ? new Date(dueDate) : null;
+
+    if (
+      !Number.isFinite(numericPoints) ||
+      !Number.isFinite(numericTolerance) ||
+      numericPoints <= 0 ||
+      numericTolerance <= 0
+    ) {
+      return res.status(400).json({
+        error: "Points and tolerance must be positive numbers.",
+      });
+    }
+
+    if (!dueDateValue || Number.isNaN(dueDateValue.getTime())) {
+      return res.status(400).json({ error: "A valid due date is required." });
+    }
+
+    let normalizedSignatures = [];
+    try {
+      normalizedSignatures = normalizeSignaturesPayload(
+        signatures,
+        numericPoints
+      );
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
+    const firstCorrectSignature = normalizedSignatures.find(
+      (signature) => signature.type === "CORRECT"
+    );
+    if (!firstCorrectSignature) {
+      return res
+        .status(400)
+        .json({ error: "At least one correct signature is required." });
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.assignment.update({
+          where: { id: assignmentId },
+          data: {
+            name: trimmedName,
+            description: description?.trim() || null,
+            unitSystem: firstCorrectSignature.unitSystem,
+            pointsPossible: numericPoints,
+            gradeVisibility,
+            volume: firstCorrectSignature.volume,
+            surfaceArea: firstCorrectSignature.surfaceArea,
+            tolerancePercent: numericTolerance,
+            dueDate: dueDateValue,
+          },
+        });
+
+        const existingSignatures = await tx.assignmentSignature.findMany({
+          where: {
+            assignmentId,
+            deleted: false,
+          },
+        });
+
+        const existingMap = new Map(
+          existingSignatures.map((signature) => [signature.id, signature])
+        );
+
+        const invalidSignature = normalizedSignatures.find(
+          (signature) => signature.id && !existingMap.has(signature.id)
+        );
+        if (invalidSignature) {
+          throw new ValidationError("Invalid signature reference provided.");
+        }
+
+        const incomingIds = new Set(
+          normalizedSignatures
+            .map((signature) => signature.id)
+            .filter((id) => Boolean(id))
+        );
+
+        const removalTargets = existingSignatures.filter(
+          (signature) => !incomingIds.has(signature.id)
+        );
+
+        if (removalTargets.length > 0) {
+          await Promise.all(
+            removalTargets.map((signature, index) =>
+              tx.assignmentSignature.update({
+                where: { id: signature.id },
+                data: {
+                  deleted: true,
+                  sortOrder: normalizedSignatures.length + index + 1,
+                },
+              })
+            )
+          );
+        }
+
+        for (const [index, signature] of normalizedSignatures.entries()) {
+          const sortOrder = index + 1;
+          const signatureData = {
+            sortOrder,
+            type: signature.type,
+            unitSystem: signature.unitSystem,
+            volume: signature.volume,
+            surfaceArea: signature.surfaceArea,
+            centerOfMassX: signature.centerOfMassX,
+            centerOfMassY: signature.centerOfMassY,
+            centerOfMassZ: signature.centerOfMassZ,
+            screenshotB64: signature.screenshotB64,
+            feedback: signature.feedback,
+            pointsAwarded: signature.pointsAwarded,
+            deleted: false,
+          };
+
+          if (signature.id && existingMap.has(signature.id)) {
+            await tx.assignmentSignature.update({
+              where: { id: signature.id },
+              data: signatureData,
+            });
+          } else {
+            await tx.assignmentSignature.create({
+              data: {
+                ...signatureData,
+                assignmentId,
+              },
+            });
+          }
+        }
+      });
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
+    const updatedAssignment = await readAssignment(assignmentId);
+    return res.json(updatedAssignment);
   },
 ];
