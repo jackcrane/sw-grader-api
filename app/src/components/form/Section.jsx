@@ -25,3 +25,11 @@ export const Section = ({
     </div>
   );
 };
+
+export const MonoSection = ({ children }) => {
+  return (
+    <div className={styles.container}>
+      <div className={styles.section}>{children}</div>
+    </div>
+  );
+};

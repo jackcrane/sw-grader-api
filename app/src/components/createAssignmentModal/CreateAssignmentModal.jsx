@@ -13,77 +13,65 @@ const getInitialPartDetails = () => ({
   units: {},
 });
 
-export const CreateAssignmentModal = ({
-  open,
-  onClose,
-  onCreateAssignment,
+const getInitialSignature = (unitSystem = "SI") => ({
+  unitSystem,
+  file: null, // File | null
+  partDetails: getInitialPartDetails(),
+  prescanState: "idle", // "idle" | "uploading" | "success" | "error"
+  prescanError: null,
+  type: "CORRECT", // "CORRECT" | "INCORRECT" (first signature is always treated as CORRECT)
+  pointsAwarded: "",
+  feedback: "",
+});
+
+const unitSystemOptions = [
+  { value: "SI", label: "MKS (SI)" },
+  { value: "MMGS", label: "mmGS" },
+  { value: "CGS", label: "CGS" },
+  { value: "IPS", label: "IPS" },
+];
+
+const SignatureSection = ({
+  index,
+  isFirst,
+  signature,
   courseId,
+  validationAttempted,
+  signatureErrors,
+  onChange,
+  onDelete,
+  canDelete,
 }) => {
-  // form state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [correctFile, setCorrectFile] = useState(null); // File | null
-  const [unitSystem, setUnitSystem] = useState("SI"); // "SI" | "MMGS" | "CGS" | "IPS"
-  const [pointsPossible, setPointsPossible] = useState("");
-  const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
-  const [dueDate, setDueDate] = useState("");
-  const [tolerancePercent, setTolerancePercent] = useState("0.1");
-  const [partDetails, setPartDetails] = useState(getInitialPartDetails);
-
-  // ui state
-  const [validationAttempted, setValidationAttempted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [prescanState, setPrescanState] = useState("idle"); // "idle" | "uploading" | "success" | "error"
-  const [prescanError, setPrescanError] = useState(null);
-
-  // reset when closing
-  useEffect(() => {
-    if (!open) {
-      setName("");
-      setDescription("");
-      setCorrectFile(null);
-      setUnitSystem("SI");
-      setPointsPossible("");
-      setGradeVisibility("INSTANT");
-      setDueDate("");
-      setTolerancePercent("0.1");
-      setSubmitting(false);
-      setPrescanState("idle");
-      setPrescanError(null);
-      setPartDetails(getInitialPartDetails());
-      setValidationAttempted(false);
-    }
-  }, [open]);
+  const {
+    unitSystem,
+    file,
+    partDetails,
+    prescanState,
+    prescanError,
+    type,
+    pointsAwarded,
+    feedback,
+  } = signature;
 
   useEffect(() => {
-    if (!courseId || !correctFile || !unitSystem) return;
-
-    const isSldprt = (correctFile.name?.toLowerCase?.() || "").endsWith(
-      ".sldprt"
-    );
+    if (!courseId || !file || !unitSystem) return;
+    const isSldprt = (file.name?.toLowerCase?.() || "").endsWith(".sldprt");
     if (!isSldprt) return;
 
     const controller = new AbortController();
     let cancelled = false;
 
     const uploadPrescan = async () => {
-      console.log("uploadPrescan");
-      setPrescanState("uploading");
-      setPrescanError(null);
-
+      onChange({ prescanState: "uploading", prescanError: null });
       try {
         const formData = new FormData();
-        formData.append("file", correctFile);
+        formData.append("file", file);
 
         const response = await fetch(
           `/api/courses/${courseId}/assignments/prescan?unitSystem=${encodeURIComponent(
             unitSystem
           )}`,
-          {
-            method: "POST",
-            body: formData,
-            signal: controller.signal,
-          }
+          { method: "POST", body: formData, signal: controller.signal }
         );
 
         if (!response.ok) {
@@ -93,9 +81,7 @@ export const CreateAssignmentModal = ({
             message = data?.error || message;
           } catch {
             const fallback = await response.text();
-            if (fallback) {
-              message = fallback;
-            }
+            if (fallback) message = fallback;
           }
           throw new Error(message);
         }
@@ -103,133 +89,47 @@ export const CreateAssignmentModal = ({
         if (!cancelled) {
           try {
             const data = await response.json();
-            setPartDetails({
-              volume: data?.volume ?? "",
-              surfaceArea: data?.surfaceArea ?? "",
-              centerOfMass: {
-                x: data?.centerOfMass?.x ?? "",
-                y: data?.centerOfMass?.y ?? "",
-                z: data?.centerOfMass?.z ?? "",
+            onChange({
+              partDetails: {
+                volume: data?.volume ?? "",
+                surfaceArea: data?.surfaceArea ?? "",
+                centerOfMass: {
+                  x: data?.centerOfMass?.x ?? "",
+                  y: data?.centerOfMass?.y ?? "",
+                  z: data?.centerOfMass?.z ?? "",
+                },
+                screenshotB64: data?.screenshotB64 ?? "",
+                units: data?.units ?? {},
               },
-              screenshotB64: data?.screenshotB64 ?? "",
-              units: data?.units ?? {},
             });
-          } catch (error) {
-            console.error("Failed to parse prescan response", error);
+          } catch (err) {
+            console.error("Failed to parse prescan response", err);
           }
-          setPrescanState("success");
+          onChange({ prescanState: "success" });
         }
       } catch (error) {
         if (cancelled || controller.signal.aborted) return;
-        setPrescanState("error");
-        setPrescanError(error?.message || "Failed to upload file for prescan.");
+        onChange({
+          prescanState: "error",
+          prescanError: error?.message || "Failed to upload file for prescan.",
+        });
       }
     };
 
     uploadPrescan();
-
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [correctFile, unitSystem, courseId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, unitSystem, courseId]);
 
-  const validationErrors = useMemo(() => {
-    const pts = Number(pointsPossible);
-    const vol = Number(partDetails.volume);
-    const area = Number(partDetails.surfaceArea);
-    const tol = Number(tolerancePercent);
-    const dueDateTime = new Date(dueDate);
-    const unitSystems = ["SI", "MMGS", "CGS", "IPS"];
-    const hasValidUnitSystem = unitSystems.includes(unitSystem);
-    const hasFile = correctFile instanceof File;
-    const fileName = correctFile?.name?.toLowerCase?.() || "";
-    const hasValidFile = hasFile && fileName.endsWith(".sldprt");
+  const showInvalid = (key) => validationAttempted && signatureErrors?.[key];
 
-    return {
-      name: !name.trim(),
-      dueDate: !dueDate || Number.isNaN(dueDateTime.getTime()),
-      correctFile: !hasValidFile,
-      unitSystem: !hasValidUnitSystem,
-      pointsPossible: !Number.isFinite(pts) || pts <= 0,
-      volume: !Number.isFinite(vol) || vol <= 0,
-      surfaceArea: !Number.isFinite(area) || area <= 0,
-      tolerancePercent: !Number.isFinite(tol) || tol <= 0,
-    };
-  }, [
-    name,
-    dueDate,
-    correctFile,
-    unitSystem,
-    pointsPossible,
-    partDetails,
-    tolerancePercent,
-  ]);
-
-  const isValid = useMemo(
-    () => Object.values(validationErrors).every((hasError) => !hasError),
-    [validationErrors]
-  );
-
-  const showInvalid = (key) => validationAttempted && validationErrors[key];
-
-  const handleCreateAssignment = async () => {
-    setValidationAttempted(true);
-    if (!onCreateAssignment || !isValid) return;
-    try {
-      setSubmitting(true);
-      const dueDateISO = new Date(dueDate).toISOString();
-      await onCreateAssignment({
-        name: name.trim(),
-        description: description.trim() || null,
-        dueDate: dueDateISO,
-        unitSystem, // "SI" | "MMGS" | "CGS" | "IPS"
-        pointsPossible: Number(pointsPossible), // number
-        gradeVisibility, // "INSTANT" | "ON_DUE_DATE"
-        volume: Number(partDetails.volume),
-        surfaceArea: Number(partDetails.surfaceArea),
-        tolerancePercent: Number(tolerancePercent),
-      });
-      onClose?.();
-    } catch (error) {
-      console.error("Failed to create assignment", error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleFileChange = (e) => {
-    const nextFile = e.target.files?.[0] ?? null;
-    setCorrectFile(nextFile);
-    setPrescanState("idle");
-    setPrescanError(null);
-    setPartDetails(getInitialPartDetails());
-  };
-
-  const handleUnitSystemChange = (e) => {
-    const value = e.target.value;
-    setUnitSystem(value);
-    if (correctFile) {
-      setPrescanState("idle");
-      setPrescanError(null);
-    }
-  };
-
-  const handlePartDetailChange = (key) => (e) => {
-    setPartDetails((prev) => ({
-      ...prev,
-      [key]: e.target.value,
-    }));
-  };
-
-  const handleCenterOfMassChange = (axis) => (e) => {
-    setPartDetails((prev) => ({
-      ...prev,
-      centerOfMass: {
-        ...prev.centerOfMass,
-        [axis]: e.target.value,
-      },
-    }));
+  const formatUnitLabel = (label, unitKey) => {
+    const unitSuffix = partDetails.units?.[unitKey];
+    if (!unitSuffix) return label;
+    return `${label} (${unitSuffix})`;
   };
 
   const prescanMessage =
@@ -248,10 +148,299 @@ export const CreateAssignmentModal = ({
       ? "#b00020"
       : "#555";
 
-  const formatUnitLabel = (label, unitKey) => {
-    const unitSuffix = partDetails.units?.[unitKey];
-    if (!unitSuffix) return label;
-    return `${label} (${unitSuffix})`;
+  return (
+    <Section
+      title={`Part Signature ${index + 1}`}
+      subtitle={
+        <>
+          {isFirst ? (
+            <p>
+              Tell us some basic details about your part. Uploading a correct
+              file is optional, but if you upload one, we’ll fill in details for
+              you and students will get better automatic feedback.
+            </p>
+          ) : (
+            <p>
+              Define an additional acceptable (or explicitly incorrect/partial)
+              variation of the part for grading.
+            </p>
+          )}
+          {canDelete && (
+            <Button onClick={onDelete} style={{ marginTop: 8 }}>
+              Delete
+            </Button>
+          )}
+          {partDetails.screenshotB64 && (
+            <img
+              src={`data:image/png;base64,${partDetails.screenshotB64}`}
+              alt={`Part ${index + 1} preview`}
+              style={{
+                width: "100%",
+                maxWidth: 320,
+                borderRadius: 8,
+                border: "1px solid #e1e1e1",
+                marginTop: 8,
+              }}
+            />
+          )}
+        </>
+      }
+    >
+      {!isFirst && (
+        <Select
+          label="Signature Type"
+          value={type}
+          onChange={(e) => onChange({ type: e.target.value })}
+          options={[
+            { value: "CORRECT", label: "Correct" },
+            { value: "INCORRECT", label: "Incorrect / Partial" },
+          ]}
+        />
+      )}
+      <div />
+
+      <Select
+        label="Unit System"
+        value={unitSystem}
+        onChange={(e) => {
+          onChange({ unitSystem: e.target.value });
+          if (file) onChange({ prescanState: "idle", prescanError: null });
+        }}
+        invalid={showInvalid("unitSystem")}
+        options={unitSystemOptions}
+      />
+
+      <Input
+        label="Signature File"
+        placeholder="Upload a .sldprt (optional)"
+        type="file"
+        accept=".sldprt"
+        onChange={(e) => {
+          const nextFile = e.target.files?.[0] ?? null;
+          onChange({
+            file: nextFile,
+            prescanState: "idle",
+            prescanError: null,
+            partDetails: getInitialPartDetails(),
+          });
+        }}
+      />
+
+      {prescanMessage && (
+        <p style={{ fontSize: 12, marginTop: 4, color: prescanColor }}>
+          {prescanMessage}
+        </p>
+      )}
+
+      <Input
+        label={formatUnitLabel("Volume", "volume")}
+        type="number"
+        value={partDetails.volume}
+        onChange={(e) =>
+          onChange({ partDetails: { ...partDetails, volume: e.target.value } })
+        }
+        invalid={showInvalid("volume")}
+      />
+
+      <Input
+        label={formatUnitLabel("Surface Area", "surfaceArea")}
+        type="number"
+        value={partDetails.surfaceArea}
+        onChange={(e) =>
+          onChange({
+            partDetails: { ...partDetails, surfaceArea: e.target.value },
+          })
+        }
+        invalid={showInvalid("surfaceArea")}
+      />
+
+      {!isFirst && type === "INCORRECT" && (
+        <>
+          <Input
+            label="Earned point value"
+            type="number"
+            value={pointsAwarded}
+            onChange={(e) => onChange({ pointsAwarded: e.target.value })}
+            min={0}
+            step="1"
+            invalid={showInvalid("pointsAwarded")}
+          />
+          <Textarea
+            label="Feedback / Hints"
+            placeholder="Explain what’s wrong and how to fix it (optional)"
+            value={feedback}
+            onChange={(e) => onChange({ feedback: e.target.value })}
+            rows={3}
+          />
+        </>
+      )}
+    </Section>
+  );
+};
+
+export const CreateAssignmentModal = ({
+  open,
+  onClose,
+  onCreateAssignment,
+  courseId,
+}) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [pointsPossible, setPointsPossible] = useState("");
+  const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
+  const [dueDate, setDueDate] = useState("");
+  const [tolerancePercent, setTolerancePercent] = useState("0.1");
+
+  const [signatures, setSignatures] = useState([getInitialSignature("SI")]);
+
+  const [validationAttempted, setValidationAttempted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setDescription("");
+      setPointsPossible("");
+      setGradeVisibility("INSTANT");
+      setDueDate("");
+      setTolerancePercent("0.1");
+      setSubmitting(false);
+      setValidationAttempted(false);
+      setSignatures([getInitialSignature("SI")]);
+    }
+  }, [open]);
+
+  const signaturesErrors = useMemo(() => {
+    const ptsPossibleNum = Number(pointsPossible);
+    return signatures.map((sig, idx) => {
+      const vol = Number(sig.partDetails.volume);
+      const area = Number(sig.partDetails.surfaceArea);
+      const unitValid = ["SI", "MMGS", "CGS", "IPS"].includes(sig.unitSystem);
+
+      let pointsAwardedError = false;
+      if (idx > 0 && sig.type === "INCORRECT") {
+        const pts = Number(sig.pointsAwarded);
+        pointsAwardedError =
+          !Number.isFinite(pts) ||
+          pts < 0 ||
+          (Number.isFinite(ptsPossibleNum) && pts > ptsPossibleNum);
+      }
+
+      return {
+        unitSystem: !unitValid,
+        volume: !Number.isFinite(vol) || vol <= 0,
+        surfaceArea: !Number.isFinite(area) || area <= 0,
+        pointsAwarded: pointsAwardedError,
+      };
+    });
+  }, [signatures, pointsPossible]);
+
+  const overallErrors = useMemo(() => {
+    const pts = Number(pointsPossible);
+    const dueDateTime = new Date(dueDate);
+    const tol = Number(tolerancePercent);
+
+    const hasAtLeastOneCorrect =
+      signatures.length > 0 &&
+      (signatures[0] ? true : signatures.some((s) => s.type === "CORRECT"));
+
+    const perSignatureValid = signaturesErrors.every((errs) =>
+      Object.values(errs).every((v) => !v)
+    );
+
+    return {
+      name: !name.trim(),
+      dueDate: !dueDate || Number.isNaN(dueDateTime.getTime()),
+      pointsPossible: !Number.isFinite(pts) || pts <= 0,
+      tolerancePercent: !Number.isFinite(tol) || tol <= 0,
+      signatures: !perSignatureValid,
+      atLeastOneCorrect: !hasAtLeastOneCorrect,
+    };
+  }, [
+    name,
+    dueDate,
+    pointsPossible,
+    tolerancePercent,
+    signaturesErrors,
+    signatures,
+  ]);
+
+  const isValid = useMemo(
+    () => Object.values(overallErrors).every((hasError) => !hasError),
+    [overallErrors]
+  );
+
+  const showInvalidTop = (key) => validationAttempted && overallErrors[key];
+
+  const updateSignature = (index, partial) => {
+    setSignatures((prev) => {
+      const next = [...prev];
+      const current = next[index];
+      next[index] = { ...current, ...partial };
+      // enforce invariant: first signature is always CORRECT
+      if (index === 0 && next[0].type !== "CORRECT") next[0].type = "CORRECT";
+      return next;
+    });
+  };
+
+  const addSignature = () => {
+    const baseUnit = signatures[0]?.unitSystem || "SI";
+    setSignatures((prev) => [...prev, getInitialSignature(baseUnit)]);
+  };
+
+  // Only allow deleting non-first signatures, and only if more than one exists.
+  const canDeleteSignature = (index) => index !== 0 && signatures.length > 1;
+
+  const deleteSignature = (index) => {
+    if (!canDeleteSignature(index)) return;
+    setSignatures((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) return prev;
+      // keep invariant in case order changed elsewhere
+      if (next[0].type !== "CORRECT") next[0] = { ...next[0], type: "CORRECT" };
+      return next;
+    });
+  };
+
+  const handleCreateAssignment = async () => {
+    setValidationAttempted(true);
+    if (!onCreateAssignment || !isValid) return;
+
+    try {
+      setSubmitting(true);
+      const dueDateISO = new Date(dueDate).toISOString();
+
+      const signaturePayloads = signatures.map((s, i) => ({
+        order: i + 1,
+        type: i === 0 ? "CORRECT" : s.type,
+        unitSystem: s.unitSystem,
+        volume: Number(s.partDetails.volume),
+        surfaceArea: Number(s.partDetails.surfaceArea),
+        centerOfMass: s.partDetails.centerOfMass,
+        screenshotB64: s.partDetails.screenshotB64 || null,
+        pointsAwarded:
+          i > 0 && s.type === "INCORRECT" && s.pointsAwarded !== ""
+            ? Number(s.pointsAwarded)
+            : null,
+        feedback: i > 0 && s.type === "INCORRECT" ? s.feedback || null : null,
+      }));
+
+      await onCreateAssignment({
+        name: name.trim(),
+        description: description.trim() || null,
+        dueDate: dueDateISO,
+        pointsPossible: Number(pointsPossible),
+        gradeVisibility,
+        tolerancePercent: Number(tolerancePercent),
+        signatures: signaturePayloads,
+      });
+
+      onClose?.();
+    } catch (error) {
+      console.error("Failed to create assignment", error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -280,7 +469,7 @@ export const CreateAssignmentModal = ({
           placeholder="e.g., HW 1"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          invalid={showInvalid("name")}
+          invalid={showInvalidTop("name")}
         />
         <Textarea
           label="Description"
@@ -294,87 +483,55 @@ export const CreateAssignmentModal = ({
           type="datetime-local"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          invalid={showInvalid("dueDate")}
+          invalid={showInvalidTop("dueDate")}
         />
       </Section>
+
+      {signatures.map((sig, idx) => (
+        <SignatureSection
+          key={idx}
+          index={idx}
+          isFirst={idx === 0}
+          signature={sig}
+          courseId={courseId}
+          validationAttempted={validationAttempted}
+          signatureErrors={signaturesErrors[idx]}
+          onChange={(partial) => updateSignature(idx, partial)}
+          onDelete={() => deleteSignature(idx)}
+          canDelete={canDeleteSignature(idx)}
+        />
+      ))}
+
       <Section
-        title="Part Upload"
+        title="More Signatures"
         subtitle={
           <>
+            <p>You can add more signatures to provide more accurate grading:</p>
             <p>
-              Tell us some basic details about your part. Uploading a correct
-              file is optional, but if you upload one, we will be able to
-              automatically fill in details for you, and your students will get
-              better automatic feedback.
+              - Accept multiple correct variations to handle ambiguity in your
+              assignments.
             </p>
+            <p>
+              - Explicitly define incorrect variations and provide immediate,
+              specific feedback.
+            </p>
+            {validationAttempted && showInvalidTop("atLeastOneCorrect") && (
+              <p style={{ color: "#b00020", marginTop: 8 }}>
+                At least one signature must be marked as Correct.
+              </p>
+            )}
+            {validationAttempted && showInvalidTop("signatures") && (
+              <p style={{ color: "#b00020", marginTop: 8 }}>
+                Please fix the highlighted signature fields.
+              </p>
+            )}
           </>
         }
       >
-        <Select
-          label="Unit System"
-          value={unitSystem}
-          onChange={handleUnitSystemChange}
-          invalid={showInvalid("unitSystem")}
-          options={[
-            { value: "SI", label: "MKS (SI)" },
-            { value: "MMGS", label: "mmGS" },
-            { value: "CGS", label: "CGS" },
-            { value: "IPS", label: "IPS" },
-          ]}
-        />
-        <Input
-          label="Correct File"
-          placeholder="Upload a .sldprt"
-          type="file"
-          accept=".sldprt"
-          // your Input likely forwards the native event
-          onChange={handleFileChange}
-          invalid={showInvalid("correctFile")}
-        />
-        {prescanMessage && (
-          <p
-            style={{
-              fontSize: 12,
-              marginTop: 4,
-              color: prescanColor,
-            }}
-          >
-            {prescanMessage}
-          </p>
-        )}
+        <Button onClick={addSignature}>Add Signature</Button>
       </Section>
 
-      <Section
-        title="Part Details"
-        subtitle={
-          partDetails.screenshotB64 ? (
-            <img
-              src={`data:image/png;base64,${partDetails.screenshotB64}`}
-              alt="Part preview"
-              style={{
-                width: "100%",
-                maxWidth: 320,
-                borderRadius: 8,
-                border: "1px solid #e1e1e1",
-              }}
-            />
-          ) : undefined
-        }
-      >
-        <Input
-          label={formatUnitLabel("Volume", "volume")}
-          type="number"
-          value={partDetails.volume}
-          onChange={handlePartDetailChange("volume")}
-          invalid={showInvalid("volume")}
-        />
-        <Input
-          label={formatUnitLabel("Surface Area", "surfaceArea")}
-          type="number"
-          value={partDetails.surfaceArea}
-          onChange={handlePartDetailChange("surfaceArea")}
-          invalid={showInvalid("surfaceArea")}
-        />
+      <Section title="Grading" last={true}>
         <Input
           label="Tolerance percent (recommended 0.1%-0.5%)"
           type="number"
@@ -382,11 +539,8 @@ export const CreateAssignmentModal = ({
           onChange={(e) => setTolerancePercent(e.target.value)}
           min={0}
           step="0.01"
-          invalid={showInvalid("tolerancePercent")}
+          invalid={showInvalidTop("tolerancePercent")}
         />
-      </Section>
-
-      <Section title="Grading" last={true}>
         <Input
           label="Points possible"
           placeholder="e.g., 100"
@@ -395,7 +549,7 @@ export const CreateAssignmentModal = ({
           onChange={(e) => setPointsPossible(e.target.value)}
           min={1}
           step={1}
-          invalid={showInvalid("pointsPossible")}
+          invalid={showInvalidTop("pointsPossible")}
         />
         <Select
           label="Grade Visibility"

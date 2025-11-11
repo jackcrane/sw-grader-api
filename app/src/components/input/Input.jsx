@@ -44,7 +44,7 @@ export const Select = ({
   ...props
 }) => {
   return (
-    <>
+    <div>
       {label ? <label className={styles.label}>{label}</label> : null}
       <select
         value={value}
@@ -65,7 +65,7 @@ export const Select = ({
           </option>
         ))}
       </select>
-    </>
+    </div>
   );
 };
 
