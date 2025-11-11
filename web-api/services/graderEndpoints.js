@@ -1,4 +1,4 @@
-const defaultBaseUrl = "https://jadck-pc.jackcrane.rocks";
+const defaultBaseUrl = "https://jack-pc.jackcrane.rocks";
 
 const normalizeBaseUrl = (value) => {
   if (!value) return defaultBaseUrl;

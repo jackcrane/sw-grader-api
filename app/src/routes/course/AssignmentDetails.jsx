@@ -4,6 +4,7 @@ import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
+import { parseGradeValue } from "../../utils/gradeUtils";
 import styles from "./AssignmentDetails.module.css";
 
 const formatDateTime = (value) => {
@@ -93,8 +94,8 @@ export const AssignmentDetails = () => {
   const graderOffline = graderOnline === false;
 
   const formatSubmissionGrade = (submission) => {
-    const gradeValue = Number(submission?.grade);
-    if (!Number.isFinite(gradeValue)) {
+    const gradeValue = parseGradeValue(submission?.grade);
+    if (gradeValue == null) {
       return "Not yet graded";
     }
     const pointsPossibleValue = Number(assignment?.pointsPossible);
@@ -242,7 +243,7 @@ export const AssignmentDetails = () => {
   };
 
   const showSubmissionInModal = (submission) => {
-    const previewGradeValue = submission?.grade ?? null;
+    const previewGradeValue = parseGradeValue(submission?.grade);
     setPreviewModalOpen(true);
     setPreviewModalState({
       status: "success",

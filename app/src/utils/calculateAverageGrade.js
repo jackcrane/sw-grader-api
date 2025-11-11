@@ -1,3 +1,5 @@
+import { parseGradeValue } from "./gradeUtils";
+
 const clamp = (value, min, max) => {
   if (!Number.isFinite(value)) return null;
   if (Number.isFinite(min) && value < min) return min;
@@ -27,8 +29,8 @@ export const calculateAverageGrade = (assignments = [], submissions = []) => {
 
     totalPossible += pointsPossible;
     const submission = submissionsByAssignment[assignment.id];
-    const numericGrade = Number(submission?.grade);
-    if (!Number.isFinite(numericGrade)) {
+    const numericGrade = parseGradeValue(submission?.grade);
+    if (numericGrade == null) {
       return;
     }
 

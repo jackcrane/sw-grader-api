@@ -8,6 +8,7 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
+import { parseGradeValue } from "../../utils/gradeUtils";
 import styles from "./CourseRoster.module.css";
 
 const NOT_GRADED_LABEL = "Not yet graded";
@@ -46,8 +47,8 @@ const formatDateTime = (value) => {
 const nextRole = (type) => (type === "STUDENT" ? "TA" : "STUDENT");
 
 const formatGradeLabel = (gradeValue, pointsPossible) => {
-  const numeric = Number(gradeValue);
-  if (!Number.isFinite(numeric)) return NOT_GRADED_LABEL;
+  const numeric = parseGradeValue(gradeValue);
+  if (numeric == null) return NOT_GRADED_LABEL;
   if (Number.isFinite(pointsPossible)) {
     return `${numeric}/${pointsPossible}`;
   }
@@ -157,8 +158,8 @@ export const CourseRoster = () => {
     () => calculateAverageGrade(assignments, submissions),
     [assignments, submissions]
   );
-  const gradedCount = submissions.filter((entry) =>
-    Number.isFinite(Number(entry?.grade))
+  const gradedCount = submissions.filter(
+    (entry) => parseGradeValue(entry?.grade) != null
   ).length;
   const totalAssignments = assignments.length;
   const lastSubmissionDate = submissions.reduce((latest, entry) => {
@@ -378,9 +379,9 @@ export const CourseRoster = () => {
                     const submission = submissions.find(
                       (entry) => entry.assignmentId === assignment.id
                     );
-                    const gradeValue = Number(submission?.grade);
+                    const gradeValue = parseGradeValue(submission?.grade);
                     const pointsPossible = Number(assignment.pointsPossible);
-                    const hasGrade = Number.isFinite(gradeValue);
+                    const hasGrade = gradeValue != null;
                     const pointsLabel = Number.isFinite(pointsPossible)
                       ? `${pointsPossible} pts`
                       : "Ungraded";

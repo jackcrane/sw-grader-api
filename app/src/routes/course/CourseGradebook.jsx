@@ -4,6 +4,7 @@ import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
+import { parseGradeValue } from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
 
 const NOT_GRADED_LABEL = "Not yet graded";
@@ -27,10 +28,10 @@ const formatPercent = (value) => {
 };
 
 const formatGradeCell = (submission, assignment) => {
-  const gradeValue = Number(submission?.grade);
+  const gradeValue = parseGradeValue(submission?.grade);
   const pointsPossible = Number(assignment?.pointsPossible);
 
-  if (!Number.isFinite(gradeValue)) {
+  if (gradeValue == null) {
     return { label: NOT_GRADED_LABEL, percent: "—", status: "missing" };
   }
 

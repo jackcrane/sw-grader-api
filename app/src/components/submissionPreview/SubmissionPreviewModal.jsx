@@ -2,6 +2,7 @@ import React from "react";
 import { Modal } from "../modal/Modal";
 import { Button } from "../button/Button";
 import { Spinner } from "../spinner/Spinner";
+import { parseGradeValue } from "../../utils/gradeUtils";
 import styles from "./SubmissionPreviewModal.module.css";
 
 const getTitle = (status) => {
@@ -11,8 +12,8 @@ const getTitle = (status) => {
 };
 
 const getGradeColorClass = (grade) => {
-  const gradeValue = Number(grade);
-  if (!Number.isFinite(gradeValue)) return null;
+  const gradeValue = parseGradeValue(grade);
+  if (gradeValue == null) return null;
   if (gradeValue >= 85) return styles.gradeSuccess;
   if (gradeValue >= 60) return styles.gradeWarning;
   return styles.gradeError;
