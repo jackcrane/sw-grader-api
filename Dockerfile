@@ -21,10 +21,10 @@ ENV NODE_ENV=production
 RUN yarn build
 
 # Set the working directory to /api for the backend
-WORKDIR /api
+WORKDIR /web-api
 
 # Copy api directory contents to /api
-COPY ./api/ ./
+COPY ./web-api/ ./
 
 # Install dependencies for the backend
 RUN yarn install
