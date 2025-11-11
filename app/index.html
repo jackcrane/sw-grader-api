@@ -47,6 +47,19 @@
           var(--secondary-contrast-primary)
         );
         --border: #dadcdf;
+        --action: #0277c8;
+        --action-contrast-primary: #ffffff;
+        --action-contrast-secondary: color-mix(
+          in srgb,
+          var(--action) var(--ratio),
+          var(--action-contrast-primary)
+        );
+
+        --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12),
+          0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-lg: 12px;
+        --radius-sm: 8px;
+        --radius-xs: 6px;
       }
       body,
       html {
@@ -60,6 +73,8 @@
         font-optical-sizing: auto;
         font-weight: 300;
         font-style: normal;
+
+        font-size: 14px;
       }
       .title {
         font-family: "Stack Sans Text", sans-serif;
@@ -67,6 +82,18 @@
         font-weight: 400;
         font-style: normal;
         font-size: 4em;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      .mb-1 {
+        margin-bottom: 4px;
+      }
+      .mb-2 {
+        margin-bottom: 8px;
+      }
+      p {
         margin: 0;
       }
     </style>

@@ -1,0 +1,213 @@
+.container {
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.title {
+  margin-bottom: 4px;
+}
+
+.meta {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.description {
+  margin-bottom: 16px;
+  color: #333;
+  white-space: pre-line;
+}
+
+.sectionDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 16px -16px 16px;
+}
+
+.historyDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 8px -16px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface) 70%, white);
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.statSubtext {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.uploadBox {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: transparent;
+}
+
+.uploadHelper {
+  color: #555;
+  margin: -4px 0 4px 0;
+}
+
+.fileInput {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.status {
+  font-size: 0.85rem;
+  margin-top: -4px;
+}
+
+.statusSuccess {
+  color: #0a7d29;
+}
+
+.statusError {
+  color: #b00020;
+}
+
+.submissionInfo {
+  font-size: 0.9rem;
+  color: #333;
+  margin-top: 8px;
+}
+
+.submissionHistory {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submissionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submissionEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submissionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.submissionInfoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.submissionAttempt {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.submissionDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.downloadButton {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.rowDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 4px -16px;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sectionMeta {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 4px 0 0;
+}
+
+.teacherSubmissionsHeader {
+  margin-top: 16px;
+}
+
+.teacherSubmissionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.teacherSubmissionEntry {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.teacherSubmissionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.teacherSubmissionName {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.teacherSubmissionDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: #333;
+}

@@ -1,0 +1,30 @@
+/* Button.module.css */
+.button {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--body);
+  color: var(--surface-contrast-primary);
+  cursor: pointer;
+  display: inline-flex;
+  text-decoration: none;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.primary {
+  background: var(--action);
+  color: var(--action-contrast-primary);
+  border-color: var(--action);
+}
+
+.danger {
+  background: #c62828;
+  color: #fff;
+  border-color: #c62828;
+}
+
+.danger:disabled {
+  opacity: 0.7;
+}

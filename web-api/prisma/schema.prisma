@@ -23,6 +23,9 @@ model User {
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  submissions Submission[]
+  canCreateCourses Boolean @default(false)
+  deleted     Boolean  @default(false)
 }
 
 
@@ -30,11 +33,15 @@ model User {
 model Course {
   id        String   @id @default(cuid())
   name      String
+  abbr      String
+  studentInviteCode String? @unique
+  taInviteCode      String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  deleted     Boolean  @default(false)
 }
 
 model Enrollment {
@@ -48,6 +55,7 @@ model Enrollment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
 }
 
 enum EnrollmentType {
@@ -60,4 +68,82 @@ model Assignment {
   id        String   @id @default(cuid())
   name      String
   description String?
+
+  unitSystem String
+  pointsPossible Int
+  gradeVisibility GradeVisibility
+
+  volume Float
+  surfaceArea Float
+  tolerancePercent Float
+
+  dueDate DateTime?
+
+  submissions Submission[]
+  signatures AssignmentSignature[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+enum GradeVisibility {
+  INSTANT
+  ON_DUE_DATE
+}
+
+enum AssignmentSignatureType {
+  CORRECT
+  INCORRECT
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  assignmentId String
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  volume Float?
+  surfaceArea Float?
+  fileKey String?
+  fileUrl String?
+  fileName String?
+  screenshotKey String?
+  screenshotUrl String?
+
+  grade Float?
+  feedback String?
+  matchingSignatureId String?
+  matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+model AssignmentSignature {
+  id        String   @id @default(cuid())
+  assignmentId String
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  sortOrder Int
+  type AssignmentSignatureType
+  unitSystem String
+  volume Float
+  surfaceArea Float
+  centerOfMassX Float?
+  centerOfMassY Float?
+  centerOfMassZ Float?
+  screenshotB64 String?
+  feedback String?
+  pointsAwarded Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
+
+  submissions Submission[]
+
+  @@unique([assignmentId, sortOrder])
 }

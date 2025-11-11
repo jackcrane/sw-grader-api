@@ -1,0 +1,28 @@
+.input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--surface-contrast-primary);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+
+.input:focus {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 20%, transparent);
+}
+
+.inputInvalid {
+  border-color: var(--danger, #b00020);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #b00020) 30%, transparent);
+}
+
+.label {
+  color: var(--surface-contrast-secondary);
+  font-weight: 400;
+  padding-bottom: 4px;
+}

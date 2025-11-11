@@ -1,0 +1,226 @@
+.roster {
+  display: flex;
+  min-height: 420px;
+}
+
+.column {
+  flex: 1;
+}
+
+.left {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.details {
+  padding: 16px;
+  background: var(--surface);
+}
+
+.listHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.listHeader h2,
+.studentName {
+  font-size: 1.2em;
+  color: var(--body-contrast-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.listHeader p,
+.studentMeta {
+  font-size: 0.8em;
+  color: var(--body-contrast-primary);
+  margin: 0;
+}
+
+.state {
+  padding: 16px;
+  color: var(--body-contrast-secondary);
+}
+
+.error {
+  padding: 16px;
+  color: #b00020;
+}
+
+.detailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 8px -16px;
+}
+
+.detailHeader h2 {
+  margin: 0;
+}
+
+.detailMeta {
+  color: #555;
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--surface) 70%, white);
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.statSubtext {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+  margin-top: 4px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sectionTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sectionMeta {
+  color: var(--body-contrast-secondary);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.manageSection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.studentRow {
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.studentRow:hover {
+  background: color-mix(in srgb, var(--surface) 80%, var(--border));
+}
+
+.studentRowActive {
+  background: color-mix(in srgb, var(--surface) 60%, var(--border));
+}
+
+.studentName {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.studentMeta {
+  color: var(--body-contrast-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.removeButton {
+  background: color-mix(in srgb, #b00020 8%, white);
+  color: #b00020;
+  border: 1px solid #b00020;
+}
+
+.gradeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gradeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.gradeRowActions {
+  display: flex;
+  gap: 8px;
+}
+
+.gradeValues {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  min-width: 120px;
+  gap: 4px;
+}
+
+.gradeValue {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.gradePercent {
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary);
+}
+
+.rowDivider {
+  width: calc(100% + 32px);
+  border-bottom: 1px solid var(--border);
+  margin: 4px -16px;
+}
+
+.assignmentName {
+  font-weight: 600;
+}
+
+.assignmentMeta {
+  font-size: 0.8rem;
+  color: var(--body-contrast-secondary);
+}

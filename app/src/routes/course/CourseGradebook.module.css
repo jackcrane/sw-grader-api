@@ -1,0 +1,135 @@
+.gradebook {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 320px;
+  background: var(--surface);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--body-contrast-secondary);
+  max-width: 48ch;
+}
+
+.legend {
+  margin: 0;
+  color: var(--body-contrast-secondary);
+  font-size: 0.9rem;
+}
+
+.state {
+  color: var(--body-contrast-secondary);
+  margin: 0;
+}
+
+.error {
+  color: #b00020;
+  margin: 0;
+}
+
+.tableWrapper {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+
+.table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--body-contrast-secondary);
+  background: color-mix(in srgb, var(--surface) 80%, white);
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface) 90%, white);
+}
+
+.studentColumn {
+  min-width: 220px;
+}
+
+.averageColumn {
+  width: 120px;
+}
+
+.studentCell {
+  font-size: 0.95rem;
+}
+
+.studentName {
+  display: block;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.studentMeta {
+  display: block;
+  color: var(--body-contrast-secondary);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.assignmentName {
+  display: block;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+  text-transform: none;
+  font-size: 0.9rem;
+}
+
+.assignmentMeta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--body-contrast-secondary);
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.gradeValue {
+  display: block;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.gradePercent {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--body-contrast-secondary);
+  margin-top: 2px;
+}
+
+.averageCell {
+  font-weight: 600;
+}
