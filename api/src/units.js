@@ -19,6 +19,7 @@ export const convertFromSI = (si, unitSystem) => {
   switch (unitSystem) {
     case "mks": {
       return {
+        ...si,
         file,
         unitSystem,
         density,
@@ -47,6 +48,7 @@ export const convertFromSI = (si, unitSystem) => {
         z: com.z * MM_PER_M,
       };
       return {
+        ...si,
         file,
         unitSystem,
         density: densityOut,
@@ -75,6 +77,7 @@ export const convertFromSI = (si, unitSystem) => {
         z: com.z * CM_PER_M,
       };
       return {
+        ...si,
         file,
         unitSystem,
         density: densityOut,
@@ -104,6 +107,7 @@ export const convertFromSI = (si, unitSystem) => {
         z: com.z * IN_PER_M,
       };
       return {
+        ...si,
         file,
         unitSystem,
         density: densityOut,

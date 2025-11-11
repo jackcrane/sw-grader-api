@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SwExtractor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0701782df42bc6d52ea340dc0187044cdedaf046")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+661d92afe4b9100571648d6929aa1d290b27b57d")]
 [assembly: System.Reflection.AssemblyProductAttribute("SwExtractor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SwExtractor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
