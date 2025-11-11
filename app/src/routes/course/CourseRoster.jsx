@@ -4,8 +4,10 @@ import { Navigate, useOutletContext } from "react-router-dom";
 import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { Button } from "../../components/button/Button";
+import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
+import { fetchJson } from "../../utils/fetchJson";
 import styles from "./CourseRoster.module.css";
 
 const roleLabels = {
@@ -41,6 +43,34 @@ const formatDateTime = (value) => {
 
 const nextRole = (type) => (type === "STUDENT" ? "TA" : "STUDENT");
 
+const formatGradeLabel = (gradeValue, pointsPossible) => {
+  const numeric = Number(gradeValue);
+  if (!Number.isFinite(numeric)) return "Pending";
+  if (Number.isFinite(pointsPossible)) {
+    return `${numeric}/${pointsPossible}`;
+  }
+  return `${numeric}`;
+};
+
+const deriveSubmissionFilename = (submission) => {
+  if (!submission) return null;
+  return (
+    submission.fileName ||
+    submission.fileKey?.split?.("/")?.pop?.() ||
+    null
+  );
+};
+
+const submissionPreviewInitialState = {
+  status: "idle",
+  screenshotUrl: null,
+  gradeValue: null,
+  gradeLabel: null,
+  downloadUrl: null,
+  downloadFilename: null,
+  error: null,
+};
+
 export const CourseRoster = () => {
   const {
     canViewRoster,
@@ -61,6 +91,10 @@ export const CourseRoster = () => {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewModalState, setPreviewModalState] = useState(
+    submissionPreviewInitialState
+  );
 
   const visibleRoster = useMemo(
     () => roster.filter((entry) => entry.type !== "TEACHER"),
@@ -80,6 +114,37 @@ export const CourseRoster = () => {
     }
     setSelectedEnrollmentId(visibleRoster[0]?.id ?? null);
   }, [visibleRoster, selectedEnrollmentId]);
+
+  const closePreviewModal = () => {
+    setPreviewModalOpen(false);
+    setPreviewModalState(submissionPreviewInitialState);
+  };
+
+  const showSubmissionPreview = (submission, gradeLabel) => {
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "success",
+      screenshotUrl: submission?.screenshotUrl ?? null,
+      gradeValue: submission?.grade ?? null,
+      gradeLabel,
+      downloadUrl: submission?.fileUrl ?? null,
+      downloadFilename: deriveSubmissionFilename(submission),
+      error: null,
+    });
+  };
+
+  const showLoadingPreview = () => {
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "loading",
+      screenshotUrl: null,
+      gradeValue: null,
+      gradeLabel: null,
+      downloadUrl: null,
+      downloadFilename: null,
+      error: null,
+    });
+  };
 
   const activeEnrollment = visibleRoster.find(
     (entry) => entry.id === selectedEnrollmentId
@@ -160,6 +225,36 @@ export const CourseRoster = () => {
       setActionError(err?.message || "Failed to remove user from course.");
     } finally {
       setPendingAction(null);
+    }
+  };
+
+  const handleViewAssignment = async (assignment) => {
+    if (!activeEnrollment?.user?.id) return;
+    showLoadingPreview();
+    try {
+      const params = new URLSearchParams();
+      params.set("userId", activeEnrollment.user.id);
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${assignment.id}/submissions?${params}`
+      );
+      const submission = payload?.submissions?.[0] ?? null;
+      if (!submission) {
+        throw new Error("No submission recorded for this assignment.");
+      }
+      showSubmissionPreview(
+        submission,
+        formatGradeLabel(submission.grade, assignment.pointsPossible)
+      );
+    } catch (err) {
+      setPreviewModalState({
+        status: "error",
+        screenshotUrl: null,
+        gradeValue: null,
+        gradeLabel: null,
+        downloadUrl: null,
+        downloadFilename: null,
+        error: err?.message || "Unable to load submission.",
+      });
     }
   };
 
@@ -294,7 +389,9 @@ export const CourseRoster = () => {
                       <React.Fragment key={assignment.id}>
                         <div className={styles.gradeRow}>
                           <div>
-                            <div className={styles.assignmentName}>{assignment.name}</div>
+                            <div className={styles.assignmentName}>
+                              {assignment.name}
+                            </div>
                             <div className={styles.assignmentMeta}>
                               {pointsPossible} pts
                             </div>
@@ -305,6 +402,16 @@ export const CourseRoster = () => {
                             </span>
                             <span className={styles.gradePercent}>{percent}</span>
                           </div>
+                          {submission && (
+                            <div className={styles.gradeRowActions}>
+                              <Button
+                                onClick={() => handleViewAssignment(assignment)}
+                                disabled={previewModalState.status === "loading"}
+                              >
+                                View
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         {index < assignments.length - 1 && (
                           <div className={styles.rowDivider} />
@@ -318,6 +425,17 @@ export const CourseRoster = () => {
           </div>
         )}
       </div>
+      <SubmissionPreviewModal
+        open={previewModalOpen}
+        status={previewModalState.status}
+        screenshotUrl={previewModalState.screenshotUrl}
+        gradeValue={previewModalState.gradeValue}
+        gradeLabel={previewModalState.gradeLabel}
+        downloadUrl={previewModalState.downloadUrl}
+        downloadFilename={previewModalState.downloadFilename}
+        error={previewModalState.error}
+        onClose={closePreviewModal}
+      />
     </section>
   );
 };

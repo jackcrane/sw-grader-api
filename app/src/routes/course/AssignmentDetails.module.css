@@ -163,62 +163,51 @@
   margin: 4px -16px;
 }
 
-.previewModalContent {
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sectionMeta {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 4px 0 0;
+}
+
+.teacherSubmissionsHeader {
+  margin-top: 16px;
+}
+
+.teacherSubmissionList {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.teacherSubmissionEntry {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
-  text-align: center;
 }
 
-.previewLoading {
+.teacherSubmissionInfo {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 4px;
 }
 
-.previewLoadingText {
+.teacherSubmissionName {
   font-weight: 600;
   color: var(--body-contrast-primary);
 }
 
-.previewHint {
-  color: #666;
+.teacherSubmissionDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 0.9rem;
-  margin: 0;
-}
-
-.previewScreenshot {
-  width: 100%;
-  max-width: 800px;
-}
-
-.previewNoScreenshot {
-  font-size: 0.9rem;
-  color: #555;
-}
-
-.previewGrade {
-  font-size: 1rem;
-  color: inherit;
-  margin: 0;
-}
-
-.previewError {
-  color: #b00020;
-  font-weight: 500;
-}
-
-.previewGradeSuccess {
-  color: var(--positive);
-}
-
-.previewGradeWarning {
-  color: #d68c00;
-}
-
-.previewGradeError {
-  color: #b00020;
+  color: #333;
 }

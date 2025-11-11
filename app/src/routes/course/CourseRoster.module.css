@@ -187,6 +187,11 @@
   gap: 16px;
 }
 
+.gradeRowActions {
+  display: flex;
+  gap: 8px;
+}
+
 .gradeValues {
   display: flex;
   flex-direction: column;

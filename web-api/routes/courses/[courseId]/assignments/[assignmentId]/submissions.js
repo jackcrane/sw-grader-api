@@ -3,7 +3,10 @@ import multer from "multer";
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { uploadObject } from "../../../../../util/s3.js";
-import { withSignedAssetUrls } from "../../../../../util/submissionAssets.js";
+import {
+  withSignedAssetUrls,
+  withSignedAssetUrlsMany,
+} from "../../../../../util/submissionAssets.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -254,5 +257,58 @@ export const post = [
         .status(502)
         .json({ error: "Unable to analyze the uploaded part." });
     }
+  },
+];
+
+export const get = [
+  withAuth,
+  async (req, res) => {
+    const { courseId, assignmentId } = req.params;
+    const targetUserId = req.query?.userId;
+    const userId = req.user.localUserId ?? req.user.id;
+
+    const enrollment = await ensureEnrollment(userId, courseId);
+    if (!enrollment) {
+      return res.status(404).json({ error: "Course enrollment not found." });
+    }
+
+    if (!["TEACHER", "TA"].includes(enrollment.type)) {
+      return res
+        .status(403)
+        .json({ error: "Only staff can view submitted assignments." });
+    }
+
+    if (!assignmentId) {
+      return res.status(400).json({ error: "Assignment id is required." });
+    }
+
+    const where = {
+      assignmentId,
+      deleted: false,
+    };
+    if (targetUserId) {
+      where.userId = targetUserId;
+    }
+
+    const submissionsRaw = await prisma.submission.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    const submissions = await withSignedAssetUrlsMany(submissionsRaw);
+
+    return res.status(200).json({ submissions });
   },
 ];

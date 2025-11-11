@@ -146,11 +146,45 @@ export const get = [
       ? await getSubmissionStats(courseId, assignmentId, assignment.pointsPossible)
       : null;
 
+    const teacherSubmissionsRaw = canViewStats
+      ? await prisma.submission.findMany({
+          where: {
+            assignmentId,
+            deleted: false,
+            user: {
+              enrollments: {
+                some: {
+                  courseId,
+                  deleted: false,
+                },
+              },
+            },
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: {
+            updatedAt: "desc",
+          },
+        })
+      : [];
+    const teacherSubmissions = canViewStats
+      ? await withSignedAssetUrlsMany(teacherSubmissionsRaw)
+      : [];
+
     return res.json({
       assignment,
       stats,
       userSubmission,
       userSubmissions,
+      teacherSubmissions,
     });
   },
 ];

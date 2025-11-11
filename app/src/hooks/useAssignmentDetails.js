@@ -14,6 +14,7 @@ export const useAssignmentDetails = (courseId, assignmentId) => {
     stats: data?.stats ?? null,
     userSubmission: data?.userSubmission ?? null,
     userSubmissions: data?.userSubmissions ?? [],
+    teacherSubmissions: data?.teacherSubmissions ?? [],
     loading: isLoading,
     error,
     refetch: mutate,

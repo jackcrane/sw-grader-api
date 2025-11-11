@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
-import { Modal } from "../../components/modal/Modal";
-import { Spinner } from "../../components/spinner/Spinner";
+import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import styles from "./AssignmentDetails.module.css";
 
@@ -23,6 +22,14 @@ const formatPercent = (value) => {
   return `${Math.round(value)}%`;
 };
 
+const formatName = (user) => {
+  if (!user) return "Unknown";
+  const first = user.firstName ?? "";
+  const last = user.lastName ?? "";
+  const full = `${first} ${last}`.trim();
+  return full || user.email || "Unnamed student";
+};
+
 export const AssignmentDetails = () => {
   const { courseId, enrollmentType } = useOutletContext();
   const { assignmentId } = useParams();
@@ -34,6 +41,7 @@ export const AssignmentDetails = () => {
     loading,
     error,
     refetch,
+    teacherSubmissions,
   } = useAssignmentDetails(courseId, assignmentId);
 
   const isStudent = enrollmentType === "STUDENT";
@@ -45,8 +53,11 @@ export const AssignmentDetails = () => {
   const [previewModalState, setPreviewModalState] = useState({
     status: "idle",
     screenshotUrl: null,
-    grade: null,
+    gradeValue: null,
+    gradeLabel: null,
     error: null,
+    downloadUrl: null,
+    downloadFilename: null,
   });
 
   const submissions =
@@ -69,25 +80,17 @@ export const AssignmentDetails = () => {
 
   const dueDateLabel = formatDateTime(assignment?.dueDate);
 
-const formatSubmissionGrade = (submission) => {
-  const gradeValue = Number(submission?.grade);
-  if (!Number.isFinite(gradeValue)) {
-    return "Pending";
-  }
-  const pointsPossibleValue = Number(assignment?.pointsPossible);
-  if (Number.isFinite(pointsPossibleValue)) {
-    return `${gradeValue}/${pointsPossibleValue}`;
-  }
-  return `${gradeValue}`;
-};
-
-const getGradeColorClass = (grade) => {
-  const gradeValue = Number(grade);
-  if (!Number.isFinite(gradeValue)) return null;
-  if (gradeValue >= 85) return styles.previewGradeSuccess;
-  if (gradeValue >= 60) return styles.previewGradeWarning;
-  return styles.previewGradeError;
-};
+  const formatSubmissionGrade = (submission) => {
+    const gradeValue = Number(submission?.grade);
+    if (!Number.isFinite(gradeValue)) {
+      return "Pending";
+    }
+    const pointsPossibleValue = Number(assignment?.pointsPossible);
+    if (Number.isFinite(pointsPossibleValue)) {
+      return `${gradeValue}/${pointsPossibleValue}`;
+    }
+    return `${gradeValue}`;
+  };
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
@@ -101,8 +104,11 @@ const getGradeColorClass = (grade) => {
     setPreviewModalState({
       status: "idle",
       screenshotUrl: null,
-      grade: null,
+      gradeValue: null,
+      gradeLabel: null,
       error: null,
+      downloadUrl: null,
+      downloadFilename: null,
     });
   };
 
@@ -117,7 +123,10 @@ const getGradeColorClass = (grade) => {
     setPreviewModalState({
       status: "loading",
       screenshotUrl: null,
-      grade: null,
+      gradeValue: null,
+      gradeLabel: null,
+      downloadUrl: null,
+      downloadFilename: null,
       error: null,
     });
     setUploadError(null);
@@ -158,10 +167,16 @@ const getGradeColorClass = (grade) => {
 
       setSelectedFile(null);
       setSuccessMessage("Submission uploaded successfully.");
+      const successGradeValue = submissionPayload?.grade ?? null;
       setPreviewModalState({
         status: "success",
         screenshotUrl: submissionPayload?.screenshotUrl ?? null,
-        grade: submissionPayload?.grade ?? null,
+        gradeValue: successGradeValue,
+        gradeLabel: formatSubmissionGrade({
+          grade: successGradeValue,
+        }),
+        downloadUrl: submissionPayload?.fileUrl ?? null,
+        downloadFilename: submissionPayload?.fileName ?? null,
         error: null,
       });
       await refetch();
@@ -170,12 +185,34 @@ const getGradeColorClass = (grade) => {
       setPreviewModalState({
         status: "error",
         screenshotUrl: null,
-        grade: null,
+        gradeValue: null,
+        gradeLabel: null,
+        downloadUrl: null,
+        downloadFilename: null,
         error: err?.message || "Failed to upload submission.",
       });
     } finally {
       setUploading(false);
     }
+  };
+
+  const showSubmissionInModal = (submission) => {
+    const previewGradeValue = submission?.grade ?? null;
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "success",
+      screenshotUrl: submission?.screenshotUrl ?? null,
+      gradeValue: previewGradeValue,
+      gradeLabel: formatSubmissionGrade({
+        grade: previewGradeValue,
+      }),
+      downloadUrl: submission?.fileUrl ?? null,
+      downloadFilename:
+        submission?.fileName ||
+        submission?.fileKey?.split?.("/")?.pop?.() ||
+        null,
+      error: null,
+    });
   };
 
   const statsCards = useMemo(() => {
@@ -290,18 +327,16 @@ const getGradeColorClass = (grade) => {
                         </div>
                         <div className={styles.submissionDetails}>
                           <span>{formatDateTime(timestamp)}</span>
-                          <span>Grade: {formatSubmissionGrade(submission)}</span>
+                          <span>
+                            Grade: {formatSubmissionGrade(submission)}
+                          </span>
                         </div>
                       </div>
                       {fileUrl && (
                         <Button
-                          href={fileUrl}
-                          download={fileName}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={styles.downloadButton}
+                          onClick={() => showSubmissionInModal(submission)}
                         >
-                          Download
+                          View
                         </Button>
                       )}
                     </div>
@@ -323,74 +358,59 @@ const getGradeColorClass = (grade) => {
         </p>
       )}
 
+      {!isStudent && teacherSubmissions?.length > 0 && (
+        <>
+          <div className={styles.sectionDivider} />
+          <div className={styles.teacherSubmissionsHeader}>
+            <div className={styles.sectionTitle}>Student submissions</div>
+            <p className={styles.sectionMeta}>
+              {teacherSubmissions.length} attempts recorded
+            </p>
+          </div>
+          <div className={styles.teacherSubmissionList}>
+            {teacherSubmissions.map((submission, index) => (
+              <React.Fragment
+                key={submission?.id ?? `${submission?.userId}-${index}`}
+              >
+                <div className={styles.teacherSubmissionEntry}>
+                  <div className={styles.teacherSubmissionInfo}>
+                    <div className={styles.teacherSubmissionName}>
+                      {formatName(submission.user)}
+                    </div>
+                    <div className={styles.teacherSubmissionDetails}>
+                      <span>{formatDateTime(submission.updatedAt)}</span>
+                      <span>Grade: {formatSubmissionGrade(submission)}</span>
+                    </div>
+                  </div>
+                  <Button onClick={() => showSubmissionInModal(submission)}>
+                    View
+                  </Button>
+                </div>
+                {index < teacherSubmissions.length - 1 && (
+                  <div className={styles.rowDivider} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </>
+      )}
+
       {!isStudent && hasSubmission && (
         <div className={styles.submissionInfo}>
           Last submission recorded {formatDateTime(submissionTimestamp)}.
         </div>
       )}
-      <Modal
+      <SubmissionPreviewModal
         open={previewModalOpen}
-        onClose={
-          previewModalState.status === "loading" ? undefined : closePreviewModal
-        }
-        closeOnBackdrop={previewModalState.status !== "loading"}
-        title={
-          previewModalState.status === "success"
-            ? "Submission results"
-            : previewModalState.status === "error"
-            ? "Upload failed"
-            : "Uploading submission"
-        }
-        footer={
-          previewModalState.status === "loading" ? null : (
-            <Button onClick={closePreviewModal}>Close</Button>
-          )
-        }
-      >
-        <div className={styles.previewModalContent}>
-          {previewModalState.status === "loading" && (
-            <div className={styles.previewLoading}>
-              <Spinner />
-              <p className={styles.previewLoadingText}>
-                Grading your part…
-              </p>
-              <p className={styles.previewHint}>
-                Hang tight while we analyze your submission.
-              </p>
-            </div>
-          )}
-          {previewModalState.status === "success" && (
-            <>
-              {previewModalState.screenshotUrl ? (
-                <img
-                  src={previewModalState.screenshotUrl}
-                  alt="Submission screenshot"
-                  className={styles.previewScreenshot}
-                />
-              ) : (
-                <div className={styles.previewNoScreenshot}>
-                  Screenshot not available for this submission.
-                </div>
-              )}
-              <p
-                className={`${styles.previewGrade} ${getGradeColorClass(
-                  previewModalState.grade
-                ) ?? ""}`}
-              >
-                Grade earned:{" "}
-                <strong>
-                  {formatSubmissionGrade({
-                    grade: previewModalState.grade,
-                  })}
-                </strong>
-              </p>
-            </>
-          )}
-          {previewModalState.status === "error" && (
-            <p className={styles.previewError}>{previewModalState.error}</p>
-          )}
-        </div>
-      </Modal>
+        status={previewModalState.status}
+        screenshotUrl={previewModalState.screenshotUrl}
+        gradeValue={previewModalState.gradeValue}
+        gradeLabel={previewModalState.gradeLabel}
+        downloadUrl={previewModalState.downloadUrl}
+        downloadFilename={previewModalState.downloadFilename}
+        error={previewModalState.error}
+        onClose={closePreviewModal}
+      />
     </div>
   );
 };

@@ -301,7 +301,12 @@ export const CreateAssignmentModal = ({
         title="Part Upload"
         subtitle={
           <>
-            <p>Tell us some basic details about your part.</p>
+            <p>
+              Tell us some basic details about your part. Uploading a correct
+              file is optional, but if you upload one, we will be able to
+              automatically fill in details for you, and your students will get
+              better automatic feedback.
+            </p>
           </>
         }
       >

@@ -1,0 +1,66 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+}
+
+.loadingText {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.screenshot {
+  width: 100%;
+  max-width: 800px;
+}
+
+.noScreenshot {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.grade {
+  font-size: 1rem;
+  color: inherit;
+  margin: 0;
+}
+
+.gradeSuccess {
+  color: var(--positive);
+}
+
+.gradeWarning {
+  color: #d68c00;
+}
+
+.gradeError {
+  color: #b00020;
+}
+
+.error {
+  color: #b00020;
+  font-weight: 500;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
