@@ -162,3 +162,63 @@
   border-bottom: 1px solid var(--border);
   margin: 4px -16px;
 }
+
+.previewModalContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.previewLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+}
+
+.previewLoadingText {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.previewHint {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.previewScreenshot {
+  width: 100%;
+  max-width: 800px;
+}
+
+.previewNoScreenshot {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.previewGrade {
+  font-size: 1rem;
+  color: inherit;
+  margin: 0;
+}
+
+.previewError {
+  color: #b00020;
+  font-weight: 500;
+}
+
+.previewGradeSuccess {
+  color: var(--positive);
+}
+
+.previewGradeWarning {
+  color: #d68c00;
+}
+
+.previewGradeError {
+  color: #b00020;
+}

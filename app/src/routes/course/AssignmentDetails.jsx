@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
+import { Modal } from "../../components/modal/Modal";
+import { Spinner } from "../../components/spinner/Spinner";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import styles from "./AssignmentDetails.module.css";
 
@@ -39,6 +41,13 @@ export const AssignmentDetails = () => {
   const [uploadError, setUploadError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewModalState, setPreviewModalState] = useState({
+    status: "idle",
+    screenshotUrl: null,
+    grade: null,
+    error: null,
+  });
 
   const submissions =
     (userSubmissions && userSubmissions.length > 0 && userSubmissions) ||
@@ -60,23 +69,41 @@ export const AssignmentDetails = () => {
 
   const dueDateLabel = formatDateTime(assignment?.dueDate);
 
-  const formatSubmissionGrade = (submission) => {
-    const gradeValue = Number(submission?.grade);
-    if (!Number.isFinite(gradeValue)) {
-      return "Pending";
-    }
-    const pointsPossibleValue = Number(assignment?.pointsPossible);
-    if (Number.isFinite(pointsPossibleValue)) {
-      return `${gradeValue}/${pointsPossibleValue}`;
-    }
-    return `${gradeValue}`;
-  };
+const formatSubmissionGrade = (submission) => {
+  const gradeValue = Number(submission?.grade);
+  if (!Number.isFinite(gradeValue)) {
+    return "Pending";
+  }
+  const pointsPossibleValue = Number(assignment?.pointsPossible);
+  if (Number.isFinite(pointsPossibleValue)) {
+    return `${gradeValue}/${pointsPossibleValue}`;
+  }
+  return `${gradeValue}`;
+};
+
+const getGradeColorClass = (grade) => {
+  const gradeValue = Number(grade);
+  if (!Number.isFinite(gradeValue)) return null;
+  if (gradeValue >= 85) return styles.previewGradeSuccess;
+  if (gradeValue >= 60) return styles.previewGradeWarning;
+  return styles.previewGradeError;
+};
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     setUploadError(null);
     setSuccessMessage(null);
+  };
+
+  const closePreviewModal = () => {
+    setPreviewModalOpen(false);
+    setPreviewModalState({
+      status: "idle",
+      screenshotUrl: null,
+      grade: null,
+      error: null,
+    });
   };
 
   const handleSubmit = async () => {
@@ -86,6 +113,13 @@ export const AssignmentDetails = () => {
     }
 
     setUploading(true);
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "loading",
+      screenshotUrl: null,
+      grade: null,
+      error: null,
+    });
     setUploadError(null);
     setSuccessMessage(null);
 
@@ -100,24 +134,45 @@ export const AssignmentDetails = () => {
         }
       );
 
+      const responseText = await response.text();
+      let payload = null;
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText);
+        } catch {
+          // ignore invalid JSON; fallback messages handled below
+        }
+      }
+
       if (!response.ok) {
         let message = "Failed to upload submission.";
-        try {
-          const payload = await response.json();
-          if (payload?.error) {
-            message = payload.error;
-          }
-        } catch {
-          // ignore
+        if (payload?.error) {
+          message = payload.error;
+        } else if (responseText?.trim()) {
+          message = responseText.trim();
         }
         throw new Error(message);
       }
 
+      const submissionPayload = payload?.submission ?? null;
+
       setSelectedFile(null);
       setSuccessMessage("Submission uploaded successfully.");
+      setPreviewModalState({
+        status: "success",
+        screenshotUrl: submissionPayload?.screenshotUrl ?? null,
+        grade: submissionPayload?.grade ?? null,
+        error: null,
+      });
       await refetch();
     } catch (err) {
       setUploadError(err?.message || "Failed to upload submission.");
+      setPreviewModalState({
+        status: "error",
+        screenshotUrl: null,
+        grade: null,
+        error: err?.message || "Failed to upload submission.",
+      });
     } finally {
       setUploading(false);
     }
@@ -273,6 +328,69 @@ export const AssignmentDetails = () => {
           Last submission recorded {formatDateTime(submissionTimestamp)}.
         </div>
       )}
+      <Modal
+        open={previewModalOpen}
+        onClose={
+          previewModalState.status === "loading" ? undefined : closePreviewModal
+        }
+        closeOnBackdrop={previewModalState.status !== "loading"}
+        title={
+          previewModalState.status === "success"
+            ? "Submission results"
+            : previewModalState.status === "error"
+            ? "Upload failed"
+            : "Uploading submission"
+        }
+        footer={
+          previewModalState.status === "loading" ? null : (
+            <Button onClick={closePreviewModal}>Close</Button>
+          )
+        }
+      >
+        <div className={styles.previewModalContent}>
+          {previewModalState.status === "loading" && (
+            <div className={styles.previewLoading}>
+              <Spinner />
+              <p className={styles.previewLoadingText}>
+                Grading your part…
+              </p>
+              <p className={styles.previewHint}>
+                Hang tight while we analyze your submission.
+              </p>
+            </div>
+          )}
+          {previewModalState.status === "success" && (
+            <>
+              {previewModalState.screenshotUrl ? (
+                <img
+                  src={previewModalState.screenshotUrl}
+                  alt="Submission screenshot"
+                  className={styles.previewScreenshot}
+                />
+              ) : (
+                <div className={styles.previewNoScreenshot}>
+                  Screenshot not available for this submission.
+                </div>
+              )}
+              <p
+                className={`${styles.previewGrade} ${getGradeColorClass(
+                  previewModalState.grade
+                ) ?? ""}`}
+              >
+                Grade earned:{" "}
+                <strong>
+                  {formatSubmissionGrade({
+                    grade: previewModalState.grade,
+                  })}
+                </strong>
+              </p>
+            </>
+          )}
+          {previewModalState.status === "error" && (
+            <p className={styles.previewError}>{previewModalState.error}</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
