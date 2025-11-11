@@ -437,3 +437,41 @@ export const patch = [
     return res.json(updatedAssignment);
   },
 ];
+
+export const del = [
+  withAuth,
+  async (req, res) => {
+    const { courseId, assignmentId } = req.params;
+    const userId = req.user.localUserId ?? req.user.id;
+
+    const enrollment = await ensureEnrollment(userId, courseId);
+    if (!enrollment) {
+      return res.status(404).json({ error: "Course enrollment not found." });
+    }
+
+    if (!["TEACHER", "TA"].includes(enrollment.type)) {
+      return res
+        .status(403)
+        .json({ error: "Only instructors can delete assignments." });
+    }
+
+    const existingAssignment = await readAssignment(assignmentId);
+    if (!existingAssignment) {
+      return res.status(404).json({ error: "Assignment not found." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.assignment.update({
+        where: { id: assignmentId },
+        data: { deleted: true },
+      });
+
+      await tx.assignmentSignature.updateMany({
+        where: { assignmentId },
+        data: { deleted: true },
+      });
+    });
+
+    return res.json({ success: true });
+  },
+];

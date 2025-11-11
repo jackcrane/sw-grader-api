@@ -18,3 +18,13 @@
   color: var(--action-contrast-primary);
   border-color: var(--action);
 }
+
+.danger {
+  background: #c62828;
+  color: #fff;
+  border-color: #c62828;
+}
+
+.danger:disabled {
+  opacity: 0.7;
+}

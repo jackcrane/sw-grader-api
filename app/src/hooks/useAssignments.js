@@ -49,6 +49,21 @@ export const useAssignments = (courseId) => {
     return updatedAssignment;
   };
 
+  const deleteAssignment = async (assignmentId) => {
+    if (!courseId) {
+      throw new Error("courseId is required to delete an assignment");
+    }
+    if (!assignmentId) {
+      throw new Error("assignmentId is required to delete an assignment");
+    }
+
+    await fetchJson(
+      `/api/courses/${courseId}/assignments/${assignmentId}`,
+      { method: "DELETE" }
+    );
+    await mutate();
+  };
+
   return {
     assignments: data,
     loading: isLoading,
@@ -56,5 +71,6 @@ export const useAssignments = (courseId) => {
     refetch: mutate,
     createAssignment,
     updateAssignment,
+    deleteAssignment,
   };
 };

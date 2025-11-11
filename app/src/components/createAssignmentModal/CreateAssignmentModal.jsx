@@ -298,6 +298,7 @@ export const CreateAssignmentModal = ({
   onClose,
   onCreateAssignment,
   onUpdateAssignment,
+  onDeleteAssignment,
   courseId,
   mode = "create",
   assignment = null,
@@ -313,6 +314,7 @@ export const CreateAssignmentModal = ({
 
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
@@ -327,6 +329,7 @@ export const CreateAssignmentModal = ({
     setSubmitting(false);
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
+    setDeleting(false);
   }, []);
 
   const hydrateFromAssignment = useCallback(() => {
@@ -586,11 +589,40 @@ export const CreateAssignmentModal = ({
     ? "Save changes"
     : "Create assignment";
 
+  const handleDeleteAssignment = async () => {
+    if (!isEditMode || !assignment?.id || !onDeleteAssignment) return;
+    const confirmed = window.confirm(
+      "Delete this assignment? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+      await onDeleteAssignment(assignment.id);
+    } catch (error) {
+      console.error("Failed to delete assignment", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const headerActions =
+    isEditMode && onDeleteAssignment ? (
+      <Button
+        onClick={handleDeleteAssignment}
+        variant="danger"
+        disabled={submitting || deleting}
+      >
+        {deleting ? "Deleting..." : "Delete"}
+      </Button>
+    ) : null;
+
   return (
     <Modal
       title={modalTitle}
       open={open}
       onClose={onClose}
+      headerActions={headerActions}
       footer={
         <Row gap={2}>
           <Button onClick={onClose} disabled={submitting}>

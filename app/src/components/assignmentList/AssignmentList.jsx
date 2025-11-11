@@ -12,8 +12,14 @@ export const AssignmentList = ({
   enrollmentType,
   detailsPane = null,
 }) => {
-  const { assignments, loading, error, createAssignment, updateAssignment } =
-    useAssignments(courseId);
+  const {
+    assignments,
+    loading,
+    error,
+    createAssignment,
+    updateAssignment,
+    deleteAssignment,
+  } = useAssignments(courseId);
 
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
@@ -48,6 +54,11 @@ export const AssignmentList = ({
     setAssignmentModalOpen(false);
     setAssignmentBeingEdited(null);
     setModalMode("create");
+  };
+
+  const handleDeleteAssignment = async (assignmentId) => {
+    await deleteAssignment(assignmentId);
+    handleCloseModal();
   };
 
   return (
@@ -152,6 +163,7 @@ export const AssignmentList = ({
           courseId={courseId}
           mode={modalMode}
           assignment={assignmentBeingEdited}
+          onDeleteAssignment={handleDeleteAssignment}
         />
       )}
     </>

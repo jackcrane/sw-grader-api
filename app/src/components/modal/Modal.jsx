@@ -20,6 +20,7 @@ export const Modal = ({
   onClose,
   initialFocusRef,
   closeOnBackdrop = true,
+  headerActions = null,
 }) => {
   const modalRef = useRef(null);
 
@@ -77,14 +78,19 @@ export const Modal = ({
           <div id="modal-title" className={styles.title}>
             {title}
           </div>
-          <button
-            type="button"
-            aria-label="Close"
-            className={styles.close}
-            onClick={onClose}
-          >
-            ×
-          </button>
+          <div className={styles.headerControls}>
+            {headerActions ? (
+              <div className={styles.headerActions}>{headerActions}</div>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Close"
+              className={styles.close}
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className={styles.body}>{children}</div>

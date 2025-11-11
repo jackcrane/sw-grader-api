@@ -15,6 +15,7 @@ export const Button = ({
   const classes = classnames(
     styles.button,
     variant === "primary" && styles.primary,
+    variant === "danger" && styles.danger,
     className
   );
 
