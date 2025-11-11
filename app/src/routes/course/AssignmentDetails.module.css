@@ -23,7 +23,7 @@
 .sectionDivider {
   width: calc(100% + 32px);
   border-bottom: 1px solid var(--border);
-  margin: 16px -16px16px;
+  margin: 16px -16px 16px;
 }
 
 .historyDivider {
@@ -120,7 +120,20 @@
 .submissionEntry {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+}
+
+.submissionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.submissionInfoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .submissionAttempt {
@@ -134,6 +147,14 @@
   gap: 12px;
   font-size: 0.9rem;
   color: #333;
+}
+
+.downloadButton {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 .rowDivider {

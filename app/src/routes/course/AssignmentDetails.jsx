@@ -220,15 +220,35 @@ export const AssignmentDetails = () => {
               const attemptNumber = sortedSubmissions.length - index;
               const timestamp =
                 submission?.updatedAt ?? submission?.createdAt ?? null;
+              const fileUrl = submission?.fileUrl;
+              const fileName =
+                submission?.fileName ||
+                submission?.fileKey?.split?.("/")?.pop?.() ||
+                `submission-${attemptNumber}.sldprt`;
               return (
                 <React.Fragment key={submission?.id ?? index}>
                   <div className={styles.submissionEntry}>
-                    <div className={styles.submissionAttempt}>
-                      Attempt {attemptNumber}
-                    </div>
-                    <div className={styles.submissionDetails}>
-                      <span>{formatDateTime(timestamp)}</span>
-                      <span>Grade: {formatSubmissionGrade(submission)}</span>
+                    <div className={styles.submissionRow}>
+                      <div className={styles.submissionInfoBlock}>
+                        <div className={styles.submissionAttempt}>
+                          Attempt {attemptNumber}
+                        </div>
+                        <div className={styles.submissionDetails}>
+                          <span>{formatDateTime(timestamp)}</span>
+                          <span>Grade: {formatSubmissionGrade(submission)}</span>
+                        </div>
+                      </div>
+                      {fileUrl && (
+                        <Button
+                          href={fileUrl}
+                          download={fileName}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={styles.downloadButton}
+                        >
+                          Download
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {index < sortedSubmissions.length - 1 && (

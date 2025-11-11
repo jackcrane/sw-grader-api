@@ -1,5 +1,9 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
+import {
+  withSignedAssetUrls,
+  withSignedAssetUrlsMany,
+} from "../../../../../util/submissionAssets.js";
 
 const ensureEnrollment = async (userId, courseId) => {
   if (!userId || !courseId) return null;
@@ -119,7 +123,7 @@ export const get = [
       return res.status(404).json({ error: "Assignment not found." });
     }
 
-    const userSubmissions =
+    const userSubmissionsRaw =
       (await prisma.submission.findMany({
         where: {
           userId,
@@ -130,6 +134,7 @@ export const get = [
           createdAt: "asc",
         },
       })) ?? [];
+    const userSubmissions = await withSignedAssetUrlsMany(userSubmissionsRaw);
 
     const userSubmission =
       userSubmissions.length > 0
