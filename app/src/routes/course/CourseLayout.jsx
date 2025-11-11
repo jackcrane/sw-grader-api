@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   NavLink,
   Outlet,
@@ -13,14 +13,102 @@ import { useEnrollments } from "../../hooks/useEnrollments";
 import styles from "./CourseTabs.module.css";
 import { H1 } from "../../components/typography/Typography";
 import { useAuthContext } from "../../context/AuthContext";
+import { Button } from "../../components/button/Button";
+
+const maskCode = (value) => {
+  if (!value) return "";
+  return "•".repeat(Math.max(value.length, 8));
+};
+
+const smallButtonStyle = {
+  padding: "4px 12px",
+  fontSize: 12,
+  minHeight: 0,
+};
 
 const getCourseId = (enrollment) =>
   enrollment.course?.id ?? enrollment.courseId ?? null;
 
 export const CourseLayout = () => {
   const { courseId } = useParams();
-  const { enrollments, loading } = useEnrollments();
+  const { enrollments, loading, refetch } = useEnrollments();
   const { viewAsStudent } = useAuthContext();
+  const [inviteCardDismissed, setInviteCardDismissed] = useState(false);
+  const [studentCodeVisible, setStudentCodeVisible] = useState(false);
+  const [taCodeVisible, setTaCodeVisible] = useState(false);
+  const [inviteCardError, setInviteCardError] = useState(null);
+  const [regenerating, setRegenerating] = useState({ student: false, ta: false });
+
+  const inviteDismissKey = useMemo(
+    () => (courseId ? `courseInviteCardDismissed:${courseId}` : null),
+    [courseId]
+  );
+
+  useEffect(() => {
+    setStudentCodeVisible(false);
+    setTaCodeVisible(false);
+    setInviteCardError(null);
+    if (!inviteDismissKey || typeof window === "undefined") {
+      setInviteCardDismissed(false);
+      return;
+    }
+    const stored = window.localStorage.getItem(inviteDismissKey);
+    setInviteCardDismissed(stored === "true");
+  }, [inviteDismissKey]);
+
+  const rotateInviteCode = useCallback(
+    async (inviteType) => {
+      if (!courseId) {
+        throw new Error("Course not found");
+      }
+
+      const response = await fetch(`/api/courses/${courseId}/invite-codes`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ type: inviteType }),
+      });
+
+      if (!response.ok) {
+        let message = "Failed to regenerate invite code";
+        try {
+          const payload = await response.json();
+          message = payload?.message ?? message;
+        } catch {
+          const text = await response.text();
+          message = text || message;
+        }
+        throw new Error(message);
+      }
+
+      const payload = await response.json();
+      await refetch?.();
+      return payload?.course ?? null;
+    },
+    [courseId, refetch]
+  );
+
+  const setRegeneratingFor = (inviteType, value) => {
+    setRegenerating((prev) => ({ ...prev, [inviteType]: value }));
+  };
+
+  const handleInviteRegenerate = async (inviteType) => {
+    setInviteCardError(null);
+    setRegeneratingFor(inviteType, true);
+    try {
+      await rotateInviteCode(inviteType);
+      if (inviteType === "student") {
+        setStudentCodeVisible(false);
+      } else {
+        setTaCodeVisible(false);
+      }
+    } catch (error) {
+      setInviteCardError(error?.message ?? "Failed to regenerate invite code");
+    } finally {
+      setRegeneratingFor(inviteType, false);
+    }
+  };
 
   const assignmentsRootMatch = useMatch({ path: "/:courseId", end: true });
   const assignmentsDetailsMatch = useMatch("/:courseId/assignments/*");
@@ -69,6 +157,9 @@ export const CourseLayout = () => {
     canViewGradebook
       ? { path: `/${courseId}/gradebook`, label: "Gradebook" }
       : null,
+    hasStaffPrivileges
+      ? { path: `/${courseId}/details`, label: "Course Details" }
+      : null,
   ].filter(Boolean);
 
   const courseName = enrollment.course?.name ?? "Course";
@@ -76,16 +167,45 @@ export const CourseLayout = () => {
   const studentInviteCode = enrollment.course?.studentInviteCode;
   const taInviteCode = enrollment.course?.taInviteCode;
 
+  const shouldShowInviteCard =
+    hasStaffPrivileges &&
+    !inviteCardDismissed &&
+    (studentInviteCode || taInviteCode);
+
+  const handleDismissInviteCard = () => {
+    if (inviteDismissKey && typeof window !== "undefined") {
+      window.localStorage.setItem(inviteDismissKey, "true");
+    }
+    setInviteCardDismissed(true);
+  };
+
   return (
     <Page>
       <header style={{ marginTop: 16 }}>
         <H1>{courseName}</H1>
         {courseAbbr && <p style={{ color: "#555" }}>{courseAbbr}</p>}
       </header>
-      {hasStaffPrivileges && (studentInviteCode || taInviteCode) && (
+      {shouldShowInviteCard && (
         <>
           <Spacer />
-          <Card>
+          <Card style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={handleDismissInviteCard}
+              aria-label="Dismiss invite codes"
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                border: "none",
+                background: "transparent",
+                fontSize: 18,
+                cursor: "pointer",
+                color: "#666",
+              }}
+            >
+              ×
+            </button>
             <div style={{ marginBottom: 8, fontWeight: 600 }}>
               Share invite codes
             </div>
@@ -98,7 +218,24 @@ export const CourseLayout = () => {
                 <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
                   Student code
                 </div>
-                <code style={{ fontSize: 16 }}>{studentInviteCode}</code>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <code style={{ fontSize: 16 }}>
+                    {studentCodeVisible ? studentInviteCode : maskCode(studentInviteCode)}
+                  </code>
+                  <Button
+                    onClick={() => setStudentCodeVisible((prev) => !prev)}
+                    style={smallButtonStyle}
+                  >
+                    {studentCodeVisible ? "Hide" : "Show"}
+                  </Button>
+                  <Button
+                    onClick={() => handleInviteRegenerate("student")}
+                    disabled={regenerating.student}
+                    style={smallButtonStyle}
+                  >
+                    {regenerating.student ? "Regenerating..." : "Regenerate"}
+                  </Button>
+                </div>
               </div>
             )}
             {taInviteCode && (
@@ -106,8 +243,28 @@ export const CourseLayout = () => {
                 <div style={{ fontSize: 12, textTransform: "uppercase", color: "#777" }}>
                   TA / instructor code
                 </div>
-                <code style={{ fontSize: 16 }}>{taInviteCode}</code>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <code style={{ fontSize: 16 }}>
+                    {taCodeVisible ? taInviteCode : maskCode(taInviteCode)}
+                  </code>
+                  <Button
+                    onClick={() => setTaCodeVisible((prev) => !prev)}
+                    style={smallButtonStyle}
+                  >
+                    {taCodeVisible ? "Hide" : "Show"}
+                  </Button>
+                  <Button
+                    onClick={() => handleInviteRegenerate("ta")}
+                    disabled={regenerating.ta}
+                    style={smallButtonStyle}
+                  >
+                    {regenerating.ta ? "Regenerating..." : "Regenerate"}
+                  </Button>
+                </div>
               </div>
+            )}
+            {inviteCardError && (
+              <p style={{ color: "#b00020", marginTop: 12 }}>{inviteCardError}</p>
             )}
           </Card>
         </>
@@ -136,6 +293,8 @@ export const CourseLayout = () => {
             enrollment: effectiveEnrollment,
             canViewRoster,
             isViewingAsStudent,
+            hasStaffPrivileges,
+            regenerateInviteCode: rotateInviteCode,
           }}
         />
       </Card>

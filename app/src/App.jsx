@@ -11,6 +11,7 @@ import { CourseRoster } from "./routes/course/CourseRoster";
 import { CourseGradebook } from "./routes/course/CourseGradebook";
 import { AssignmentDetails } from "./routes/course/AssignmentDetails";
 import { AssignmentDetailsPlaceholder } from "./routes/course/AssignmentDetailsPlaceholder";
+import { CourseDetails } from "./routes/course/CourseDetails";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
@@ -48,6 +49,7 @@ const AppRoutes = () => {
       >
         <Route path="gradebook" element={<CourseGradebook />} />
         <Route path="roster" element={<CourseRoster />} />
+        <Route path="details" element={<CourseDetails />} />
         <Route path="" element={<CourseOverview />}>
           <Route index element={<AssignmentDetailsPlaceholder />} />
           <Route

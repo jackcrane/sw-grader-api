@@ -32,6 +32,15 @@ export const generateCourseInviteCodes = async () => ({
   taInviteCode: await generateUniqueCode(TA_PREFIX),
 });
 
+export const generateInviteCode = async (type) => {
+  const normalized = (type ?? "").toLowerCase();
+  const prefix = normalized === "student" ? STUDENT_PREFIX : normalized === "ta" ? TA_PREFIX : null;
+  if (!prefix) {
+    throw new Error("Unsupported invite code type");
+  }
+  return generateUniqueCode(prefix);
+};
+
 export const normalizeInviteCode = (code) =>
   (code ?? "")
     .trim()
