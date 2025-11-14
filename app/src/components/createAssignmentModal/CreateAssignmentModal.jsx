@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Modal } from "../modal/Modal";
 import { Col, Row } from "../flex/Flex";
 import { Button } from "../button/Button";
@@ -258,11 +264,12 @@ const SignatureSection = ({
               partDetails: getInitialPartDetails(),
             });
           }}
+          style={{ marginBottom: 4 }}
         />
       )}
 
       {prescanMessage && (
-        <p style={{ fontSize: 12, marginTop: 4, color: prescanColor }}>
+        <p style={{ fontSize: 12, marginBottom: 4, color: prescanColor }}>
           {prescanMessage}
         </p>
       )}
@@ -600,9 +607,7 @@ export const CreateAssignmentModal = ({
     }
   };
 
-  const modalTitle = isEditMode
-    ? "Edit Assignment"
-    : "Create a new Assignment";
+  const modalTitle = isEditMode ? "Edit Assignment" : "Create a new Assignment";
   const primaryButtonLabel = submitting
     ? isEditMode
       ? "Saving..."
