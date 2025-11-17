@@ -10,6 +10,12 @@ import {
   subscribeToGraderStatus,
   updatePendingSubmissionCount,
 } from "./graderHealth.js";
+import {
+  consumeSubmissionJobs,
+  enqueueSubmissionJob,
+  getQueueMetrics,
+  subscribeToQueueMetrics,
+} from "./graderQueue.js";
 import { downloadObject, uploadObject } from "../util/s3.js";
 
 const SIGNATURE_INCLUDE = {
@@ -33,30 +39,33 @@ const deriveScreenshotKey = (fileKey) => {
   return parts.join("/");
 };
 
-const refreshPendingCount = async () => {
-  try {
-    const count = await prisma.submission.count({
-      where: {
-        deleted: false,
-        grade: null,
-      },
+const WAIT_FOR_ONLINE_TIMEOUT_MS = Number(
+  process.env.GRADER_MAX_WAIT_MS || 5 * 60 * 1000
+); // 5 minutes
+
+const waitForGraderOnline = async () => {
+  if (isGraderOnline()) return;
+  await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      resolve();
+    }, WAIT_FOR_ONLINE_TIMEOUT_MS);
+    const unsubscribe = subscribeToGraderStatus((status) => {
+      if (status.online) {
+        clearTimeout(timeout);
+        unsubscribe();
+        resolve();
+      }
     });
-    updatePendingSubmissionCount(count);
-    return count;
-  } catch (error) {
-    console.warn("Failed to refresh pending submission count", error);
-    return null;
-  }
+  });
 };
 
-const fetchNextPendingSubmission = () => {
+const loadSubmissionForProcessing = async (submissionId) => {
+  if (!submissionId) return null;
   return prisma.submission.findFirst({
     where: {
+      id: submissionId,
       deleted: false,
-      grade: null,
-    },
-    orderBy: {
-      createdAt: "asc",
     },
     include: {
       assignment: SIGNATURE_INCLUDE,
@@ -137,46 +146,68 @@ const processSubmission = async (submission) => {
   });
 };
 
-const PROCESS_INTERVAL_MS = Number(
-  process.env.PENDING_AUTOGRADE_POLL_MS || 15000
-);
-let processing = false;
+const handleSubmissionJob = async ({ submissionId }) => {
+  await waitForGraderOnline();
+  const submission = await loadSubmissionForProcessing(submissionId);
+  if (!submission) {
+    console.warn("Queue referenced missing submission", submissionId);
+    return;
+  }
+  if (submission.grade != null) {
+    // Already processed; skip duplicate message
+    return;
+  }
+  await processSubmission(submission);
+};
 
-const workQueue = async () => {
-  if (processing) return;
-  if (!isGraderOnline()) return;
-  processing = true;
+const seedPendingSubmissions = async () => {
   try {
-    await refreshPendingCount();
-    while (isGraderOnline()) {
-      const submission = await fetchNextPendingSubmission();
-      if (!submission) break;
-      try {
-        await processSubmission(submission);
-      } catch (error) {
-        console.error(
-          `Failed to process submission ${submission.id}`,
+    const pending = await prisma.submission.findMany({
+      where: {
+        deleted: false,
+        grade: null,
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+    for (const item of pending) {
+      await enqueueSubmissionJob(
+        { submissionId: item.id },
+        { trackPosition: false }
+      ).catch((error) => {
+        console.warn(
+          `Failed to enqueue pending submission ${item.id}`,
           error
         );
-        break;
-      } finally {
-        await refreshPendingCount();
-      }
+      });
     }
-    await refreshPendingCount();
-  } finally {
-    processing = false;
+  } catch (error) {
+    console.warn("Unable to seed pending submissions", error);
   }
 };
 
-export const startPendingSubmissionWorker = () => {
-  refreshPendingCount();
-  subscribeToGraderStatus((status) => {
-    if (status.online) {
-      workQueue();
-    }
+const bridgeQueueMetricsToHealthStatus = () => {
+  subscribeToQueueMetrics((metrics) => {
+    updatePendingSubmissionCount(metrics.totalPending);
   });
-  setInterval(() => {
-    workQueue();
-  }, PROCESS_INTERVAL_MS);
+  updatePendingSubmissionCount(getQueueMetrics().totalPending);
+};
+
+const startQueueConsumer = () => {
+  consumeSubmissionJobs(handleSubmissionJob).catch((error) => {
+    console.error("Submission queue consumer crashed", error);
+    setTimeout(startQueueConsumer, 10000);
+  });
+};
+
+export const startPendingSubmissionWorker = () => {
+  bridgeQueueMetricsToHealthStatus();
+  seedPendingSubmissions().catch((error) => {
+    console.warn("Failed to enqueue pending submissions on start", error);
+  });
+  startQueueConsumer();
 };

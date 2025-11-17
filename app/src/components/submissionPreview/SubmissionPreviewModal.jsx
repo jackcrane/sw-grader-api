@@ -29,9 +29,20 @@ export const SubmissionPreviewModal = ({
   downloadUrl,
   downloadFilename,
   error,
+  queueStatus,
   onClose,
 }) => {
   if (!open) return null;
+
+  const queueAheadCount =
+    queueStatus?.queueAheadCount ?? queueStatus?.aheadCount ?? 0;
+  const queuePosition =
+    queueStatus?.queuePosition ?? queueStatus?.position ?? queueAheadCount + 1;
+  const queueSize =
+    queueStatus?.queueSize ?? queueStatus?.queueDepth ?? null;
+  const queueState =
+    queueStatus?.state ??
+    (queueAheadCount > 0 ? "queued" : "processing");
 
   return (
     <Modal
@@ -61,8 +72,34 @@ export const SubmissionPreviewModal = ({
         {status === "loading" && (
           <div className={styles.loading}>
             <Spinner />
-            <p className={styles.loadingText}>Grading your part…</p>
-            <p className={styles.hint}>Hang tight while we analyze your submission.</p>
+            <p className={styles.loadingText}>
+              {queueState === "processing"
+                ? "Grading your part…"
+                : "Waiting for your turn…"}
+            </p>
+            {queueStatus ? (
+              <>
+                <p className={styles.queuePosition}>
+                  {queueAheadCount > 0
+                    ? `${queueAheadCount} ${
+                        queueAheadCount === 1 ? "submission" : "submissions"
+                      } ahead of you`
+                    : "You're up next!"}
+                </p>
+                {queueSize != null && (
+                  <p className={styles.queueHelper}>
+                    Position {queuePosition} of {queueSize}
+                  </p>
+                )}
+                {queueStatus.error && (
+                  <p className={styles.queueError}>{queueStatus.error}</p>
+                )}
+              </>
+            ) : (
+              <p className={styles.hint}>
+                Hang tight while we analyze your submission.
+              </p>
+            )}
           </div>
         )}
         {status === "success" && (

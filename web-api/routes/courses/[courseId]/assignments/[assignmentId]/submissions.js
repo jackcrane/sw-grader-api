@@ -6,15 +6,12 @@ import {
   withSignedAssetUrls,
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
-import { analyzePart } from "../../../../../services/analyzerClient.js";
 import {
   buildSubmissionAssetKey,
-  bufferFromBase64,
-  computePercentDiff,
-  evaluateSubmissionAgainstSignatures,
   getExtension,
 } from "../../../../../services/submissionUtils.js";
-import { isGraderOnline } from "../../../../../services/graderHealth.js";
+import { enqueueSubmissionJob } from "../../../../../services/graderQueue.js";
+import { computeSubmissionQueuePosition } from "../../../../../services/submissionQueuePosition.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,6 +55,20 @@ const readAssignment = async (assignmentId) => {
     },
     include: signaturesInclude,
   });
+};
+
+const buildQueueMessage = (queue) => {
+  if (!queue) {
+    return "Submission received. Auto-grading will run when resources are available.";
+  }
+  const ahead = Number(queue.aheadCount) || 0;
+  if (ahead <= 0) {
+    return "Submission received. You're next in the grading queue.";
+  }
+  const plural = ahead === 1 ? "submission" : "submissions";
+  return `Submission received. ${ahead} ${plural} ${
+    ahead === 1 ? "is" : "are"
+  } ahead of you in the queue.`;
 };
 
 export const post = [
@@ -107,111 +118,57 @@ export const post = [
         contentType: file.mimetype || "application/octet-stream",
       });
 
-      let measuredVolume = null;
-      let measuredSurfaceArea = null;
-      let evaluation = null;
-      let screenshotUpload = null;
-      let deferred = false;
-
-      if (isGraderOnline()) {
-        try {
-          const analysis = await analyzePart({
-            fileBuffer: file.buffer,
-            filename: file.originalname || "submission.sldprt",
-            mimeType: file.mimetype || "application/octet-stream",
-            unitSystem: assignment.unitSystem,
-          });
-
-          measuredVolume = Number(analysis?.volume);
-          measuredSurfaceArea = Number(analysis?.surfaceArea);
-
-          if (
-            Number.isFinite(measuredVolume) &&
-            Number.isFinite(measuredSurfaceArea)
-          ) {
-            const tolerance = Number(assignment.tolerancePercent) || 0;
-            evaluation = evaluateSubmissionAgainstSignatures({
-              assignment,
-              measuredVolume,
-              measuredSurfaceArea,
-              tolerance,
-            });
-
-            const screenshotBuffer = bufferFromBase64(
-              analysis?.screenshot ?? analysis?.screenshotB64 ?? ""
-            );
-            if (screenshotBuffer) {
-              screenshotUpload = await uploadObject({
-                key: buildSubmissionAssetKey({
-                  courseId,
-                  assignmentId,
-                  userId,
-                  type: "screenshot",
-                  extension: ".png",
-                }),
-                body: screenshotBuffer,
-                contentType: "image/png",
-              });
-            }
-          } else {
-            deferred = true;
-          }
-        } catch (error) {
-          console.error("Immediate grading failed", error);
-          deferred = true;
-        }
-      } else {
-        deferred = true;
-      }
-
       const submission = await prisma.submission.create({
         data: {
-          volume: evaluation ? measuredVolume : null,
-          surfaceArea: evaluation ? measuredSurfaceArea : null,
-          grade: evaluation?.grade ?? null,
-          feedback: evaluation?.feedback ?? null,
-          matchingSignatureId: evaluation?.matchingSignatureId ?? null,
           fileKey: fileUpload?.key,
           fileUrl: fileUpload?.url,
           fileName: file.originalname ?? null,
-          screenshotKey: screenshotUpload?.key ?? null,
-          screenshotUrl: screenshotUpload?.url ?? null,
           assignmentId,
           userId,
         },
       });
 
       const submissionWithSignedUrls = await withSignedAssetUrls(submission);
-      const autoGradingPending = !evaluation;
+      const autoGradingPending = true;
+
+      let queueInfo = null;
+      try {
+        queueInfo = await enqueueSubmissionJob({
+          submissionId: submission.id,
+        });
+      } catch (error) {
+        console.error("Failed to enqueue submission for grading", error);
+      }
+
+      const queuePosition = await computeSubmissionQueuePosition({
+        submissionId: submission.id,
+        createdAt: submission.createdAt,
+        grade: submission.grade,
+      });
+
+      const queue = {
+        aheadCount:
+          queuePosition?.aheadCount ??
+          queueInfo?.aheadCount ??
+          0,
+        position:
+          queuePosition?.position ??
+          queueInfo?.position ??
+          1,
+        queueSize:
+          queuePosition?.queueSize ??
+          queueInfo?.queueDepth ??
+          null,
+      };
 
       return res.status(201).json({
         submission: {
           ...submissionWithSignedUrls,
           autoGradingPending,
         },
-        analysis: evaluation
-          ? {
-              volume: measuredVolume,
-              surfaceArea: measuredSurfaceArea,
-              volumeDiffPercent:
-                evaluation.diffs?.volumeDiff ??
-                computePercentDiff(assignment.volume, measuredVolume),
-              surfaceDiffPercent:
-                evaluation.diffs?.surfaceDiff ??
-                computePercentDiff(
-                  assignment.surfaceArea,
-                  measuredSurfaceArea
-                ),
-              withinTolerance: evaluation.diffs?.withinTolerance ?? false,
-              matchedSignatureId: evaluation.matchingSignatureId ?? null,
-              matchedSignatureType: evaluation.matchedType ?? null,
-              feedback: evaluation.feedback ?? null,
-            }
-          : null,
-        message:
-          deferred || autoGradingPending
-            ? "Submission received. Auto-grading will run when the grader is online."
-            : undefined,
+        queue,
+        analysis: null,
+        message: buildQueueMessage(queue),
         autoGradingPending,
       });
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
@@ -71,6 +71,9 @@ export const AssignmentDetails = () => {
     downloadUrl: null,
     downloadFilename: null,
   });
+  const [queueStatus, setQueueStatus] = useState(null);
+  const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
+  const eventSourceRef = useRef(null);
 
   const submissions =
     (userSubmissions && userSubmissions.length > 0 && userSubmissions) ||
@@ -93,26 +96,41 @@ export const AssignmentDetails = () => {
   const dueDateLabel = formatDateTime(assignment?.dueDate);
   const graderOffline = graderOnline === false;
 
-  const formatSubmissionGrade = (submission) => {
-    const gradeValue = parseGradeValue(submission?.grade);
-    if (gradeValue == null) {
-      return "Not yet graded";
+  const formatSubmissionGrade = useCallback(
+    (submission) => {
+      const gradeValue = parseGradeValue(submission?.grade);
+      if (gradeValue == null) {
+        return "Not yet graded";
+      }
+      const pointsPossibleValue = Number(assignment?.pointsPossible);
+      if (Number.isFinite(pointsPossibleValue)) {
+        return `${gradeValue}/${pointsPossibleValue}`;
+      }
+      return `${gradeValue}`;
+    },
+    [assignment]
+  );
+
+  const stopQueueTracking = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
-    const pointsPossibleValue = Number(assignment?.pointsPossible);
-    if (Number.isFinite(pointsPossibleValue)) {
-      return `${gradeValue}/${pointsPossibleValue}`;
-    }
-    return `${gradeValue}`;
-  };
+    setTrackingSubmissionId(null);
+  }, []);
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     setUploadError(null);
     setSuccessMessage(null);
+    setQueueStatus(null);
+    stopQueueTracking();
   };
 
   const closePreviewModal = () => {
+    stopQueueTracking();
+    setQueueStatus(null);
     setPreviewModalOpen(false);
     setPreviewModalState({
       status: "idle",
@@ -132,33 +150,21 @@ export const AssignmentDetails = () => {
       return;
     }
 
-    const shouldShowModal = !graderOffline;
-
     setUploading(true);
-    setPreviewModalOpen(shouldShowModal);
-    setPreviewModalState(
-      shouldShowModal
-        ? {
-            status: "loading",
-            screenshotUrl: null,
-            gradeValue: null,
-            gradeLabel: null,
-            feedback: null,
-            downloadUrl: null,
-            downloadFilename: null,
-            error: null,
-          }
-        : {
-            status: "idle",
-            screenshotUrl: null,
-            gradeValue: null,
-            gradeLabel: null,
-            feedback: null,
-            downloadUrl: null,
-            downloadFilename: null,
-            error: null,
-          }
-    );
+    stopQueueTracking();
+    setQueueStatus(null);
+    setTrackingSubmissionId(null);
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "loading",
+      screenshotUrl: null,
+      gradeValue: null,
+      gradeLabel: null,
+      feedback: null,
+      downloadUrl: null,
+      downloadFilename: null,
+      error: null,
+    });
     setUploadError(null);
     setSuccessMessage(null);
 
@@ -194,6 +200,7 @@ export const AssignmentDetails = () => {
       }
 
       const submissionPayload = payload?.submission ?? null;
+      const queuePayload = payload?.queue ?? null;
       const hintFeedback =
         submissionPayload?.feedback ?? payload?.analysis?.feedback ?? null;
       const autoGradingPending =
@@ -203,12 +210,13 @@ export const AssignmentDetails = () => {
 
       setSelectedFile(null);
       setSuccessMessage(
-        autoGradingPending
-          ? "Submission queued for grading. We'll grade it once the worker is online."
-          : "Submission uploaded successfully."
+        payload?.message ||
+          (autoGradingPending
+            ? "Submission queued for grading."
+            : "Submission uploaded successfully.")
       );
       const successGradeValue = submissionPayload?.grade ?? null;
-      if (shouldShowModal) {
+      if (!autoGradingPending) {
         setPreviewModalState({
           status: "success",
           screenshotUrl: submissionPayload?.screenshotUrl ?? null,
@@ -221,11 +229,82 @@ export const AssignmentDetails = () => {
           downloadFilename: submissionPayload?.fileName ?? null,
           error: null,
         });
+      } else {
+        setQueueStatus(() => {
+          if (!queuePayload) return null;
+          const queueAheadCount =
+            queuePayload.queueAheadCount ?? queuePayload.aheadCount ?? 0;
+          return {
+            state: queueAheadCount > 0 ? "queued" : "processing",
+            queueAheadCount,
+            queuePosition:
+              queuePayload.queuePosition ?? queuePayload.position ?? null,
+            queueSize: queuePayload.queueSize ?? null,
+          };
+        });
+        if (submissionPayload?.id) {
+          setTrackingSubmissionId(submissionPayload.id);
+        }
       }
       await refetch();
     } catch (err) {
       setUploadError(err?.message || "Failed to upload submission.");
-      if (shouldShowModal) {
+      setQueueStatus(null);
+      setPreviewModalState({
+        status: "error",
+        screenshotUrl: null,
+        gradeValue: null,
+        gradeLabel: null,
+        feedback: null,
+        downloadUrl: null,
+        downloadFilename: null,
+        error: err?.message || "Failed to upload submission.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!trackingSubmissionId || !courseId || !assignmentId) return undefined;
+    const statusUrl = `/api/courses/${courseId}/assignments/${assignmentId}/submissions/${trackingSubmissionId}/status`;
+    const source = new EventSource(statusUrl);
+    eventSourceRef.current = source;
+
+    const handleStatus = (event) => {
+      if (!event?.data) return;
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (!payload) return;
+
+      if (payload.state === "graded" && payload.submission) {
+        const gradedSubmission = payload.submission;
+        const gradeValue = parseGradeValue(gradedSubmission?.grade);
+        setPreviewModalState({
+          status: "success",
+          screenshotUrl: gradedSubmission?.screenshotUrl ?? null,
+          gradeValue,
+          gradeLabel: formatSubmissionGrade(gradedSubmission),
+          feedback: gradedSubmission?.feedback ?? null,
+          downloadUrl: gradedSubmission?.fileUrl ?? null,
+          downloadFilename:
+            gradedSubmission?.fileName ??
+            gradedSubmission?.fileKey?.split?.("/")?.pop?.() ??
+            null,
+          error: null,
+        });
+        setQueueStatus(null);
+        setSuccessMessage("Submission graded.");
+        stopQueueTracking();
+        refetch();
+        return;
+      }
+
+      if (payload.state === "error" || payload.state === "missing") {
         setPreviewModalState({
           status: "error",
           screenshotUrl: null,
@@ -234,15 +313,70 @@ export const AssignmentDetails = () => {
           feedback: null,
           downloadUrl: null,
           downloadFilename: null,
-          error: err?.message || "Failed to upload submission.",
+          error:
+            payload.error ||
+            "Unable to monitor the grading request. Check your submissions list.",
         });
+        setQueueStatus(payload);
+        stopQueueTracking();
+        return;
       }
-    } finally {
-      setUploading(false);
-    }
-  };
+
+      if (payload.state === "timeout") {
+        setPreviewModalState({
+          status: "error",
+          screenshotUrl: null,
+          gradeValue: null,
+          gradeLabel: null,
+          feedback: null,
+          downloadUrl: null,
+          downloadFilename: null,
+          error:
+            payload.error ||
+            "Grading is taking longer than expected. We'll keep working on it.",
+        });
+        setQueueStatus(payload);
+        stopQueueTracking();
+        return;
+      }
+
+      setQueueStatus(payload);
+    };
+
+    source.addEventListener("status", handleStatus);
+    source.onerror = () => {
+      setQueueStatus((prev) =>
+        prev
+          ? { ...prev, error: "Connection lost. Attempting to reconnect…" }
+          : { state: "queued", error: "Connection lost. Attempting to reconnect…" }
+      );
+    };
+
+    return () => {
+      source.removeEventListener("status", handleStatus);
+      source.close();
+      if (eventSourceRef.current === source) {
+        eventSourceRef.current = null;
+      }
+    };
+  }, [
+    trackingSubmissionId,
+    courseId,
+    assignmentId,
+    formatSubmissionGrade,
+    refetch,
+    stopQueueTracking,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopQueueTracking();
+    };
+  }, [stopQueueTracking]);
 
   const showSubmissionInModal = (submission) => {
+    stopQueueTracking();
+    setQueueStatus(null);
     const previewGradeValue = parseGradeValue(submission?.grade);
     setPreviewModalOpen(true);
     setPreviewModalState({
@@ -464,15 +598,16 @@ export const AssignmentDetails = () => {
         </div>
       )}
       <SubmissionPreviewModal
-      open={previewModalOpen}
-      status={previewModalState.status}
-      screenshotUrl={previewModalState.screenshotUrl}
-      gradeValue={previewModalState.gradeValue}
-      gradeLabel={previewModalState.gradeLabel}
-      feedback={previewModalState.feedback}
-      downloadUrl={previewModalState.downloadUrl}
-      downloadFilename={previewModalState.downloadFilename}
-      error={previewModalState.error}
+        open={previewModalOpen}
+        status={previewModalState.status}
+        screenshotUrl={previewModalState.screenshotUrl}
+        gradeValue={previewModalState.gradeValue}
+        gradeLabel={previewModalState.gradeLabel}
+        feedback={previewModalState.feedback}
+        downloadUrl={previewModalState.downloadUrl}
+        downloadFilename={previewModalState.downloadFilename}
+        error={previewModalState.error}
+        queueStatus={queueStatus}
         onClose={closePreviewModal}
       />
     </div>
