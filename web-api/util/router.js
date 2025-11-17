@@ -4,7 +4,48 @@ import path from "path";
 import { pathToFileURL } from "url";
 // eslint-disable-next-line no-unused-vars
 import express from "express";
-import { types as utilTypes } from "node:util";
+
+const respondWithInternalError = (error, req, res, next) => {
+  // Preserve default Express error handling if headers already sent
+  if (res.headersSent) {
+    return typeof next === "function" ? next(error) : undefined;
+  }
+
+  const routeLabel = `${req?.method ?? "UNKNOWN"} ${
+    req?.originalUrl ?? ""
+  }`.trim();
+  console.error(`Unhandled error in route ${routeLabel}`, error);
+
+  // Default JSON response for API routes
+  return res.status(500).json({ error: "Internal server error." });
+};
+
+const wrapWithErrorBoundary = (handler) => {
+  if (typeof handler !== "function") return handler;
+
+  const wrapped = (req, res, next) => {
+    try {
+      const maybePromise = handler(req, res, next);
+      if (
+        maybePromise &&
+        (typeof maybePromise === "object" ||
+          typeof maybePromise === "function") &&
+        typeof maybePromise.then === "function"
+      ) {
+        return maybePromise.catch((error) =>
+          respondWithInternalError(error, req, res, next)
+        );
+      }
+      return maybePromise;
+    } catch (error) {
+      console.log("An error occurred", handler);
+      console.log(error);
+      return respondWithInternalError(error, req, res, next);
+    }
+  };
+
+  return wrapped;
+};
 
 /**
  * Checks if a given file path corresponds to a test file.
@@ -188,7 +229,7 @@ export const normalizeHandlers = (maybeHandlers) => {
   const handlers = Array.isArray(maybeHandlers)
     ? maybeHandlers
     : [maybeHandlers];
-  return handlers.map((h) => wrapSSEIfGenerator(h));
+  return handlers.map((h) => wrapWithErrorBoundary(wrapSSEIfGenerator(h)));
 };
 
 /**
