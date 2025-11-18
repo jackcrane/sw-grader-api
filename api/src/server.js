@@ -72,16 +72,24 @@ const processQueueJob = async (job) => {
   );
 
   try {
+    console.log(
+      `[grader] Running SolidWorks for submission ${job.submissionId}`
+    );
     const analysis = await enqueueExclusiveAnalysis(() =>
       analyzeFile(filePath, job.unitSystem || "mks", { screenshot: true })
     );
-
+    console.log(
+      `[grader] Analysis complete for ${job.submissionId} (volume=${analysis.volume}, surfaceArea=${analysis.surfaceArea})`
+    );
     await reportGraderResult({
       submissionId: job.submissionId,
       volume: analysis.volume,
       surfaceArea: analysis.surfaceArea,
       screenshot: analysis.screenshot ?? analysis.screenshotB64 ?? null,
     });
+    console.log(
+      `[grader] Reported results for submission ${job.submissionId}`
+    );
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -130,12 +138,19 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
 
   try {
+    console.log(
+      `[http] /analyze request (${req.file.originalname}) unitSystem=${unitSystem}`
+    );
     const out = await enqueueExclusiveAnalysis(() =>
       analyzeFile(filePath, unitSystem, { screenshot })
     );
     await safeUnlink(filePath);
+    console.log(
+      `[http] Completed /analyze for ${req.file.originalname} (volume=${out.volume}, surfaceArea=${out.surfaceArea})`
+    );
     return res.json(out);
   } catch (err) {
+    console.error("[http] /analyze failed", err);
     await safeUnlink(filePath);
     return res.status(500).json({ error: err?.message || "Unknown error" });
   }

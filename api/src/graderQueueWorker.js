@@ -40,6 +40,9 @@ export const startQueueWorker = (handler) => {
   const consume = async () => {
     try {
       const { connection, channel } = await createChannel();
+      console.log(
+        `[queue] Connected to ${RABBITMQ_URL}, listening on ${GRADER_QUEUE_NAME}`
+      );
       channel.consume(GRADER_QUEUE_NAME, async (msg) => {
         if (!msg) return;
         const job = parseMessage(msg);
@@ -49,7 +52,11 @@ export const startQueueWorker = (handler) => {
           return;
         }
         try {
+          console.log(
+            `[queue] Processing submission ${job.submissionId} (unitSystem=${job.unitSystem || "mks"})`
+          );
           await handler(job);
+          console.log(`[queue] Completed submission ${job.submissionId}`);
           channel.ack(msg);
         } catch (error) {
           console.error(
@@ -61,6 +68,7 @@ export const startQueueWorker = (handler) => {
       });
 
       connection.on("close", () => {
+        console.warn("[queue] Connection closed, retrying in 5s");
         setTimeout(consume, 5000);
       });
     } catch (error) {

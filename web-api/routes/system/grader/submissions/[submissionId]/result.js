@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { prisma } from "#prisma";
-import { uploadObject } from "../../../../../../util/s3.js";
+import { uploadObject } from "../../../../../util/s3.js";
 import {
   bufferFromBase64,
   evaluateSubmissionAgainstSignatures,
-} from "../../../../../../services/submissionUtils.js";
+} from "../../../../../services/submissionUtils.js";
 
 const signaturesInclude = {
   include: {
@@ -23,7 +23,9 @@ const deriveScreenshotKey = (fileKey) => {
   if (!fileKey) return null;
   const parts = fileKey.split("/");
   if (parts.length === 0) return null;
-  parts[parts.length - 1] = `screenshot-${Date.now()}-${crypto.randomUUID()}.png`;
+  parts[
+    parts.length - 1
+  ] = `screenshot-${Date.now()}-${crypto.randomUUID()}.png`;
   return parts.join("/");
 };
 
@@ -62,7 +64,10 @@ export const post = [
 
     const measuredVolume = Number(volume);
     const measuredSurfaceArea = Number(surfaceArea);
-    if (!Number.isFinite(measuredVolume) || !Number.isFinite(measuredSurfaceArea)) {
+    if (
+      !Number.isFinite(measuredVolume) ||
+      !Number.isFinite(measuredSurfaceArea)
+    ) {
       return res.status(400).json({
         error: "Volume and surfaceArea must be valid numbers.",
       });
