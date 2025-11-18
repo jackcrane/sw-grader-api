@@ -135,6 +135,12 @@ export const post = [
       try {
         queueInfo = await enqueueSubmissionJob({
           submissionId: submission.id,
+          fileKey: fileUpload?.key,
+          fileName: submission.fileName ?? file.originalname ?? null,
+          unitSystem: assignment.unitSystem,
+          assignmentId,
+          courseId,
+          userId,
         });
       } catch (error) {
         console.error("Failed to enqueue submission for grading", error);

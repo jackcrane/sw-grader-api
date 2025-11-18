@@ -2,9 +2,13 @@ import "dotenv/config";
 import express from "express";
 import multer from "multer";
 import path from "node:path";
+import os from "node:os";
 import fs from "node:fs/promises";
 import { runSwMassProps } from "./swRunner.js";
 import { convertFromSI, normalizeUnitSystem } from "./units.js";
+import { downloadObject } from "./s3Client.js";
+import { startQueueWorker } from "./graderQueueWorker.js";
+import { reportGraderResult } from "./reportResults.js";
 
 const app = express();
 
@@ -28,6 +32,63 @@ const upload = multer({
     cb(ok ? null : new Error("Only .sldprt files are allowed"), ok);
   },
   limits: { fileSize: 200 * 1024 * 1024 },
+});
+
+let analysisChain = Promise.resolve();
+
+const enqueueExclusiveAnalysis = (task) => {
+  const run = analysisChain.then(task, task);
+  analysisChain = run.catch(() => {});
+  return run;
+};
+
+const analyzeFile = async (
+  filePath,
+  unitSystem = "mks",
+  { screenshot = false } = {}
+) => {
+  const normalizedUnitSystem = normalizeUnitSystem(unitSystem);
+  const result = await runSwMassProps(SW_MASS_EXE, filePath, { screenshot });
+  return convertFromSI(result, normalizedUnitSystem);
+};
+
+const writeBufferToTempFile = async (buffer, filenameHint = "submission.sldprt") => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "sw-job-"));
+  const sanitizedName = filenameHint.replace(/[^\w.\-]/g, "") || "submission.sldprt";
+  const filePath = path.join(dir, sanitizedName);
+  await fs.writeFile(filePath, buffer);
+  return { dir, filePath };
+};
+
+const processQueueJob = async (job) => {
+  const fileBuffer = await downloadObject(job.fileKey);
+  if (!fileBuffer) {
+    throw new Error("Unable to download submission file from S3.");
+  }
+
+  const { dir, filePath } = await writeBufferToTempFile(
+    fileBuffer,
+    job.fileName || `submission-${job.submissionId}.sldprt`
+  );
+
+  try {
+    const analysis = await enqueueExclusiveAnalysis(() =>
+      analyzeFile(filePath, job.unitSystem || "mks", { screenshot: true })
+    );
+
+    await reportGraderResult({
+      submissionId: job.submissionId,
+      volume: analysis.volume,
+      surfaceArea: analysis.surfaceArea,
+      screenshot: analysis.screenshot ?? analysis.screenshotB64 ?? null,
+    });
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+};
+
+startQueueWorker(async (job) => {
+  await processQueueJob(job);
 });
 
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -69,12 +130,9 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
 
   try {
-    // Run the C# tool (SI), optionally with screenshot
-    const si = await runSwMassProps(SW_MASS_EXE, filePath, { screenshot });
-
-    // Convert to requested units; pass through screenshot/screenshotError fields
-    const out = convertFromSI(si, unitSystem);
-
+    const out = await enqueueExclusiveAnalysis(() =>
+      analyzeFile(filePath, unitSystem, { screenshot })
+    );
     await safeUnlink(filePath);
     return res.json(out);
   } catch (err) {
