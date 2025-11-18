@@ -46,21 +46,49 @@ export const startQueueWorker = (handler) => {
       channel.consume(GRADER_QUEUE_NAME, async (msg) => {
         if (!msg) return;
         const job = parseMessage(msg);
-        if (!job?.submissionId || !job?.fileKey) {
-          console.warn("Skipping invalid grader message", job);
+        if (!job?.fileKey) {
+          console.warn("Skipping invalid grader message (missing fileKey)", job);
+          channel.ack(msg);
+          return;
+        }
+        const requiresSubmissionId = !job?.type || job.type === "submission";
+        if (requiresSubmissionId && !job?.submissionId) {
+          console.warn("Skipping submission job without id", job);
           channel.ack(msg);
           return;
         }
         try {
+          const label = job?.submissionId
+            ? `submission ${job.submissionId}`
+            : job?.jobId
+            ? `job ${job.jobId}`
+            : "job";
           console.log(
-            `[queue] Processing submission ${job.submissionId} (unitSystem=${job.unitSystem || "mks"})`
+            `[queue] Processing ${label} (type=${job?.type || "submission"})`
           );
-          await handler(job);
-          console.log(`[queue] Completed submission ${job.submissionId}`);
+          const handlerResult = await handler(job);
+          if (msg.properties.replyTo && handlerResult !== undefined) {
+            try {
+              channel.sendToQueue(
+                msg.properties.replyTo,
+                Buffer.from(JSON.stringify(handlerResult)),
+                {
+                  correlationId: msg.properties.correlationId,
+                  contentType: "application/json",
+                }
+              );
+            } catch (responseError) {
+              console.warn(
+                "Failed to send analyzer RPC response",
+                responseError
+              );
+            }
+          }
+          console.log(`[queue] Completed ${label}`);
           channel.ack(msg);
         } catch (error) {
           console.error(
-            `Grader job ${job?.submissionId} failed; requeueing`,
+            `Grader job ${job?.submissionId || job?.jobId || "unknown"} failed; requeueing`,
             error
           );
           channel.nack(msg, false, true);

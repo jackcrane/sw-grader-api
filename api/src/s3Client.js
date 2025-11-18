@@ -1,4 +1,8 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 
 const requiredEnv = [
   "AWS_ACCESS_KEY_ID",
@@ -57,4 +61,20 @@ export const downloadObject = async (key) => {
     chunks.push(chunk);
   }
   return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+};
+
+export const deleteObject = async (key) => {
+  if (!client || !bucket) {
+    throw new Error("S3 client is not configured for the grader.");
+  }
+  if (!key) {
+    throw new Error("S3 delete requires a key.");
+  }
+
+  const command = new DeleteObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  await client.send(command);
 };

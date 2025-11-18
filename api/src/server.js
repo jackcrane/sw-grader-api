@@ -6,7 +6,7 @@ import os from "node:os";
 import fs from "node:fs/promises";
 import { runSwMassProps } from "./swRunner.js";
 import { convertFromSI, normalizeUnitSystem } from "./units.js";
-import { downloadObject } from "./s3Client.js";
+import { downloadObject, deleteObject } from "./s3Client.js";
 import { startQueueWorker } from "./graderQueueWorker.js";
 import { reportGraderResult } from "./reportResults.js";
 
@@ -52,12 +52,37 @@ const analyzeFile = async (
   return convertFromSI(result, normalizedUnitSystem);
 };
 
-const writeBufferToTempFile = async (buffer, filenameHint = "submission.sldprt") => {
+const writeBufferToTempFile = async (
+  buffer,
+  filenameHint = "submission.sldprt"
+) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "sw-job-"));
-  const sanitizedName = filenameHint.replace(/[^\w.\-]/g, "") || "submission.sldprt";
+  const sanitizedName =
+    filenameHint.replace(/[^\w.\-]/g, "") || "submission.sldprt";
   const filePath = path.join(dir, sanitizedName);
   await fs.writeFile(filePath, buffer);
   return { dir, filePath };
+};
+
+const withJobFile = async (job, runner) => {
+  if (!job?.fileKey) {
+    throw new Error("Job is missing file metadata.");
+  }
+  const fileBuffer = await downloadObject(job.fileKey);
+  if (!fileBuffer) {
+    throw new Error("Unable to download submission file from S3.");
+  }
+
+  const filenameHint =
+    job.fileName ||
+    (job.submissionId ? `submission-${job.submissionId}.sldprt` : null) ||
+    "submission.sldprt";
+  const { dir, filePath } = await writeBufferToTempFile(fileBuffer, filenameHint);
+  try {
+    return await runner(filePath);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
 };
 
 const fatalSwErrorCodes = new Set([5, 6]);
@@ -104,27 +129,21 @@ const handleFatalSwError = async (job, error) => {
   return true;
 };
 
-const processQueueJob = async (job) => {
-  const fileBuffer = await downloadObject(job.fileKey);
-  if (!fileBuffer) {
-    throw new Error("Unable to download submission file from S3.");
-  }
-
-  const { dir, filePath } = await writeBufferToTempFile(
-    fileBuffer,
-    job.fileName || `submission-${job.submissionId}.sldprt`
-  );
-
+const processSubmissionJob = async (job) => {
   try {
-    console.log(
-      `[grader] Running SolidWorks for submission ${job.submissionId}`
-    );
-    const analysis = await enqueueExclusiveAnalysis(() =>
-      analyzeFile(filePath, job.unitSystem || "mks", { screenshot: true })
-    );
-    console.log(
-      `[grader] Analysis complete for ${job.submissionId} (volume=${analysis.volume}, surfaceArea=${analysis.surfaceArea})`
-    );
+    const analysis = await withJobFile(job, async (filePath) => {
+      console.log(
+        `[grader] Running SolidWorks for submission ${job.submissionId}`
+      );
+      const result = await enqueueExclusiveAnalysis(() =>
+        analyzeFile(filePath, job.unitSystem || "mks", { screenshot: true })
+      );
+      console.log(
+        `[grader] Analysis complete for ${job.submissionId} (volume=${result.volume}, surfaceArea=${result.surfaceArea})`
+      );
+      return result;
+    });
+
     await reportGraderResult({
       submissionId: job.submissionId,
       volume: analysis.volume,
@@ -139,13 +158,58 @@ const processQueueJob = async (job) => {
     if (!handled) {
       throw error;
     }
+  }
+};
+
+const isAnalyzerJob = (job) => job?.type === "prescan";
+
+const processAnalyzeJob = async (job) => {
+  const jobLabel = job?.jobId || job?.fileKey || "analyzer-job";
+  try {
+    const analysis = await withJobFile(job, async (filePath) => {
+      console.log(`[grader] Running analyzer job ${jobLabel}`);
+      return enqueueExclusiveAnalysis(() =>
+        analyzeFile(filePath, job.unitSystem || "mks", { screenshot: true })
+      );
+    });
+    console.log(
+      `[grader] Analyzer job ${jobLabel} complete (volume=${analysis.volume}, surfaceArea=${analysis.surfaceArea})`
+    );
+    return {
+      ok: true,
+      jobId: job?.jobId ?? null,
+      result: {
+        ...analysis,
+        screenshotB64: analysis.screenshot ?? analysis.screenshotB64 ?? null,
+      },
+    };
+  } catch (error) {
+    const message = isFatalSwError(error)
+      ? buildFatalSwErrorMessage(error)
+      : error?.message || "Unable to analyze part file.";
+    console.error(`[grader] Analyzer job ${jobLabel} failed`, error);
+    return {
+      ok: false,
+      jobId: job?.jobId ?? null,
+      error: message,
+    };
   } finally {
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    if (job?.cleanupKey) {
+      await deleteObject(job.cleanupKey).catch((err) => {
+        console.warn(
+          `[grader] Failed to delete analyzer artifact ${job.cleanupKey}`,
+          err
+        );
+      });
+    }
   }
 };
 
 startQueueWorker(async (job) => {
-  await processQueueJob(job);
+  if (isAnalyzerJob(job)) {
+    return processAnalyzeJob(job);
+  }
+  return processSubmissionJob(job);
 });
 
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
