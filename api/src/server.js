@@ -77,7 +77,10 @@ const withJobFile = async (job, runner) => {
     job.fileName ||
     (job.submissionId ? `submission-${job.submissionId}.sldprt` : null) ||
     "submission.sldprt";
-  const { dir, filePath } = await writeBufferToTempFile(fileBuffer, filenameHint);
+  const { dir, filePath } = await writeBufferToTempFile(
+    fileBuffer,
+    filenameHint
+  );
   try {
     return await runner(filePath);
   } finally {
@@ -150,9 +153,7 @@ const processSubmissionJob = async (job) => {
       surfaceArea: analysis.surfaceArea,
       screenshot: analysis.screenshot ?? analysis.screenshotB64 ?? null,
     });
-    console.log(
-      `[grader] Reported results for submission ${job.submissionId}`
-    );
+    console.log(`[grader] Reported results for submission ${job.submissionId}`);
   } catch (error) {
     const handled = await handleFatalSwError(job, error);
     if (!handled) {
@@ -235,39 +236,39 @@ app.get("/", (_req, res) => {
   `);
 });
 
-app.post("/analyze", upload.single("file"), async (req, res) => {
-  const unitSystem = normalizeUnitSystem(
-    req.query.unitSystem ?? req.body?.unitSystem
-  );
-  const screenshotReq = req.query.screenshot ?? req.body?.screenshot ?? "false";
-  const screenshot = String(screenshotReq).toLowerCase() === "true";
+// app.post("/analyze", upload.single("file"), async (req, res) => {
+//   const unitSystem = normalizeUnitSystem(
+//     req.query.unitSystem ?? req.body?.unitSystem
+//   );
+//   const screenshotReq = req.query.screenshot ?? req.body?.screenshot ?? "false";
+//   const screenshot = String(screenshotReq).toLowerCase() === "true";
 
-  if (!req.file) {
-    return res.status(400).json({
-      error: "No file uploaded (field 'file' must contain a .sldprt)",
-    });
-  }
+//   if (!req.file) {
+//     return res.status(400).json({
+//       error: "No file uploaded (field 'file' must contain a .sldprt)",
+//     });
+//   }
 
-  const filePath = req.file.path;
+//   const filePath = req.file.path;
 
-  try {
-    console.log(
-      `[http] /analyze request (${req.file.originalname}) unitSystem=${unitSystem}`
-    );
-    const out = await enqueueExclusiveAnalysis(() =>
-      analyzeFile(filePath, unitSystem, { screenshot })
-    );
-    await safeUnlink(filePath);
-    console.log(
-      `[http] Completed /analyze for ${req.file.originalname} (volume=${out.volume}, surfaceArea=${out.surfaceArea})`
-    );
-    return res.json(out);
-  } catch (err) {
-    console.error("[http] /analyze failed", err);
-    await safeUnlink(filePath);
-    return res.status(500).json({ error: err?.message || "Unknown error" });
-  }
-});
+//   try {
+//     console.log(
+//       `[http] /analyze request (${req.file.originalname}) unitSystem=${unitSystem}`
+//     );
+//     const out = await enqueueExclusiveAnalysis(() =>
+//       analyzeFile(filePath, unitSystem, { screenshot })
+//     );
+//     await safeUnlink(filePath);
+//     console.log(
+//       `[http] Completed /analyze for ${req.file.originalname} (volume=${out.volume}, surfaceArea=${out.surfaceArea})`
+//     );
+//     return res.json(out);
+//   } catch (err) {
+//     console.error("[http] /analyze failed", err);
+//     await safeUnlink(filePath);
+//     return res.status(500).json({ error: err?.message || "Unknown error" });
+//   }
+// });
 
 const safeUnlink = async (p) => {
   try {
