@@ -56,17 +56,22 @@ export const post = [
   verifyGraderSecret,
   async (req, res) => {
     const { submissionId } = req.params;
-    const { volume, surfaceArea, screenshot } = req.body ?? {};
+    const { volume, surfaceArea, screenshot, error } = req.body ?? {};
 
     if (!submissionId) {
       return res.status(400).json({ error: "Submission id is required." });
     }
 
+    const normalizedError =
+      typeof error === "string" ? error.trim() : "";
+    const failureOnly = normalizedError.length > 0;
+
     const measuredVolume = Number(volume);
     const measuredSurfaceArea = Number(surfaceArea);
     if (
-      !Number.isFinite(measuredVolume) ||
-      !Number.isFinite(measuredSurfaceArea)
+      !failureOnly &&
+      (!Number.isFinite(measuredVolume) ||
+        !Number.isFinite(measuredSurfaceArea))
     ) {
       return res.status(400).json({
         error: "Volume and surfaceArea must be valid numbers.",
@@ -89,6 +94,32 @@ export const post = [
           ok: true,
           submissionId,
           message: "Submission already graded.",
+        });
+      }
+
+      if (failureOnly) {
+        const failureMessage =
+          normalizedError.slice(0, 500) ||
+          "The grader was unable to process this submission.";
+        await prisma.submission.update({
+          where: { id: submissionId },
+          data: {
+            volume: null,
+            surfaceArea: null,
+            grade: 0,
+            feedback: failureMessage,
+            matchingSignatureId: null,
+            screenshotKey: null,
+            screenshotUrl: null,
+          },
+        });
+
+        return res.status(200).json({
+          ok: true,
+          submissionId,
+          grade: 0,
+          matchedSignatureId: null,
+          failure: true,
         });
       }
 

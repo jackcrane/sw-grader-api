@@ -14,14 +14,28 @@ export const reportGraderResult = async ({
   volume,
   surfaceArea,
   screenshot,
+  error,
 }) => {
   if (!submissionId) throw new Error("submissionId is required.");
   const url = buildResultUrl(submissionId);
-  const payload = {
-    volume,
-    surfaceArea,
-    screenshot,
-  };
+  const payload = {};
+
+  const hasVolume = Number.isFinite(volume);
+  const hasSurface = Number.isFinite(surfaceArea);
+  if (hasVolume) payload.volume = volume;
+  if (hasSurface) payload.surfaceArea = surfaceArea;
+  if (typeof screenshot === "string" && screenshot.length > 0) {
+    payload.screenshot = screenshot;
+  }
+  if (typeof error === "string" && error.trim()) {
+    payload.error = error.trim();
+  }
+
+  if (!payload.error && (!hasVolume || !hasSurface)) {
+    throw new Error(
+      "reportGraderResult requires volume and surfaceArea unless error is provided."
+    );
+  }
 
   const response = await fetch(url, {
     method: "POST",

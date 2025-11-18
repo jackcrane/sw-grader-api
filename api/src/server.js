@@ -60,6 +60,50 @@ const writeBufferToTempFile = async (buffer, filenameHint = "submission.sldprt")
   return { dir, filePath };
 };
 
+const fatalSwErrorCodes = new Set([5, 6]);
+
+const isFatalSwError = (error) => {
+  if (!error || typeof error !== "object") return false;
+  if (!error.isSwToolError) return false;
+  const code = Number(error.code);
+  return Number.isFinite(code) && fatalSwErrorCodes.has(code);
+};
+
+const buildFatalSwErrorMessage = (error) => {
+  const rawMessage =
+    typeof error?.toolError === "string"
+      ? error.toolError
+      : typeof error?.message === "string"
+      ? error.message
+      : "";
+  const cleaned = rawMessage.replace(/^SW tool error:\s*/i, "").trim();
+  const openMatch = cleaned.match(/Open failed\s*\((\d+)\)/i);
+  if (openMatch) {
+    const errCode = openMatch[1];
+    return `SolidWorks could not open this part file (error ${errCode}). Save it in an older SolidWorks version (e.g., 2024 or earlier) and resubmit.`;
+  }
+  return (
+    cleaned ||
+    "SolidWorks could not process this part file. Please verify it opens locally and resubmit."
+  );
+};
+
+const handleFatalSwError = async (job, error) => {
+  if (!isFatalSwError(error)) return false;
+  const message = buildFatalSwErrorMessage(error);
+  console.warn(
+    `[grader] Fatal SolidWorks error for submission ${job.submissionId}: ${message}`
+  );
+  await reportGraderResult({
+    submissionId: job.submissionId,
+    error: message,
+  });
+  console.warn(
+    `[grader] Reported failure for submission ${job.submissionId}; skipping requeue`
+  );
+  return true;
+};
+
 const processQueueJob = async (job) => {
   const fileBuffer = await downloadObject(job.fileKey);
   if (!fileBuffer) {
@@ -90,6 +134,11 @@ const processQueueJob = async (job) => {
     console.log(
       `[grader] Reported results for submission ${job.submissionId}`
     );
+  } catch (error) {
+    const handled = await handleFatalSwError(job, error);
+    if (!handled) {
+      throw error;
+    }
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }
