@@ -47,7 +47,7 @@ export const SubmissionPreviewModal = ({
   return (
     <Modal
       open={open}
-      onClose={status === "loading" ? undefined : onClose}
+      onClose={onClose}
       closeOnBackdrop={status !== "loading"}
       title={getTitle(status)}
       footer={
