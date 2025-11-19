@@ -32,3 +32,121 @@
   margin: 0;
   line-height: 1.5;
 }
+
+.jetStream {
+  font-size: 0.8rem;
+  letter-spacing: 0.35rem;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.journeyStackSection {
+  margin-top: 96px;
+  padding: 48px 0 96px;
+}
+
+.journeyStackHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 680px;
+}
+
+.journeyTitle {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 400;
+}
+
+.journeySubtitle {
+  margin: 0;
+  color: var(--body-contrast-secondary);
+  line-height: 1.5;
+}
+
+.journeyStack {
+  margin-top: 48px;
+  display: block;
+}
+
+.journeyStackItem {
+  position: relative;
+  height: calc(70vh + var(--stack-depth, 1) * 75vh);
+  margin-bottom: calc(var(--stack-depth, 1) * -75vh);
+}
+
+.journeyStackCard {
+  position: sticky;
+  top: 10vh;
+  height: 70vh;
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  padding: 48px;
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface) 60%, white);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  z-index: var(--stack-index, 1);
+}
+
+.journeyStackCard header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.journeyStackCard h3 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.journeyStackCard p {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--body-contrast-secondary);
+  line-height: 1.6;
+}
+
+.cardBadge {
+  width: fit-content;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.15rem;
+  text-transform: uppercase;
+}
+
+@media screen and (max-width: 700px) {
+  .journeyStackSection {
+    padding: 32px 0 48px;
+  }
+
+  .journeyStackHeader {
+    align-items: center;
+    text-align: center;
+  }
+
+  .journeyStackItem {
+    height: auto;
+    margin-bottom: 64px;
+  }
+  
+  .journeyStackCard {
+    padding: 32px;
+    min-height: 65vh;
+    height: auto;
+    position: relative;
+    top: 0;
+  }
+  
+  .journeyStackCard h3 {
+    font-size: 1.4rem;
+  }
+}
