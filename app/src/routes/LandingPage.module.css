@@ -1,233 +1,34 @@
 .hero {
-  margin-top: 48px;
-  padding: clamp(24px, 6vw, 56px);
-  border-radius: 28px;
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--primary) 70%, var(--body)),
-    color-mix(in srgb, var(--action) 50%, var(--primary))
-  );
-  color: var(--primary-contrast-primary);
-  display: grid;
-  gap: 20px;
-  box-shadow: 0 35px 80px rgba(4, 7, 18, 0.35);
+  padding: 48px 0;
+  display: flex;
+  flex-direction: row;
 }
 
-.eyebrow {
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  font-weight: 600;
-  opacity: 0.85;
+@media screen and (max-width: 700px) {
+  .hero {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+.hero > div {
+  flex: 1;
 }
 
 .title {
-  font-size: clamp(2rem, 5vw, 3.75rem);
-  line-height: 1.1;
+  font-size: 3em;
+  font-weight: 400;
   margin: 0;
 }
 
-.lede {
-  max-width: 560px;
-  color: color-mix(
-    in srgb,
-    var(--primary-contrast-primary) 80%,
-    transparent
-  );
-  font-size: 1.1rem;
+.title span {
+  color: var(--accent);
+}
+
+.hero p {
+  font-size: 1.2em;
+  color: var(--body-contrast-primary);
+  margin: 0;
   line-height: 1.5;
-  margin: 0;
-}
-
-.ctaRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-}
-
-.secondaryCta {
-  border: none;
-  background: transparent;
-  color: var(--primary-contrast-primary);
-  font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 8px 0;
-}
-
-.secondaryCta:focus-visible {
-  outline: 2px solid var(--primary-contrast-primary);
-  outline-offset: 4px;
-}
-
-.highlights {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.highlight {
-  border-radius: 16px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(
-    in srgb,
-    var(--primary-contrast-primary) 35%,
-    transparent
-  );
-  background: color-mix(
-    in srgb,
-    var(--primary-contrast-primary) 10%,
-    transparent
-  );
-}
-
-.highlightLabel {
-  margin: 0;
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
-.highlightDetail {
-  margin: 4px 0 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.featureSection {
-  margin-top: 56px;
-  display: grid;
-  gap: 24px;
-}
-
-.sectionHeader {
-  max-width: 640px;
-}
-
-.sectionEyebrow {
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--surface-contrast-secondary);
-  margin: 0 0 4px;
-}
-
-.sectionTitle {
-  font-size: 2rem;
-  line-height: 1.2;
-  margin: 0 0 12px;
-}
-
-.sectionLead {
-  margin: 0;
-  color: var(--surface-contrast-secondary);
-  line-height: 1.5;
-}
-
-.featureGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-}
-
-.featureCard {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 18px 40px rgba(6, 10, 22, 0.08);
-  display: grid;
-  gap: 8px;
-}
-
-.featureCardTitle {
-  font-size: 1.15rem;
-  margin: 0;
-}
-
-.featureCardBody {
-  margin: 0;
-  color: var(--surface-contrast-secondary);
-  line-height: 1.5;
-}
-
-.stepsSection {
-  margin-top: 56px;
-  display: grid;
-  gap: clamp(16px, 4vw, 32px);
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-}
-
-.stepList {
-  list-style: none;
-  padding: 0;
-  margin: 24px 0 0;
-  display: grid;
-  gap: 18px;
-}
-
-.stepItem {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.stepNumber {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  background: var(--surface);
-}
-
-.stepTitle {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.stepBody {
-  margin: 4px 0 0;
-  color: var(--surface-contrast-secondary);
-  line-height: 1.4;
-}
-
-.quoteCard {
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: clamp(20px, 4vw, 32px);
-  background: color-mix(in srgb, var(--surface) 80%, var(--body));
-  display: grid;
-  gap: 16px;
-  align-self: start;
-}
-
-.quote {
-  margin: 0;
-  font-size: 1.2rem;
-  line-height: 1.5;
-  font-weight: 600;
-}
-
-.quoteSource {
-  margin: 0;
-  color: var(--surface-contrast-secondary);
-}
-
-@media (max-width: 780px) {
-  .hero {
-    border-radius: 22px;
-  }
-
-  .stepsSection {
-    grid-template-columns: 1fr;
-  }
 }

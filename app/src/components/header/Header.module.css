@@ -4,6 +4,7 @@
   width: 100%;
   background: var(--primary);
   color: var(--primary-contrast-primary);
+  z-index: 1000000;
 }
 
 .content {

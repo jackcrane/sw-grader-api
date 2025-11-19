@@ -4,7 +4,11 @@ import { WidthFix } from "../widthfix/WidthFix";
 
 const DEFAULT_TITLE = "FeatureBench";
 
-export const Page = ({ children, title = DEFAULT_TITLE }) => {
+export const Page = ({
+  children,
+  title = DEFAULT_TITLE,
+  showHeader = true,
+}) => {
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
@@ -14,10 +18,10 @@ export const Page = ({ children, title = DEFAULT_TITLE }) => {
 
   return (
     <>
-      <Header />
+      {showHeader && <Header />}
       <main
         style={{
-          paddingTop: 48,
+          paddingTop: showHeader ? 48 : 0,
         }}
       >
         <WidthFix>{children}</WidthFix>
