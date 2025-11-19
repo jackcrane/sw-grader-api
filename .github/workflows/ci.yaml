@@ -73,6 +73,6 @@ jobs:
         uses: digitalocean/app_action/deploy@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_TOKEN }}
-          app_name: eventpilot
+          app_name: featurebench
           print_build_logs: true
           print_deploy_logs: true
