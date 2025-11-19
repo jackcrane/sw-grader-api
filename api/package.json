@@ -8,6 +8,8 @@
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.933.0",
+    "amqplib": "^0.10.9",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "multer": "^1.4.5-lts.1"

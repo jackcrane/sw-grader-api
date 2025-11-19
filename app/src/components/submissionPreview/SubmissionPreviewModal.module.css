@@ -25,6 +25,24 @@
   margin: 0;
 }
 
+.queuePosition {
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+  margin: 4px 0 0;
+}
+
+.queueHelper {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.queueError {
+  color: #b00020;
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+}
+
 .screenshot {
   width: 100%;
   max-width: 800px;

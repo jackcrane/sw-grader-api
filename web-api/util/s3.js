@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -129,6 +130,22 @@ export const downloadObject = async (key) => {
     chunks.push(chunk);
   }
   return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+};
+
+export const deleteObject = async (key) => {
+  if (!client || !bucket) {
+    throw new Error("S3 client is not configured.");
+  }
+  if (!key) {
+    throw new Error("S3 delete requires a key.");
+  }
+
+  const command = new DeleteObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  await client.send(command);
 };
 
 export const getSignedDownloadUrl = async (

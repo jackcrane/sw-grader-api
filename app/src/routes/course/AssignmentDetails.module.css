@@ -107,6 +107,58 @@
   font-size: 0.9rem;
 }
 
+.gradingStatus {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  background: color-mix(in srgb, var(--surface) 85%, white);
+}
+
+.gradingSpinner {
+  flex-shrink: 0;
+}
+
+.gradingDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.gradingTitle {
+  margin: 0;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.gradingTitleError {
+  margin: 0;
+  font-weight: 600;
+  color: #b00020;
+}
+
+.gradingHelper {
+  margin: 0;
+  color: #444;
+  font-size: 0.9rem;
+}
+
+.gradingError {
+  margin: 0;
+  color: #b00020;
+  font-size: 0.9rem;
+}
+
+.gradingMeta {
+  margin: 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
 .submissionInfo {
   font-size: 0.9rem;
   color: #333;
