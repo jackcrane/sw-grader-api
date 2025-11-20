@@ -214,6 +214,8 @@ const SignatureSection = ({
                 borderRadius: 8,
                 border: "1px solid #e1e1e1",
                 marginTop: 8,
+                aspectRatio: "16/9",
+                objectFit: "cover",
               }}
             />
           )}
