@@ -14,7 +14,6 @@ import goodBad from "../../assets/good-bad.png";
 import join from "../../assets/join.png";
 import shareCodes from "../../assets/share-codes.png";
 import submissionImage from "../../assets/submission.png";
-
 const journeySteps = [
   {
     title: "Teacher creates course",
@@ -117,7 +116,6 @@ const journeySteps = [
 
 export const LandingPage = () => {
   const { isAuthenticated } = useAuthContext();
-
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
   }
@@ -184,6 +182,14 @@ export const LandingPage = () => {
             </div>
           ))}
         </div>
+      </section>
+      <section className={styles.journey}>
+        <div className={styles.journeyHeader}>
+          <p className={styles.jetStream}>Pricing</p>
+          <h2>Accessible pricing to you and your students</h2>
+          <p>FeatureBench meets your needs and capabilities for billing.</p>
+        </div>
+        <div className={styles.journeyTimeline}></div>
       </section>
     </Page>
   );
