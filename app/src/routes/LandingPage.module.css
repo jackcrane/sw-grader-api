@@ -40,3 +40,133 @@
   color: var(--accent);
   margin: 0;
 }
+
+.journey {
+  padding: 90px 0 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.journeyHeader {
+  max-width: 640px;
+}
+
+.journeyHeader h2 {
+  font-size: 2.4rem;
+  font-weight: 500;
+  margin: 8px 0 12px;
+}
+
+.journeyHeader p {
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  line-height: 1.6;
+  margin: 0;
+}
+
+.journeyTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  position: relative;
+}
+
+.journeyTimeline::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.journeyRow {
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) 1fr;
+  gap: 56px;
+  align-items: start;
+  padding-left: 40px;
+  position: relative;
+}
+
+.journeyRow::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 22px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.journeyMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.journeyMeta h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--body-contrast-primary);
+}
+
+.journeyMeta p {
+  margin-bottom: 8px;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  line-height: 1.5;
+}
+
+.stepNumber {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.35rem;
+  text-transform: uppercase;
+}
+
+.journeyMedia {
+  border-radius: 28px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.journeyMedia img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(
+    0 35px 80px color-mix(in srgb, var(--body) 16%, transparent)
+  );
+}
+
+@media screen and (max-width: 900px) {
+  .journeyRow {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-left: 24px;
+  }
+
+  .journeyTimeline::before {
+    left: 16px;
+  }
+}
+
+@media screen and (max-width: 700px) {
+  .journey {
+    padding: 72px 0;
+  }
+
+  .journeyHeader h2 {
+    font-size: 1.8rem;
+  }
+}
