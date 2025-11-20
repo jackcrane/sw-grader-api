@@ -10,6 +10,7 @@ export const Page = ({
   children,
   title = DEFAULT_TITLE,
   showHeader = true,
+  subheaderItems,
 }) => {
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -23,6 +24,19 @@ export const Page = ({
   return (
     <>
       {showHeader && <Header />}
+      {subheaderItems && (
+        <div className={styles.subheader}>
+          <WidthFix>
+            <div className={styles.subheaderContent}>
+              {subheaderItems.map((item) => (
+                <a href={item.href} key={item.label}>
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </WidthFix>
+        </div>
+      )}
       <main
         style={{
           paddingTop: showHeader ? 48 : 0,

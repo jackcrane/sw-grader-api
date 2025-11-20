@@ -170,3 +170,95 @@
     font-size: 1.8rem;
   }
 }
+
+.pricingTableWrapper {
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  border-radius: 32px;
+  box-shadow: 0 20px 50px color-mix(in srgb, var(--body) 10%, transparent);
+}
+
+.pricingTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  border-radius: 32px;
+  border: none;
+  box-shadow: none;
+}
+
+.pricingTable th,
+.pricingTable td {
+  text-align: left;
+  padding: 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.pricingTable thead th {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.pricingTable tbody th {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
+  font-weight: 500;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  max-width: 200px;
+}
+
+.pricingTable tbody tr:last-child th,
+.pricingTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tablePlanTitle {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--body-contrast-primary);
+}
+
+.tablePlanSubtitle {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+}
+
+.cardPrice {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--accent);
+  display: inline-block;
+}
+
+.priceSuffix {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  margin-left: 8px;
+}
+
+.featureList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  font-size: 0.95rem;
+}
+
+.featureList li::before {
+  content: "•";
+  margin-right: 6px;
+  color: var(--accent);
+}
+
+.invocationNoteCell {
+  font-size: 0.95rem;
+  color: var(--body-contrast-secondary, var(--body-contrast-primary));
+  line-height: 1.6;
+  max-width: 640px;
+}

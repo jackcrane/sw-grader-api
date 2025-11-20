@@ -114,6 +114,30 @@ const journeySteps = [
   },
 ];
 
+const pricingPlans = [
+  {
+    key: "course",
+    title: "Course billing",
+    price: "$12",
+    subtitle: "Billed to the course each semester",
+    cta: "Contact sales",
+  },
+  {
+    key: "student",
+    title: "Student billing",
+    price: "$20",
+    subtitle: "Billed to the student each semester",
+    cta: "Invite students",
+  },
+];
+
+const sharedFeatures = [
+  "Full support for unlimited students",
+  "Unlimited TAs",
+  "Unlimited assignments",
+  "Up to 250 Solidworks auto grader invocations per student",
+];
+
 export const LandingPage = () => {
   const { isAuthenticated } = useAuthContext();
   if (isAuthenticated) {
@@ -121,8 +145,24 @@ export const LandingPage = () => {
   }
 
   return (
-    <Page title="FeatureBench | Solidworks autograding">
-      <section className={styles.hero}>
+    <Page
+      title="FeatureBench | Solidworks autograding"
+      subheaderItems={[
+        {
+          label: "About FeatureBench",
+          href: "#about",
+        },
+        {
+          label: "Start-Up",
+          href: "#startup",
+        },
+        {
+          label: "Pricing",
+          href: "#pricing",
+        },
+      ]}
+    >
+      <section className={styles.hero} id="about">
         <div>
           <h1 className={styles.title}>
             Students learn <span>faster</span> with FeatureBench
@@ -155,7 +195,7 @@ export const LandingPage = () => {
           backgroundImage={gradient}
         />
       </section>
-      <section className={styles.journey}>
+      <section className={styles.journey} id="startup">
         <div className={styles.journeyHeader}>
           <p className={styles.jetStream}>Journey</p>
           <h2>Guiding every step from setup to success</h2>
@@ -183,13 +223,71 @@ export const LandingPage = () => {
           ))}
         </div>
       </section>
-      <section className={styles.journey}>
+      <section className={styles.journey} id="pricing">
         <div className={styles.journeyHeader}>
           <p className={styles.jetStream}>Pricing</p>
           <h2>Accessible pricing to you and your students</h2>
-          <p>FeatureBench meets your needs and capabilities for billing.</p>
+          <p>
+            FeatureBench meets your needs and capabilities for billing. We
+            understand that payment approvals can block progress, so we offer to
+            ability for the course to cover the costs and enrollments be free
+            for students, or for students to pay for their own account and make
+            FeatureBench free for the course.
+          </p>
         </div>
-        <div className={styles.journeyTimeline}></div>
+        <div className={styles.pricingTableWrapper}>
+          <table className={styles.pricingTable}>
+            <thead>
+              <tr>
+                <th></th>
+                {pricingPlans.map((plan) => (
+                  <th key={plan.key}>
+                    <p className={styles.tablePlanTitle}>{plan.title}</p>
+                    <p className={styles.tablePlanSubtitle}>{plan.subtitle}</p>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>Price</th>
+                {pricingPlans.map((plan) => (
+                  <td key={`${plan.key}-price`}>
+                    <span className={styles.cardPrice}>{plan.price}</span>
+                    <span className={styles.priceSuffix}>
+                      /student/semester
+                    </span>
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <th>Features</th>
+                <td colSpan={2}>
+                  <div className={styles.featureList}>
+                    {sharedFeatures.map((feature) => (
+                      <p key={feature}>{feature}</p>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <th></th>
+                {pricingPlans.map((plan) => (
+                  <td key={`${plan.key}-cta`}>
+                    <Button variant="primary">{plan.cta}</Button>
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ backgroundColor: "var(--body" }}>
+                <th>Additional invocations</th>
+                <td colSpan={2} className={styles.invocationNoteCell}>
+                  Available to the course at 1,000 invocations for $10
+                  regardless of the billing scheme chosen.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </Page>
   );

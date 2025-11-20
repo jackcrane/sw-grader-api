@@ -59,3 +59,34 @@
     min-width: 0;
   }
 }
+
+.subheader {
+  width: 100%;
+  color: var(--primary-contrast-primary);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  padding-top: 52px;
+  position: fixed;
+  z-index: 999999;
+  background-color: var(--body);
+}
+
+.subheaderContent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: -12px;
+}
+
+.subheaderContent a {
+  color: var(--body-contrast-primary);
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: transparent;
+  transition: background 100ms ease;
+}
+
+.subheaderContent a:hover {
+  background: var(--border);
+}
