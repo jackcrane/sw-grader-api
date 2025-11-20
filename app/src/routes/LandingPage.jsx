@@ -13,29 +13,34 @@ import createAssignment from "../../assets/create-assignment.mp4";
 const journeySteps = [
   {
     title: "Teacher creates course",
-    detail: "Define courses and set grading expectations before inviting learners.",
+    detail:
+      "Define courses and set grading expectations before inviting learners.",
   },
   {
     title: "Teacher shares access codes to students and TAs",
-    detail: "Distribute enrollment codes so the right people can join and review.",
+    detail:
+      "Distribute enrollment codes so the right people can join and review.",
   },
   {
     title: "Students create accounts and enroll using said course",
-    detail: "Students sign in, claim their seat, and gain access to assignments.",
+    detail:
+      "Students sign in, claim their seat, and gain access to assignments.",
   },
   {
     title:
       "Teacher creates assignments and uploads known good and known bad parts and enters optional feedback",
-    detail: "Build assignments, attach reference models, and add contextual notes.",
+    detail:
+      "Build assignments, attach reference models, and add contextual notes.",
   },
   {
     title: "Students submit assignments and get instantly auto graded",
-    detail: "Submissions trigger automated grading, giving instant results and insights.",
+    detail:
+      "Submissions trigger automated grading, giving instant results and insights.",
   },
 ];
 
 export const LandingPage = () => {
-  const { login, isLoggingIn, isAuthenticated } = useAuthContext();
+  const { isAuthenticated } = useAuthContext();
 
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
@@ -75,40 +80,6 @@ export const LandingPage = () => {
           ]}
           backgroundImage={gradient}
         />
-      </section>
-      <section className={styles.journeyStackSection}>
-        <div className={styles.journeyStackHeader}>
-          <p className={styles.jetStream}>Journey</p>
-          <h2 className={styles.journeyTitle}>
-            Scroll through the FeatureBench course flow
-          </h2>
-          <p className={styles.journeySubtitle}>
-            Each step showcases what happens from onboarding teachers to instant, automated grading
-            for students.
-          </p>
-        </div>
-        <div className={styles.journeyStack}>
-          {journeySteps.map((step, index) => (
-            <div
-              className={styles.journeyStackItem}
-              key={step.title}
-              style={{
-                "--stack-depth": journeySteps.length - index,
-              }}
-            >
-              <article
-                className={styles.journeyStackCard}
-                style={{ "--stack-index": index + 1 }}
-              >
-                <header>
-                  <div className={styles.cardBadge}>Step {index + 1}</div>
-                  <h3>{step.title}</h3>
-                </header>
-                <p>{step.detail}</p>
-              </article>
-            </div>
-          ))}
-        </div>
       </section>
     </Page>
   );
