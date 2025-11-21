@@ -24,6 +24,7 @@ export const EnrollmentsSection = ({
   const [paymentModalCourse, setPaymentModalCourse] = useState(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [paymentModalError, setPaymentModalError] = useState(null);
+  const [settingUpPaymentMethod, setSettingUpPaymentMethod] = useState(false);
   const enrollmentsList = enrollments ?? [];
 
   const attemptJoinCourse = async (
@@ -48,6 +49,7 @@ export const EnrollmentsSection = ({
       setPendingInviteCode("");
       setPaymentModalCourse(null);
       setShowPaymentModal(false);
+      setSettingUpPaymentMethod(false);
       setPaymentModalError(null);
       return createdEnrollment;
     } catch (err) {
@@ -160,6 +162,7 @@ export const EnrollmentsSection = ({
           setPaymentModalError(null);
           setPendingInviteCode("");
           setPaymentModalCourse(null);
+          setSettingUpPaymentMethod(false);
         }}
         footer={
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -169,18 +172,21 @@ export const EnrollmentsSection = ({
                 setPaymentModalError(null);
                 setPendingInviteCode("");
                 setPaymentModalCourse(null);
+                setSettingUpPaymentMethod(false);
               }}
               disabled={confirmingPayment}
             >
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmPayment}
-              disabled={confirmingPayment || !pendingInviteCode}
-            >
-              {confirmingPayment ? "Charging..." : "Confirm and join"}
-            </Button>
+            {!settingUpPaymentMethod && (
+              <Button
+                variant="primary"
+                onClick={handleConfirmPayment}
+                disabled={confirmingPayment || !pendingInviteCode}
+              >
+                {confirmingPayment ? "Charging..." : "Confirm and join"}
+              </Button>
+            )}
           </div>
         }
       >
@@ -208,6 +214,7 @@ export const EnrollmentsSection = ({
           <SetupElement
             allowUpdatingPaymentMethod
             onReady={handlePaymentMethodSaved}
+            onSettingUpPaymentMethodChange={setSettingUpPaymentMethod}
           />
           {paymentModalError && (
             <>

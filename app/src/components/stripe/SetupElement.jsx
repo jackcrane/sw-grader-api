@@ -152,6 +152,7 @@ export const SetupElement = ({
   onReady,
   loadSavedPaymentMethod = true,
   allowUpdatingPaymentMethod = false,
+  onSettingUpPaymentMethodChange,
 }) => {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -173,6 +174,17 @@ export const SetupElement = ({
       setShowSetupForm(false);
     }
   }, [loadSavedPaymentMethod, paymentMethod]);
+
+  useEffect(() => {
+    onSettingUpPaymentMethodChange?.(showSetupForm);
+  }, [onSettingUpPaymentMethodChange, showSetupForm]);
+
+  useEffect(
+    () => () => {
+      onSettingUpPaymentMethodChange?.(false);
+    },
+    [onSettingUpPaymentMethodChange]
+  );
 
   const loadSetupIntent = useCallback(async () => {
     setLoading(true);
@@ -295,5 +307,7 @@ export const SetupElement = ({
     );
   }
 
-  return <StripeElementsWrapper config={config} onComplete={handleComplete} />;
+  return (
+    <StripeElementsWrapper config={config} onComplete={handleComplete} />
+  );
 };
