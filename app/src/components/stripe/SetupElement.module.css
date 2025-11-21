@@ -1,0 +1,31 @@
+.cardInput {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cardInputFocused {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 20%, transparent);
+}
+
+.cardInputError {
+  border-color: var(--danger, #b00020);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--danger, #b00020) 25%, transparent);
+}
+
+.cardElement {
+  width: 100%;
+}
+
+.cardElement :global(.StripeElement) {
+  padding: 0;
+}
+
+.cardElement :global(.StripeElement iframe) {
+  width: 100%;
+}

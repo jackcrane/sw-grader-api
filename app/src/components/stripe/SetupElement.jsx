@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import classnames from "classnames";
 import {
+  CardElement,
   Elements,
-  PaymentElement,
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
@@ -9,6 +10,8 @@ import { loadStripe } from "@stripe/stripe-js";
 import { fetchJson } from "../../utils/fetchJson";
 import { Button } from "../button/Button";
 import { Spacer } from "../spacer/Spacer";
+import styles from "./SetupElement.module.css";
+import inputStyles from "../input/Input.module.css";
 
 const stripePromiseCache = new Map();
 
@@ -20,29 +23,35 @@ const getStripePromise = (publishableKey) => {
   return stripePromiseCache.get(publishableKey);
 };
 
-const SetupForm = ({ onComplete }) => {
+const SetupForm = ({ clientSecret, onComplete }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isComplete, setIsComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!stripe || !elements || submitting || !isComplete) {
+    if (!stripe || !elements || submitting || !isComplete || !clientSecret) {
       return;
     }
     setSubmitting(true);
     setError("");
     setSuccessMessage("");
 
-    const result = await stripe.confirmSetup({
-      elements,
-      confirmParams: {
-        return_url: window.location.href,
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setError("Unable to load card input.");
+      setSubmitting(false);
+      return;
+    }
+
+    const result = await stripe.confirmCardSetup(clientSecret, {
+      payment_method: {
+        card: cardElement,
       },
-      redirect: "if_required",
     });
 
     if (result.error) {
@@ -62,13 +71,37 @@ const SetupForm = ({ onComplete }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <PaymentElement
-        onChange={(event) => setIsComplete(event?.complete ?? false)}
-        options={{
-          layout: "tabs",
-          paymentMethodTypes: ["card"],
-        }}
-      />
+      <label className={inputStyles.label}>Enter a card number</label>
+      <Spacer size={1} />
+      <div
+        className={classnames(
+          styles.cardInput,
+          isFocused && styles.cardInputFocused,
+          error && styles.cardInputError
+        )}
+      >
+        <CardElement
+          className={styles.cardElement}
+          onChange={(event) => setIsComplete(event?.complete ?? false)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          options={{
+            hidePostalCode: true,
+            style: {
+              base: {
+                fontSize: "14px",
+                color: "var(--surface-contrast-primary)",
+                fontFamily: '"Stack Sans Text", system-ui, sans-serif',
+                "::placeholder": { color: "rgb(169,169,169)" },
+              },
+              invalid: {
+                color: "var(--danger, #b00020)",
+                iconColor: "var(--danger, #b00020)",
+              },
+            },
+          }}
+        />
+      </div>
       {error && (
         <>
           <Spacer size={1} />
@@ -109,24 +142,23 @@ const StripeElementsWrapper = ({ config, onComplete }) => {
     [config.publishableKey]
   );
 
-  const options = useMemo(
-    () => ({
-      clientSecret: config.clientSecret,
-      appearance: {
-        theme: "stripe",
-      },
-      wallets: { link: "never" },
-    }),
-    [config.clientSecret]
-  );
-
   if (!stripePromise || !config.clientSecret) {
     return <div>Loading Stripe...</div>;
   }
 
+  const elementsOptions = {
+    clientSecret: config.clientSecret,
+    fonts: [
+      {
+        cssSrc:
+          "https://fonts.googleapis.com/css2?family=Stack+Sans+Text:wght@400;500;600&display=swap",
+      },
+    ],
+  };
+
   return (
-    <Elements stripe={stripePromise} options={options}>
-      <SetupForm onComplete={onComplete} />
+    <Elements stripe={stripePromise} options={elementsOptions}>
+      <SetupForm clientSecret={config.clientSecret} onComplete={onComplete} />
     </Elements>
   );
 };
