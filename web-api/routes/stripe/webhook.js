@@ -12,7 +12,77 @@ const formatName = (user) => {
   return fullName.trim();
 };
 
-const notifyTeacherOfFailedCharge = async (paymentIntent) => {
+const createTeacherPaymentNotification = async ({
+  teacherId,
+  course,
+  student,
+  paymentIntentId,
+  intro,
+  warningSentence,
+  failureMessage,
+}) => {
+  if (!teacherId) return;
+
+  const notificationExists =
+    paymentIntentId &&
+    (await prisma.notification.findFirst({
+      where: {
+        userId: teacherId,
+        deleted: false,
+        data: {
+          path: ["paymentIntentId"],
+          equals: paymentIntentId,
+        },
+      },
+    }));
+
+  if (notificationExists) {
+    return notificationExists;
+  }
+
+  const studentDisplayName =
+    formatName(student) || student?.firstName || "a student";
+  const courseName = course?.name || "your course";
+  const notificationTitle = studentDisplayName
+    ? `Confirm payment for ${studentDisplayName}`
+    : "Confirm an enrollment payment";
+
+  const contentParts = [intro];
+  if (failureMessage) {
+    contentParts.push(`Stripe reported: ${failureMessage}`);
+  }
+  if (warningSentence) {
+    contentParts.push(warningSentence);
+  }
+  const content = contentParts.join(" ");
+
+  const data = {
+    hasCta: true,
+    ctaLabel: "Review billing",
+    ctaHref: "/billing",
+    paymentIntentId: paymentIntentId ?? null,
+    failureMessage: failureMessage ?? null,
+    courseId: course?.id ?? null,
+    courseName,
+    studentId: student?.id ?? null,
+    studentName: studentDisplayName,
+  };
+
+  return prisma.notification.create({
+    data: {
+      userId: teacherId,
+      type: "PAYMENT_ISSUE",
+      title: notificationTitle,
+      content,
+      data,
+    },
+  });
+};
+
+const notifyTeacherOfFailedCharge = async (
+  paymentIntent,
+  { isAuthenticationFailure = false } = {}
+) => {
   const metadata = paymentIntent?.metadata ?? {};
   if (!metadata || (metadata.payerRole && metadata.payerRole !== "teacher")) {
     return;
@@ -96,6 +166,18 @@ const notifyTeacherOfFailedCharge = async (paymentIntent) => {
       courseId,
     });
   }
+
+  if (isAuthenticationFailure && teacherId) {
+    await createTeacherPaymentNotification({
+      teacherId,
+      course,
+      student,
+      paymentIntentId: paymentIntent?.id,
+      intro,
+      warningSentence,
+      failureMessage,
+    });
+  }
 };
 
 export const post = async (req, res) => {
@@ -127,7 +209,13 @@ export const post = async (req, res) => {
       event.type === "payment_intent.payment_failed" ||
       event.type === "payment_intent.requires_action"
     ) {
-      await notifyTeacherOfFailedCharge(event.data.object);
+      const paymentIntent = event.data.object;
+      const isAuthenticationFailure =
+        event.type === "payment_intent.requires_action" ||
+        paymentIntent?.last_payment_error?.code === "authentication_required";
+      await notifyTeacherOfFailedCharge(paymentIntent, {
+        isAuthenticationFailure,
+      });
     }
   } catch (err) {
     console.error("Error handling Stripe webhook event", err);
