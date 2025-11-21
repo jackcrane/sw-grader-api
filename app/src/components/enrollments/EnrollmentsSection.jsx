@@ -19,31 +19,79 @@ export const EnrollmentsSection = ({
   const [inviteCode, setInviteCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState(null);
-  const [studentBillingEnrollment, setStudentBillingEnrollment] =
-    useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingInviteCode, setPendingInviteCode] = useState("");
+  const [paymentModalCourse, setPaymentModalCourse] = useState(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [paymentModalError, setPaymentModalError] = useState(null);
   const enrollmentsList = enrollments ?? [];
 
-  const handleJoinCourse = async () => {
-    const trimmedCode = inviteCode.trim();
-    if (!trimmedCode || !createEnrollment) return;
-    setJoining(true);
-    setJoinError(null);
+  const attemptJoinCourse = async (
+    rawInviteCode,
+    { confirmPayment = false } = {}
+  ) => {
+    const trimmedCode = rawInviteCode.trim();
+    if (!trimmedCode || !createEnrollment) return null;
+    if (confirmPayment) {
+      setConfirmingPayment(true);
+      setPaymentModalError(null);
+    } else {
+      setJoining(true);
+      setJoinError(null);
+    }
     try {
       const createdEnrollment = await createEnrollment({
         inviteCode: trimmedCode,
+        confirmPayment,
       });
       setInviteCode("");
-      if (
-        (createdEnrollment?.type ?? "").toUpperCase() === "STUDENT" &&
-        createdEnrollment?.course?.billingScheme === "PER_STUDENT"
-      ) {
-        setStudentBillingEnrollment(createdEnrollment);
-      }
+      setPendingInviteCode("");
+      setPaymentModalCourse(null);
+      setShowPaymentModal(false);
+      setPaymentModalError(null);
+      return createdEnrollment;
     } catch (err) {
-      setJoinError(err?.message ?? "Failed to join course");
+      if (err?.code === "payment_confirmation_required") {
+        setPendingInviteCode(trimmedCode);
+        setPaymentModalCourse(err?.payload?.course ?? null);
+        setShowPaymentModal(true);
+        setPaymentModalError(null);
+        setJoinError(null);
+      } else if (
+        err?.code === "payment_method_required" ||
+        err?.code === "payment_failed"
+      ) {
+        setPendingInviteCode(trimmedCode);
+        setPaymentModalCourse((prev) => prev ?? err?.payload?.course ?? null);
+        setShowPaymentModal(true);
+        setPaymentModalError(
+          err?.message ?? "Unable to process payment for this enrollment."
+        );
+      } else {
+        setJoinError(err?.message ?? "Failed to join course");
+      }
+      return null;
     } finally {
-      setJoining(false);
+      if (confirmPayment) {
+        setConfirmingPayment(false);
+      } else {
+        setJoining(false);
+      }
     }
+  };
+
+  const handleJoinCourse = async () => {
+    await attemptJoinCourse(inviteCode);
+  };
+
+  const handlePaymentMethodSaved = () => {
+    setPaymentModalError(null);
+  };
+
+  const handleConfirmPayment = async () => {
+    const codeToRetry = pendingInviteCode || inviteCode;
+    if (!codeToRetry) return;
+    await attemptJoinCourse(codeToRetry, { confirmPayment: true });
   };
 
   if (loading) {
@@ -105,38 +153,75 @@ export const EnrollmentsSection = ({
         <p style={{ color: "#b00020", marginTop: 8 }}>{joinError}</p>
       )}
       <Modal
-        title="Add a payment method"
-        open={Boolean(studentBillingEnrollment)}
-        onClose={() => setStudentBillingEnrollment(null)}
+        title="Confirm enrollment payment"
+        open={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setPaymentModalError(null);
+          setPendingInviteCode("");
+          setPaymentModalCourse(null);
+        }}
         footer={
-          <Button onClick={() => setStudentBillingEnrollment(null)}>
-            Close
-          </Button>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Button
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentModalError(null);
+                setPendingInviteCode("");
+                setPaymentModalCourse(null);
+              }}
+              disabled={confirmingPayment}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleConfirmPayment}
+              disabled={confirmingPayment || !pendingInviteCode}
+            >
+              {confirmingPayment ? "Charging..." : "Confirm and join"}
+            </Button>
+          </div>
         }
       >
         <Section
-          title="Payment method"
+          title={
+            paymentModalCourse?.name
+              ? `Finish joining ${paymentModalCourse.name}`
+              : "Payment method"
+          }
           last
           subtitle={
             <>
-              <p
-                style={{
-                  marginBottom: 8,
-                }}
-              >
-                You will be charged $20 to enroll in this course.
+              <p style={{ marginBottom: 8 }}>
+                We&apos;ll charge $20 before you join{" "}
+                {paymentModalCourse?.name ?? "this course"}.
               </p>
               <p>
-                FeatureBench partners with Stripe to securely process payments.
+                Stripe securely processes the payment and emails you a receipt
+                as soon as it succeeds.
               </p>
             </>
           }
         >
           <Spacer size={2} />
           <SetupElement
-            loadSavedPaymentMethod={false}
-            onReady={() => setStudentBillingEnrollment(null)}
+            allowUpdatingPaymentMethod
+            onReady={handlePaymentMethodSaved}
           />
+          {paymentModalError && (
+            <>
+              <Spacer size={1} />
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--danger-text, #c62828)",
+                }}
+              >
+                {paymentModalError}
+              </p>
+            </>
+          )}
         </Section>
       </Modal>
     </div>

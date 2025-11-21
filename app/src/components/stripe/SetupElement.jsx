@@ -158,7 +158,11 @@ const StripeElementsWrapper = ({ config, onComplete }) => {
   );
 };
 
-export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
+export const SetupElement = ({
+  onReady,
+  loadSavedPaymentMethod = true,
+  allowUpdatingPaymentMethod = false,
+}) => {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -168,6 +172,17 @@ export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
   const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(
     loadSavedPaymentMethod
   );
+  const [showSetupForm, setShowSetupForm] = useState(!loadSavedPaymentMethod);
+
+  useEffect(() => {
+    if (!loadSavedPaymentMethod) {
+      setShowSetupForm(true);
+    } else if (!paymentMethod) {
+      setShowSetupForm(true);
+    } else {
+      setShowSetupForm(false);
+    }
+  }, [loadSavedPaymentMethod, paymentMethod]);
 
   const loadSetupIntent = useCallback(async () => {
     setLoading(true);
@@ -223,6 +238,7 @@ export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
         body: JSON.stringify({ paymentMethodId: payload.paymentMethodId }),
       });
       setPaymentMethod(postPayload?.paymentMethod ?? null);
+      setShowSetupForm(false);
       onReady?.({
         ...payload,
         paymentMethod: postPayload?.paymentMethod ?? null,
@@ -251,7 +267,7 @@ export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
     return <div>Unable to load billing details.</div>;
   }
 
-  if (paymentMethod) {
+  if (paymentMethod && !showSetupForm) {
     const brandLabel = paymentMethod.brand
       ? paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)
       : "card";
@@ -261,6 +277,18 @@ export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
         <p className={styles.cardSummaryMessage}>
           You selected a {brandLabel} ending in {paymentMethod.last4}.
         </p>
+        {allowUpdatingPaymentMethod && (
+          <>
+            <Spacer size={1} />
+            <Button
+              variant="secondary"
+              onClick={() => setShowSetupForm(true)}
+              style={{ minWidth: 0 }}
+            >
+              Use a different card
+            </Button>
+          </>
+        )}
       </div>
     );
   }
