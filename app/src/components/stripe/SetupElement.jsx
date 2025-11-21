@@ -6,22 +6,12 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
 import { fetchJson } from "../../utils/fetchJson";
 import { Button } from "../button/Button";
 import { Spacer } from "../spacer/Spacer";
 import styles from "./SetupElement.module.css";
 import inputStyles from "../input/Input.module.css";
-
-const stripePromiseCache = new Map();
-
-const getStripePromise = (publishableKey) => {
-  if (!publishableKey) return null;
-  if (!stripePromiseCache.has(publishableKey)) {
-    stripePromiseCache.set(publishableKey, loadStripe(publishableKey));
-  }
-  return stripePromiseCache.get(publishableKey);
-};
+import { getStripePromise } from "../../utils/stripeClient";
 
 const SetupForm = ({ clientSecret, onComplete }) => {
   const stripe = useStripe();

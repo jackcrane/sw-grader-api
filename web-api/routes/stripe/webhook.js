@@ -58,8 +58,9 @@ const createTeacherPaymentNotification = async ({
 
   const data = {
     hasCta: true,
-    ctaLabel: "Review billing",
-    ctaHref: "/billing",
+    ctaLabel: "Authorize payment",
+    ctaHref: null,
+    action: "AUTHORIZE_PAYMENT",
     paymentIntentId: paymentIntentId ?? null,
     failureMessage: failureMessage ?? null,
     courseId: course?.id ?? null,
