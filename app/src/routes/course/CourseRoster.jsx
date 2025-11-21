@@ -353,7 +353,9 @@ export const CourseRoster = () => {
                       disabled={pendingAction === "remove"}
                       className={styles.removeButton}
                     >
-                      Remove from course
+                      {pendingAction === "remove"
+                        ? "Removing..."
+                        : "Remove from course"}
                     </Button>
                   </div>
                 </div>
