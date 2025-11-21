@@ -143,11 +143,38 @@ export const post = [
           manualAuthorizationMetadata.manualAuthorizationUserId =
             String(userId);
         }
-        paymentIntent = await stripe.paymentIntents.confirm(
-          targetPaymentIntentId,
-          {
-            metadata: manualAuthorizationMetadata,
+
+        let mergedMetadata = manualAuthorizationMetadata;
+        try {
+          const currentPaymentIntent = await stripe.paymentIntents.retrieve(
+            targetPaymentIntentId
+          );
+          if (currentPaymentIntent?.metadata) {
+            mergedMetadata = {
+              ...currentPaymentIntent.metadata,
+              ...manualAuthorizationMetadata,
+            };
           }
+        } catch (metadataRetrieveError) {
+          console.warn(
+            "Unable to retrieve payment intent metadata before manual authorization",
+            metadataRetrieveError
+          );
+        }
+
+        try {
+          await stripe.paymentIntents.update(targetPaymentIntentId, {
+            metadata: mergedMetadata,
+          });
+        } catch (metadataUpdateError) {
+          console.warn(
+            "Unable to set manual authorization metadata before confirmation",
+            metadataUpdateError
+          );
+        }
+
+        paymentIntent = await stripe.paymentIntents.confirm(
+          targetPaymentIntentId
         );
       }
     } catch (err) {
