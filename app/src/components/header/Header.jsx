@@ -28,6 +28,7 @@ import { Modal } from "../modal/Modal";
 import { SetupElement } from "../stripe/SetupElement";
 import { Spacer } from "../spacer/Spacer";
 import { Section } from "../form/Section";
+import { Button } from "../button/Button";
 
 const NOTIFICATION_TYPE_ICON = {
   ASSIGNMENT_GRADED: CheckCircleIcon,
@@ -760,13 +761,14 @@ const PaymentAuthorizationModal = ({
                 The payment was successful and the student is now fully enrolled
                 in your course.
               </p>
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 className={styles.authorizationSubmit}
                 onClick={onClose}
               >
                 Close
-              </button>
+              </Button>
             </div>
           ) : (
             <>
@@ -792,7 +794,8 @@ const PaymentAuthorizationModal = ({
                   </p>
                 )}
               </div>
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 className={styles.authorizationSubmit}
                 onClick={handleChargeSavedPaymentMethod}
@@ -804,18 +807,19 @@ const PaymentAuthorizationModal = ({
                 }
               >
                 {charging ? "Authorizing…" : "Charge saved payment method"}
-              </button>
+              </Button>
               {chargeError && (
                 <p className={styles.authorizationError}>{chargeError}</p>
               )}
               <Spacer size={1} />
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 className={styles.authorizationSecondary}
                 onClick={() => setShowSetupForm((value) => !value)}
               >
                 {showSetupForm ? "Hide card form" : "Use a different card"}
-              </button>
+              </Button>
               {showSetupForm && (
                 <div className={styles.authorizationSetupWrapper}>
                   <SetupElement
