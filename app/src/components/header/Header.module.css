@@ -314,36 +314,6 @@
   font-size: 0.9rem;
 }
 
-.authorizationForm {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.authorizationLabel {
-  font-size: 0.85rem;
-  color: rgba(15, 23, 42, 0.8);
-  font-weight: 600;
-}
-
-.authorizationCardInput {
-  border: 1px solid rgba(15, 23, 42, 0.15);
-  border-radius: 8px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  transition: border-color 100ms ease, box-shadow 100ms ease;
-}
-
-.authorizationCardInputFocused {
-  border-color: rgba(35, 76, 255, 0.9);
-  box-shadow: 0 0 0 3px rgba(35, 76, 255, 0.15);
-}
-
-.authorizationCardInputError {
-  border-color: var(--danger, #b00020);
-  box-shadow: 0 0 0 2px rgba(176, 0, 32, 0.1);
-}
-
 .authorizationError {
   margin: -4px 0 0;
   font-size: 0.8rem;
@@ -366,8 +336,49 @@
   cursor: not-allowed;
 }
 
-.authorizationHelper {
-  margin: -4px 0 0;
-  font-size: 0.75rem;
-  color: rgba(15, 23, 42, 0.65);
+.authorizationSummary {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(250, 250, 255, 0.6);
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.8);
+}
+
+.authorizationSecondary {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+  align-self: flex-start;
+}
+
+.authorizationSetupWrapper {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.authorizationSuccess {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.authorizationSuccessTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.authorizationSuccessMessage {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(15, 23, 42, 0.75);
 }

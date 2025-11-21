@@ -19,12 +19,8 @@ import useSWR from "swr";
 import { fetchJson } from "../../utils/fetchJson";
 import { getStripePromise } from "../../utils/stripeClient";
 import { Modal } from "../modal/Modal";
-import {
-  Elements,
-  CardElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
+import { SetupElement } from "../stripe/SetupElement";
+import { Spacer } from "../spacer/Spacer";
 
 const NOTIFICATION_TYPE_ICON = {
   ASSIGNMENT_GRADED: CheckCircleIcon,
@@ -171,44 +167,23 @@ export const Header = () => {
     [clearNotificationActionState, refetchNotifications, updateNotificationActionState]
   );
 
-  const handleAuthorizationModalComplete = useCallback(async () => {
-    if (!authorizationModal) {
-      return {
-        success: false,
-        message: "Authorization session has expired. Reopen the tray to try again.",
-      };
-    }
+  const handleAuthorizationSuccessInModal = useCallback(
+    async (notificationId) => {
+      if (!notificationId) return;
+      await markAuthorizationSuccess(notificationId);
+      setAuthorizationModal((prev) =>
+        prev ? { ...prev, status: "success" } : prev
+      );
+      setIsNotificationsOpen(false);
+    },
+    [markAuthorizationSuccess, setIsNotificationsOpen]
+  );
 
-    try {
-      const finalResponse = await authorizationModal.requestAuthorization({
-        checkStatusOnly: true,
-      });
-
-      if (finalResponse.status === "succeeded") {
-        await markAuthorizationSuccess(authorizationModal.notificationId);
-        setIsNotificationsOpen(false);
-        closeAuthorizationModal();
-        return { success: true };
-      }
-
-      return {
-        success: false,
-        message:
-          finalResponse.message ||
-          "We couldn't confirm the payment. Please try again.",
-      };
-    } catch (err) {
-      return {
-        success: false,
-        message: err?.message || "Unable to confirm the payment.",
-      };
-    }
-  }, [
-    authorizationModal,
-    closeAuthorizationModal,
-    markAuthorizationSuccess,
-    setIsNotificationsOpen,
-  ]);
+  const updateAuthorizationModalState = useCallback((updates) => {
+    setAuthorizationModal((prev) =>
+      prev ? { ...prev, ...updates } : prev
+    );
+  }, []);
 
   const handleAuthorizePayment = async (notification) => {
     const notificationId = notification?.id;
@@ -287,6 +262,7 @@ export const Header = () => {
             notificationId,
             paymentIntentId,
             requestAuthorization,
+            status: "form",
           });
           updateNotificationActionState(notificationId, {
             loading: false,
@@ -314,6 +290,7 @@ export const Header = () => {
           notificationId,
           paymentIntentId,
           requestAuthorization,
+          status: "form",
         });
         return;
       }
@@ -576,123 +553,179 @@ export const Header = () => {
       <PaymentAuthorizationModal
         state={authorizationModal}
         onClose={closeAuthorizationModal}
-        onAuthorizationComplete={handleAuthorizationModalComplete}
+        onAuthorizationSuccess={handleAuthorizationSuccessInModal}
+        updateState={updateAuthorizationModalState}
       />
     </>
-  );
-};
-
-const AuthorizationCardForm = ({ clientSecret, onAuthorized }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isComplete, setIsComplete] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!stripe || !elements || !clientSecret || submitting || !isComplete) {
-      return;
-    }
-    setSubmitting(true);
-    setError("");
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setError("Unable to load the card input.");
-      setSubmitting(false);
-      return;
-    }
-
-    const result = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: {
-        card: cardElement,
-      },
-    });
-
-    if (result.error) {
-      setError(result.error.message || "Unable to authorize the payment.");
-      setSubmitting(false);
-      return;
-    }
-
-    const followUp = await onAuthorized?.();
-    if (!followUp?.success) {
-      setError(
-        followUp?.message || "Unable to confirm authorization. Please try again."
-      );
-      setSubmitting(false);
-      return;
-    }
-
-    setSubmitting(false);
-  };
-
-  return (
-    <form className={styles.authorizationForm} onSubmit={handleSubmit}>
-      <label className={styles.authorizationLabel}>Card details</label>
-      <div
-        className={[
-          styles.authorizationCardInput,
-          isFocused ? styles.authorizationCardInputFocused : "",
-          error ? styles.authorizationCardInputError : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        <CardElement
-          onChange={(event) => setIsComplete(event?.complete ?? false)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          options={{
-            hidePostalCode: true,
-            style: {
-              base: {
-                fontSize: "14px",
-                color: "var(--surface-contrast-primary)",
-                fontFamily: '"Stack Sans Text", system-ui, sans-serif',
-                "::placeholder": { color: "rgb(169,169,169)" },
-              },
-              invalid: {
-                color: "var(--danger, #b00020)",
-                iconColor: "var(--danger, #b00020)",
-              },
-            },
-          }}
-        />
-      </div>
-      {error && <p className={styles.authorizationError}>{error}</p>}
-      <button
-        type="submit"
-        className={styles.authorizationSubmit}
-        disabled={!stripe || !elements || !isComplete || submitting}
-      >
-        {submitting ? "Authorizing…" : "Authorize payment"}
-      </button>
-      <p className={styles.authorizationHelper}>
-        We'll securely run this charge now and save the card for future
-        enrollments.
-      </p>
-    </form>
   );
 };
 
 const PaymentAuthorizationModal = ({
   state,
   onClose,
-  onAuthorizationComplete,
+  onAuthorizationSuccess,
+  updateState,
 }) => {
   const hasSession =
     state &&
-    state.clientSecret &&
-    state.publishableKey &&
-    state.notification;
+    state.notification &&
+    state.notificationId &&
+    state.requestAuthorization;
 
+  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(false);
+  const [paymentMethodError, setPaymentMethodError] = useState("");
+  const [showSetupForm, setShowSetupForm] = useState(false);
+  const [charging, setCharging] = useState(false);
+  const [chargeError, setChargeError] = useState("");
+  const [setupKey, setSetupKey] = useState(0);
+  const successState = state?.status === "success";
   const stripePromise = useMemo(() => {
     if (!state?.publishableKey) return null;
     return getStripePromise(state.publishableKey);
   }, [state?.publishableKey]);
+
+  const loadPaymentMethod = useCallback(async () => {
+    setLoadingPaymentMethod(true);
+    setPaymentMethodError("");
+    try {
+      const payload = await fetchJson("/api/billing/payment-method");
+      setPaymentMethod(payload?.paymentMethod ?? null);
+    } catch (err) {
+      setPaymentMethod(null);
+      setPaymentMethodError(
+        err?.message || "Unable to load your saved payment method."
+      );
+    } finally {
+      setLoadingPaymentMethod(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasSession) return;
+    setShowSetupForm(false);
+    setChargeError("");
+    setPaymentMethod(null);
+    setPaymentMethodError("");
+    setSetupKey((value) => value + 1);
+    loadPaymentMethod();
+  }, [hasSession, loadPaymentMethod, state?.notificationId]);
+
+  useEffect(() => {
+    if (!successState && !loadingPaymentMethod && !paymentMethod) {
+      setShowSetupForm(true);
+    }
+  }, [loadingPaymentMethod, paymentMethod, successState]);
+
+  const processAuthorizationResponse = useCallback(
+    async (response) => {
+      if (!response) {
+        throw new Error("Unable to authorize this payment.");
+      }
+
+      if (response.clientSecret) {
+        updateState?.({ clientSecret: response.clientSecret });
+      }
+      if (response.publishableKey) {
+        updateState?.({ publishableKey: response.publishableKey });
+      }
+
+      if (response.status === "succeeded") {
+        await onAuthorizationSuccess?.(state.notificationId);
+        return { done: true };
+      }
+
+      if (response.status === "requires_action") {
+        const publishableKey =
+          response.publishableKey ?? state.publishableKey ?? null;
+        const clientSecret =
+          response.clientSecret ?? state.clientSecret ?? null;
+        if (!publishableKey || !clientSecret) {
+          throw new Error("Unable to continue authorization.");
+        }
+        const stripePromise = getStripePromise(publishableKey);
+        if (!stripePromise) {
+          throw new Error("Unable to load Stripe to continue authorization.");
+        }
+        const stripe = await stripePromise;
+        if (!stripe) {
+          throw new Error("Unable to load Stripe to continue authorization.");
+        }
+        const confirmResult = await stripe.confirmCardPayment(clientSecret);
+        if (confirmResult.error) {
+          throw new Error(
+            confirmResult.error.message || "Unable to authorize the payment."
+          );
+        }
+        const finalResponse = await state.requestAuthorization({
+          checkStatusOnly: true,
+        });
+        return processAuthorizationResponse(finalResponse);
+      }
+
+      if (response.status === "requires_payment_method") {
+        setShowSetupForm(true);
+        throw new Error(
+          response.message ||
+            "The saved payment method was declined. Add a new card to continue."
+        );
+      }
+
+      throw new Error(
+        response.message ||
+          "Unable to authorize this payment right now. Try again soon."
+      );
+    },
+    [onAuthorizationSuccess, state, updateState]
+  );
+
+  const handleChargeSavedPaymentMethod = useCallback(async () => {
+    if (
+      !state?.clientSecret ||
+      !stripePromise ||
+      !paymentMethod?.id
+    ) {
+      setChargeError(
+        "Unable to load your saved payment method for confirmation."
+      );
+      return;
+    }
+    setCharging(true);
+    setChargeError("");
+    try {
+      const stripe = await stripePromise;
+      if (!stripe) {
+        throw new Error("Unable to load Stripe to authorize the payment.");
+      }
+      const result = await stripe.confirmCardPayment(state.clientSecret, {
+        payment_method: paymentMethod.id,
+      });
+      if (result.error) {
+        throw new Error(
+          result.error.message || "Unable to authorize the payment."
+        );
+      }
+      const finalResponse = await state.requestAuthorization({
+        checkStatusOnly: true,
+      });
+      await processAuthorizationResponse(finalResponse);
+    } catch (err) {
+      setChargeError(err?.message || "Unable to authorize the payment.");
+    } finally {
+      setCharging(false);
+    }
+  }, [
+    paymentMethod?.id,
+    processAuthorizationResponse,
+    state,
+    stripePromise,
+  ]);
+
+  const handlePaymentMethodSaved = useCallback(async () => {
+    await loadPaymentMethod();
+    setShowSetupForm(false);
+    await handleChargeSavedPaymentMethod();
+  }, [handleChargeSavedPaymentMethod, loadPaymentMethod]);
 
   if (!hasSession) {
     return null;
@@ -713,23 +746,80 @@ const PaymentAuthorizationModal = ({
       closeOnBackdrop={false}
     >
       <div className={styles.authorizationModalContent}>
-        <p className={styles.authorizationIntro}>
-          {studentName && courseName
-            ? `Authorize the enrollment fee for ${studentName} in ${courseName}.`
-            : "Authorize this enrollment fee to keep your course in sync."}
-        </p>
-        {stripePromise ? (
-          <Elements
-            stripe={stripePromise}
-            options={{ clientSecret: state.clientSecret }}
-          >
-            <AuthorizationCardForm
-              clientSecret={state.clientSecret}
-              onAuthorized={onAuthorizationComplete}
-            />
-          </Elements>
+        {successState ? (
+          <div className={styles.authorizationSuccess}>
+            <p className={styles.authorizationSuccessTitle}>Payment complete</p>
+            <p className={styles.authorizationSuccessMessage}>
+              The payment was successful and the student is now fully enrolled in
+              your course.
+            </p>
+            <button
+              type="button"
+              className={styles.authorizationSubmit}
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
         ) : (
-          <p>Loading secure payment form…</p>
+          <>
+            <p className={styles.authorizationIntro}>
+              {studentName && courseName
+                ? `Charge the saved card for ${studentName}'s enrollment in ${courseName}.`
+                : "Charge your saved card to complete this enrollment."}
+            </p>
+            <div className={styles.authorizationSummary}>
+              {loadingPaymentMethod ? (
+                <p>Loading your saved payment method…</p>
+              ) : paymentMethod ? (
+                <p>
+                  Using {paymentMethod.brand?.toUpperCase() || "card"} ending in{" "}
+                  {paymentMethod.last4}.
+                </p>
+              ) : (
+                <p>No saved payment method found.</p>
+              )}
+              {paymentMethodError && (
+                <p className={styles.authorizationError}>
+                  {paymentMethodError}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              className={styles.authorizationSubmit}
+              onClick={handleChargeSavedPaymentMethod}
+              disabled={
+                charging ||
+                loadingPaymentMethod ||
+                !paymentMethod ||
+                !stripePromise
+              }
+            >
+              {charging ? "Authorizing…" : "Charge saved payment method"}
+            </button>
+            {chargeError && (
+              <p className={styles.authorizationError}>{chargeError}</p>
+            )}
+            <Spacer size={1} />
+            <button
+              type="button"
+              className={styles.authorizationSecondary}
+              onClick={() => setShowSetupForm((value) => !value)}
+            >
+              {showSetupForm ? "Hide card form" : "Use a different card"}
+            </button>
+            {showSetupForm && (
+              <div className={styles.authorizationSetupWrapper}>
+                <SetupElement
+                  key={setupKey}
+                  loadSavedPaymentMethod={false}
+                  allowUpdatingPaymentMethod={false}
+                  onReady={handlePaymentMethodSaved}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </Modal>
