@@ -11,6 +11,7 @@ import {
   normalizeEmail,
 } from "../../util/users.js";
 import { sendEmail } from "../../util/postmark.js";
+import { ensureStripeCustomerForUser } from "../../services/stripeCustomers.js";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -75,6 +76,7 @@ export const post = async (req, res) => {
     firstName,
     lastName,
   });
+  await ensureStripeCustomerForUser(user);
 
   const sealedSession = createSessionToken(user.id);
   res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);

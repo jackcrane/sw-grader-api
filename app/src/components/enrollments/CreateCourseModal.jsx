@@ -135,12 +135,6 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
             </p>
             <Spacer size={2} />
             <SetupElement onReady={() => {}} />
-            <Spacer size={2} />
-            <p>
-              By submitting this payment method and creating your course, your
-              payment method will be billed $12 per student who enrolls in your
-              course.
-            </p>
           </>
         )}
       </Section>
