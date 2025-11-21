@@ -158,14 +158,16 @@ const StripeElementsWrapper = ({ config, onComplete }) => {
   );
 };
 
-export const SetupElement = ({ onReady }) => {
+export const SetupElement = ({ onReady, loadSavedPaymentMethod = true }) => {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [paymentMethodError, setPaymentMethodError] = useState("");
-  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(true);
+  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(
+    loadSavedPaymentMethod
+  );
 
   const loadSetupIntent = useCallback(async () => {
     setLoading(true);
@@ -204,8 +206,14 @@ export const SetupElement = ({ onReady }) => {
   }, []);
 
   useEffect(() => {
+    if (!loadSavedPaymentMethod) {
+      setPaymentMethod(null);
+      setPaymentMethodError("");
+      setLoadingPaymentMethod(false);
+      return;
+    }
     loadPaymentMethod();
-  }, [loadPaymentMethod]);
+  }, [loadPaymentMethod, loadSavedPaymentMethod]);
 
   const handleComplete = useCallback(
     async (payload) => {

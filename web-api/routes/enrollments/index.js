@@ -6,6 +6,27 @@ import {
   normalizeInviteCode,
 } from "../../util/inviteCodes.js";
 
+const normalizeBillingScheme = (value) => {
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "PER_COURSE" || normalized === "PER_STUDENT") {
+    return normalized;
+  }
+
+  if (value === "pay-per-course") {
+    return "PER_COURSE";
+  }
+
+  if (value === "pay-per-student") {
+    return "PER_STUDENT";
+  }
+
+  return null;
+};
+
 export const get = [
   withAuth,
   async (req, res) => {
@@ -31,13 +52,6 @@ export const post = [
   withAuth,
   async (req, res) => {
     const { inviteCode } = req.body ?? {};
-    if (!req.user?.canCreateCourses) {
-      if (!inviteCode) {
-        return res
-          .status(403)
-          .json({ message: "Not authorized to create courses" });
-      }
-    }
 
     const userId = req.user.localUserId;
     if (!userId) {
@@ -87,10 +101,19 @@ export const post = [
     }
 
     const { name, abbr } = req.body ?? {};
+    const normalizedBillingScheme = normalizeBillingScheme(
+      req.body?.billingScheme
+    );
     if (!name || !abbr) {
       return res
         .status(400)
         .json({ message: "Course name and abbreviation are required" });
+    }
+
+    if (!normalizedBillingScheme) {
+      return res
+        .status(400)
+        .json({ message: "A valid billing scheme is required" });
     }
 
     const trimmedName = name.trim();
@@ -110,6 +133,7 @@ export const post = [
         abbr: trimmedAbbr,
         studentInviteCode,
         taInviteCode,
+        billingScheme: normalizedBillingScheme,
       },
     });
 

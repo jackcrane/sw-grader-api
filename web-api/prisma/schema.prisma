@@ -43,6 +43,13 @@ model Course {
 
   enrollments Enrollment[]
   deleted     Boolean  @default(false)
+
+  billingScheme BillingScheme
+}
+
+enum BillingScheme {
+  PER_STUDENT
+  PER_COURSE
 }
 
 model Enrollment {

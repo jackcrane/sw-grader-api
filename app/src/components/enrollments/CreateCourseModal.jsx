@@ -19,6 +19,7 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
       setCourseName("");
       setCourseAbbr("");
       setSubmitting(false);
+      setBilling("pay-per-course");
     }
   }, [open]);
 
@@ -30,6 +31,8 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
       await onCreateCourse({
         name: courseName,
         abbr: courseAbbr,
+        billingScheme:
+          billing === "pay-per-student" ? "PER_STUDENT" : "PER_COURSE",
       });
       if (onClose) {
         onClose();
@@ -93,6 +96,9 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
             <p>
               Pick whether you want your course or students to find your class
               on FeatureBench.
+            </p>
+            <p>
+              Once selected, the billing scheme is locked for this course.
             </p>
           </>
         }
