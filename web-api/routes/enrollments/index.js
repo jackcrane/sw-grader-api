@@ -6,7 +6,10 @@ import {
   normalizeInviteCode,
 } from "../../util/inviteCodes.js";
 import { ensureStripeCustomerForUser } from "../../services/stripeCustomers.js";
-import { getStripeClient } from "../../util/stripe.js";
+import {
+  getStripeClient,
+  getStripePublishableKey,
+} from "../../util/stripe.js";
 
 const normalizeBillingScheme = (value) => {
   if (typeof value !== "string" || !value) {
@@ -52,6 +55,8 @@ const chargeEnrollmentFeeForUser = async ({
   missingPaymentMethodCode = "payment_method_required",
   paymentFailedMessage,
   paymentFailedCode = "payment_failed",
+  allowActionRequired = false,
+  offSession = true,
 }) => {
   if (!userOrId) {
     throw new Error("User is required to charge enrollment fee");
@@ -89,7 +94,11 @@ const chargeEnrollmentFeeForUser = async ({
       customer: customerId,
       payment_method: paymentMethodId,
       confirm: true,
-      off_session: true,
+      off_session: offSession,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never",
+      },
       description:
         description ||
         (course?.name
@@ -103,17 +112,32 @@ const chargeEnrollmentFeeForUser = async ({
       receipt_email: user.email || undefined,
     });
 
-    if (paymentIntent.status !== "succeeded") {
-      throw createPaymentError(
-        paymentFailedMessage ||
-          "Unable to process payment for this enrollment.",
-        paymentFailedCode,
-        course
-      );
+    if (paymentIntent.status === "succeeded") {
+      return paymentIntent;
     }
 
-    return paymentIntent;
+    if (allowActionRequired && paymentIntent.status === "requires_action") {
+      return paymentIntent;
+    }
+
+    const failureMessage =
+      paymentIntent?.last_payment_error?.message ||
+      paymentFailedMessage ||
+      "Unable to process payment for this enrollment.";
+
+    throw createPaymentError(
+      failureMessage,
+      paymentFailedCode,
+      course
+    );
   } catch (err) {
+    if (
+      allowActionRequired &&
+      err?.payment_intent?.status === "requires_action"
+    ) {
+      return err.payment_intent;
+    }
+
     if (
       err?.statusCode === 402 ||
       err?.code === "card_declined" ||
@@ -141,6 +165,7 @@ const chargePerStudentEnrollment = (userId, course) =>
       enrollmentFee: "per_student",
       payerRole: "student",
       userId,
+      studentUserId: userId,
     },
     missingPaymentMethodMessage:
       "Add a payment method before joining this course.",
@@ -148,6 +173,8 @@ const chargePerStudentEnrollment = (userId, course) =>
     paymentFailedMessage:
       "Unable to process payment for this enrollment. Please update your payment method.",
     paymentFailedCode: "payment_failed",
+    allowActionRequired: true,
+    offSession: false,
   });
 
 const chargeTeacherForCourseEnrollment = async (course, studentUserId) => {
@@ -222,6 +249,11 @@ export const post = [
   async (req, res) => {
     const { inviteCode } = req.body ?? {};
     const confirmPayment = Boolean(req.body?.confirmPayment);
+    const paymentIntentId =
+      typeof req.body?.paymentIntentId === "string" &&
+      req.body.paymentIntentId.trim()
+        ? req.body.paymentIntentId.trim()
+        : null;
 
     const userId = req.user.localUserId;
     if (!userId) {
@@ -260,35 +292,93 @@ export const post = [
         courseAndType.enrollmentType === "STUDENT" &&
         courseAndType.course.billingScheme === "PER_STUDENT"
       ) {
+        const coursePayload = {
+          id: courseAndType.course.id,
+          name: courseAndType.course.name,
+        };
         if (!confirmPayment) {
           return res.status(402).json({
             error: "payment_confirmation_required",
             message:
               "Review your payment method before joining this course.",
-            course: {
-              id: courseAndType.course.id,
-              name: courseAndType.course.name,
-            },
+            course: coursePayload,
           });
         }
 
-        try {
-          await chargePerStudentEnrollment(userId, courseAndType.course);
-        } catch (err) {
-          if (err?.statusCode === 402) {
-            return res.status(402).json({
-              error: err?.code ?? "billing_error",
-              message:
-                err?.message ??
-                "Unable to process payment for this enrollment.",
-              course: err?.course ?? {
-                id: courseAndType.course.id,
-                name: courseAndType.course.name,
-              },
+        let paymentIntent = null;
+        if (paymentIntentId) {
+          try {
+            const stripe = getStripeClient();
+            paymentIntent = await stripe.paymentIntents.retrieve(
+              paymentIntentId
+            );
+          } catch (intentError) {
+            return res.status(400).json({
+              error: "invalid_payment_intent",
+              message: "Unable to verify the provided payment confirmation.",
             });
           }
-          throw err;
+
+          const paymentMetadata = paymentIntent?.metadata ?? {};
+          if (
+            paymentMetadata?.studentUserId !== String(userId) ||
+            paymentMetadata?.courseId !== String(coursePayload.id)
+          ) {
+            return res.status(403).json({
+              error: "invalid_payment_intent",
+              message: "This payment cannot be applied to this enrollment.",
+            });
+          }
         }
+
+        const respondWithActionRequired = (intent) =>
+          res.status(402).json({
+            error: "payment_action_required",
+            message:
+              "Additional authentication is required to complete this payment.",
+            course: coursePayload,
+            paymentIntentId: intent.id,
+            clientSecret: intent.client_secret,
+            publishableKey: getStripePublishableKey(),
+          });
+
+        if (!paymentIntent) {
+          try {
+            paymentIntent = await chargePerStudentEnrollment(
+              userId,
+              courseAndType.course
+            );
+          } catch (err) {
+            if (err?.statusCode === 402) {
+              return res.status(402).json({
+                error: err?.code ?? "billing_error",
+                message:
+                  err?.message ??
+                  "Unable to process payment for this enrollment.",
+                course: err?.course ?? coursePayload,
+              });
+            }
+            throw err;
+          }
+        }
+
+        if (
+          paymentIntent?.status === "requires_action" &&
+          paymentIntent?.client_secret
+        ) {
+          return respondWithActionRequired(paymentIntent);
+        }
+
+        if (paymentIntent?.status !== "succeeded") {
+          return res.status(402).json({
+            error: "payment_failed",
+            message:
+              paymentIntent?.last_payment_error?.message ||
+              "Unable to process payment for this enrollment.",
+            course: coursePayload,
+          });
+        }
+
       } else if (
         courseAndType.enrollmentType === "STUDENT" &&
         courseAndType.course.billingScheme === "PER_COURSE"

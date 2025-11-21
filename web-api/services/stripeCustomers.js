@@ -66,7 +66,10 @@ export const createSetupIntentForUser = async (userOrId) => {
 
   return stripe.setupIntents.create({
     customer: customerId,
-    payment_method_types: ["card"],
     usage: "off_session",
+    automatic_payment_methods: {
+      enabled: true,
+      allow_redirects: "never",
+    },
   });
 };
