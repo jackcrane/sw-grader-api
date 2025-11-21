@@ -104,3 +104,281 @@
 .dropdownItem:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+.userActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notifications {
+  position: relative;
+}
+
+.notificationsButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--primary-contrast-secondary);
+  padding: 6px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 100ms ease;
+}
+
+.notificationsButton:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary) 90%,
+    var(--primary-contrast-primary)
+  );
+}
+
+.notificationDot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--primary);
+}
+
+.notificationTray {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--primary-contrast-primary);
+  color: var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+  width: min(320px, 80vw);
+  padding: 12px 0 8px;
+  z-index: 20;
+}
+
+.notificationHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0 16px 8px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  gap: 12px;
+}
+
+.notificationHeading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.notificationSubheading {
+  font-size: 0.8rem;
+  color: rgba(15, 23, 42, 0.7);
+  margin: 2px 0 0;
+}
+
+.notificationRefresh,
+.notificationRetry {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.notificationRefresh:hover,
+.notificationRetry:hover {
+  text-decoration: underline;
+}
+
+.notificationList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notificationItem {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.notificationItem + .notificationItem {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.notificationIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notificationContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.notificationType {
+  font-size: 0.75rem;
+  color: rgba(15, 23, 42, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.notificationTitle {
+  margin: 4px 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary);
+}
+
+.notificationText {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.85);
+}
+
+.notificationCta {
+  margin-top: 10px;
+  border: none;
+  background: var(--primary);
+  color: var(--primary-contrast-primary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.notificationCta:hover {
+  opacity: 0.9;
+}
+
+.notificationEmpty {
+  padding: 24px 24px 32px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  color: rgba(15, 23, 42, 0.8);
+}
+
+.notificationEmptyTitle {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.notificationEmptySubtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.notificationActionError {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--danger, #b00020);
+}
+
+.notificationActionSuccess {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #0b7f49;
+}
+
+.authorizationModalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.authorizationIntro {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.8);
+  font-size: 0.9rem;
+}
+
+.authorizationError {
+  margin: -4px 0 0;
+  font-size: 0.8rem;
+  color: var(--danger, #b00020);
+}
+
+.authorizationSubmit {
+  border: none;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-contrast-primary);
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.authorizationSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.authorizationSummary {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(250, 250, 255, 0.6);
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.8);
+}
+
+.authorizationSecondary {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+  align-self: flex-start;
+}
+
+.authorizationSetupWrapper {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.authorizationSuccess {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.authorizationSuccessTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.authorizationSuccessMessage {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(15, 23, 42, 0.75);
+}

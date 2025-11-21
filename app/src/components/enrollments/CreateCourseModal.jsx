@@ -4,17 +4,22 @@ import { Row } from "../flex/Flex";
 import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input } from "../input/Input";
+import { SegmentedControl } from "../segmentedControl/SegmentedControl";
+import { Spacer } from "../spacer/Spacer";
+import { SetupElement } from "../stripe/SetupElement";
 
 export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
   const [courseName, setCourseName] = useState("");
   const [courseAbbr, setCourseAbbr] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [billing, setBilling] = useState("pay-per-course");
 
   useEffect(() => {
     if (!open) {
       setCourseName("");
       setCourseAbbr("");
       setSubmitting(false);
+      setBilling("pay-per-course");
     }
   }, [open]);
 
@@ -26,6 +31,8 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
       await onCreateCourse({
         name: courseName,
         abbr: courseAbbr,
+        billingScheme:
+          billing === "pay-per-student" ? "PER_STUDENT" : "PER_COURSE",
       });
       if (onClose) {
         onClose();
@@ -81,6 +88,61 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
           value={courseAbbr}
           onChange={(event) => setCourseAbbr(event.target.value)}
         />
+      </Section>
+      <Section
+        title="Billing"
+        subtitle={
+          <>
+            <p>
+              Pick whether you want your course or students to find your class
+              on FeatureBench.
+            </p>
+            <p>
+              Once selected, the billing scheme is locked for this course.
+            </p>
+          </>
+        }
+      >
+        <SegmentedControl
+          options={[
+            {
+              label: "Course pays",
+              value: "pay-per-course",
+            },
+            {
+              label: "Students pay",
+              value: "pay-per-student",
+            },
+          ]}
+          value={billing}
+          onChange={setBilling}
+        />
+        <Spacer size={2} />
+        {billing === "pay-per-student" && (
+          <>
+            <p>
+              Your students will pay for their own accounts when they enroll in
+              your course. Teacher and course access is included.
+            </p>
+            <Spacer size={2} />
+            <p>
+              Students will be required to pay $20 upfront when they enroll in
+              your course. This will cover their enrollment for the extent of
+              the course.
+            </p>
+          </>
+        )}
+        {billing === "pay-per-course" && (
+          <>
+            <p>
+              You as the administrator of the course will provide a payment
+              method. This method will be billed $12 per student who enrolls in
+              your course.
+            </p>
+            <Spacer size={2} />
+            <SetupElement onReady={() => {}} />
+          </>
+        )}
       </Section>
       <Section
         title="Student Access"

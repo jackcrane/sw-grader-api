@@ -9,15 +9,24 @@ import { fileURLToPath } from "url";
 import { registerRoutes } from "./util/router.js";
 import { startGraderHealthMonitor } from "./services/graderHealth.js";
 import { startPendingSubmissionWorker } from "./services/pendingSubmissionWorker.js";
+import { startBillingFollowUpWorker } from "./services/billingFollowUpWorker.js";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: "20mb" }));
+app.use(
+  express.json({
+    limit: "20mb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(cookieParser());
 
 startGraderHealthMonitor();
 startPendingSubmissionWorker();
+startBillingFollowUpWorker();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

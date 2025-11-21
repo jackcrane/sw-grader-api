@@ -142,6 +142,7 @@ export const CourseLayout = () => {
   }
 
   const hasStaffPrivileges = ["TEACHER", "TA"].includes(enrollment.type);
+  const isTeacher = enrollment.type === "TEACHER";
   const isViewingAsStudent = viewAsStudent && hasStaffPrivileges;
   const effectiveEnrollment = isViewingAsStudent
     ? { ...enrollment, type: "STUDENT" }
@@ -176,9 +177,7 @@ export const CourseLayout = () => {
       : "FeatureBench";
 
   const shouldShowInviteCard =
-    hasStaffPrivileges &&
-    !inviteCardDismissed &&
-    (studentInviteCode || taInviteCode);
+    isTeacher && !inviteCardDismissed && (studentInviteCode || taInviteCode);
 
   const handleDismissInviteCard = () => {
     if (inviteDismissKey && typeof window !== "undefined") {

@@ -1,0 +1,313 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import classnames from "classnames";
+import {
+  CardElement,
+  Elements,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
+import { fetchJson } from "../../utils/fetchJson";
+import { Button } from "../button/Button";
+import { Spacer } from "../spacer/Spacer";
+import styles from "./SetupElement.module.css";
+import inputStyles from "../input/Input.module.css";
+import { getStripePromise } from "../../utils/stripeClient";
+
+const SetupForm = ({ clientSecret, onComplete }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isComplete, setIsComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!stripe || !elements || submitting || !isComplete || !clientSecret) {
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setError("Unable to load card input.");
+      setSubmitting(false);
+      return;
+    }
+
+    const result = await stripe.confirmCardSetup(clientSecret, {
+      payment_method: {
+        card: cardElement,
+      },
+    });
+
+    if (result.error) {
+      setError(result.error.message || "Unable to save payment method.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (result.setupIntent?.status !== "succeeded") {
+      setError("Unable to save payment method. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await onComplete?.({
+        setupIntentId: result.setupIntent.id,
+        paymentMethodId: result.setupIntent.payment_method,
+      });
+    } catch (err) {
+      setError(err?.message || "Unable to save payment method.");
+      setSubmitting(false);
+      return;
+    }
+
+    setSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <label className={inputStyles.label}>Enter a card number</label>
+      <Spacer size={1} />
+      <div
+        className={classnames(
+          styles.cardInput,
+          isFocused && styles.cardInputFocused,
+          error && styles.cardInputError
+        )}
+      >
+        <CardElement
+          className={styles.cardElement}
+          onChange={(event) => setIsComplete(event?.complete ?? false)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          options={{
+            hidePostalCode: true,
+            style: {
+              base: {
+                fontSize: "14px",
+                color: "var(--surface-contrast-primary)",
+                fontFamily: '"Stack Sans Text", system-ui, sans-serif',
+                "::placeholder": { color: "rgb(169,169,169)" },
+              },
+              invalid: {
+                color: "var(--danger, #b00020)",
+                iconColor: "var(--danger, #b00020)",
+              },
+            },
+          }}
+        />
+      </div>
+      {error && (
+        <>
+          <Spacer size={1} />
+          <p style={{ color: "var(--danger-text, #c62828)", fontSize: 14 }}>
+            {error}
+          </p>
+        </>
+      )}
+      <Spacer size={1.5} />
+      <Button
+        type="submit"
+        variant="primary"
+        disabled={!stripe || !isComplete || submitting}
+      >
+        {submitting ? "Saving..." : "Save payment method"}
+      </Button>
+    </form>
+  );
+};
+
+const StripeElementsWrapper = ({ config, onComplete }) => {
+  const stripePromise = useMemo(
+    () => getStripePromise(config.publishableKey),
+    [config.publishableKey]
+  );
+
+  if (!stripePromise || !config.clientSecret) {
+    return <div>Loading Stripe...</div>;
+  }
+
+  const elementsOptions = {
+    clientSecret: config.clientSecret,
+    fonts: [
+      {
+        cssSrc:
+          "https://fonts.googleapis.com/css2?family=Stack+Sans+Text:wght@400;500;600&display=swap",
+      },
+    ],
+  };
+
+  return (
+    <Elements stripe={stripePromise} options={elementsOptions}>
+      <SetupForm clientSecret={config.clientSecret} onComplete={onComplete} />
+    </Elements>
+  );
+};
+
+export const SetupElement = ({
+  onReady,
+  loadSavedPaymentMethod = true,
+  allowUpdatingPaymentMethod = false,
+  onSettingUpPaymentMethodChange,
+}) => {
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIndex, setRefreshIndex] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [paymentMethodError, setPaymentMethodError] = useState("");
+  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(
+    loadSavedPaymentMethod
+  );
+  const [showSetupForm, setShowSetupForm] = useState(!loadSavedPaymentMethod);
+
+  useEffect(() => {
+    if (!loadSavedPaymentMethod) {
+      setShowSetupForm(true);
+    } else if (!paymentMethod) {
+      setShowSetupForm(true);
+    } else {
+      setShowSetupForm(false);
+    }
+  }, [loadSavedPaymentMethod, paymentMethod]);
+
+  useEffect(() => {
+    onSettingUpPaymentMethodChange?.(showSetupForm);
+  }, [onSettingUpPaymentMethodChange, showSetupForm]);
+
+  useEffect(
+    () => () => {
+      onSettingUpPaymentMethodChange?.(false);
+    },
+    [onSettingUpPaymentMethodChange]
+  );
+
+  const loadSetupIntent = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setConfig(null);
+    try {
+      const payload = await fetchJson("/api/billing/setup-intent", {
+        method: "POST",
+      });
+      setConfig(payload);
+    } catch (err) {
+      setError(err?.message || "Unable to initialize billing.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSetupIntent();
+  }, [refreshIndex, loadSetupIntent]);
+
+  const loadPaymentMethod = useCallback(async () => {
+    setLoadingPaymentMethod(true);
+    setPaymentMethodError("");
+    try {
+      const payload = await fetchJson("/api/billing/payment-method");
+      setPaymentMethod(payload?.paymentMethod ?? null);
+    } catch (err) {
+      setPaymentMethod(null);
+      setPaymentMethodError(
+        err?.message || "Unable to load your payment method."
+      );
+    } finally {
+      setLoadingPaymentMethod(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loadSavedPaymentMethod) {
+      setPaymentMethod(null);
+      setPaymentMethodError("");
+      setLoadingPaymentMethod(false);
+      return;
+    }
+    loadPaymentMethod();
+  }, [loadPaymentMethod, loadSavedPaymentMethod]);
+
+  const handleComplete = useCallback(
+    async (payload) => {
+      const postPayload = await fetchJson("/api/billing/payment-method", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethodId: payload.paymentMethodId }),
+      });
+      setPaymentMethod(postPayload?.paymentMethod ?? null);
+      setShowSetupForm(false);
+      onReady?.({
+        ...payload,
+        paymentMethod: postPayload?.paymentMethod ?? null,
+      });
+    },
+    [onReady]
+  );
+
+  if (loading || loadingPaymentMethod) {
+    return <div>Loading Stripe...</div>;
+  }
+
+  if (error) {
+    return (
+      <div>
+        <p style={{ color: "var(--danger-text, #c62828)" }}>{error}</p>
+        <Spacer size={1} />
+        <Button onClick={() => setRefreshIndex((value) => value + 1)}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return <div>Unable to load billing details.</div>;
+  }
+
+  if (paymentMethod && !showSetupForm) {
+    const brandLabel = paymentMethod.brand
+      ? paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)
+      : "card";
+    return (
+      <div className={styles.cardSummary}>
+        <p className={styles.cardSummaryTitle}>Payment method saved</p>
+        <p className={styles.cardSummaryMessage}>
+          You selected a {brandLabel} ending in {paymentMethod.last4}.
+        </p>
+        {allowUpdatingPaymentMethod && (
+          <>
+            <Spacer size={1} />
+            <Button
+              variant="secondary"
+              onClick={() => setShowSetupForm(true)}
+              style={{ minWidth: 0 }}
+            >
+              Use a different card
+            </Button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (paymentMethodError) {
+    return (
+      <div>
+        <p style={{ color: "var(--danger-text, #c62828)" }}>
+          {paymentMethodError}
+        </p>
+        <Spacer size={1} />
+        <Button onClick={loadPaymentMethod}>Try again</Button>
+      </div>
+    );
+  }
+
+  return (
+    <StripeElementsWrapper config={config} onComplete={handleComplete} />
+  );
+};

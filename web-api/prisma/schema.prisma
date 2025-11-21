@@ -19,11 +19,13 @@ model User {
   passwordHash String
   firstName String?
   lastName  String?
+  stripeCustomerId String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
   submissions Submission[]
+  notifications Notification[]
   canCreateCourses Boolean @default(false)
   deleted     Boolean  @default(false)
 }
@@ -42,6 +44,13 @@ model Course {
 
   enrollments Enrollment[]
   deleted     Boolean  @default(false)
+
+  billingScheme BillingScheme
+}
+
+enum BillingScheme {
+  PER_STUDENT
+  PER_COURSE
 }
 
 model Enrollment {
@@ -56,6 +65,7 @@ model Enrollment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
+  billingFollowUpResolvedAt DateTime?
 }
 
 enum EnrollmentType {
@@ -146,4 +156,25 @@ model AssignmentSignature {
   submissions Submission[]
 
   @@unique([assignmentId, sortOrder])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  content   String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+enum NotificationType {
+  ASSIGNMENT_GRADED
+  ASSIGNMENT_POSTED
+  PAYMENT_ISSUE
+  OTHER
 }
