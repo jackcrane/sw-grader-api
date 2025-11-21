@@ -80,12 +80,41 @@ const createTeacherPaymentNotification = async ({
   });
 };
 
+const isManualAuthorizationAttempt = (paymentIntent) => {
+  const metadata = paymentIntent?.metadata ?? {};
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+
+  const flow =
+    typeof metadata.manualAuthorizationFlow === "string"
+      ? metadata.manualAuthorizationFlow.toLowerCase()
+      : null;
+  if (flow && flow === "teacher_portal") {
+    return true;
+  }
+
+  if (metadata.manualAuthorizationUserId) {
+    return true;
+  }
+
+  return false;
+};
+
 const notifyTeacherOfFailedCharge = async (
   paymentIntent,
   { isAuthenticationFailure = false } = {}
 ) => {
   const metadata = paymentIntent?.metadata ?? {};
   if (!metadata || (metadata.payerRole && metadata.payerRole !== "teacher")) {
+    return;
+  }
+
+  const source =
+    typeof metadata.source === "string"
+      ? metadata.source.toLowerCase().trim()
+      : null;
+  if (source !== "enrollment") {
     return;
   }
 
@@ -211,12 +240,14 @@ export const post = async (req, res) => {
       event.type === "payment_intent.requires_action"
     ) {
       const paymentIntent = event.data.object;
-      const isAuthenticationFailure =
-        event.type === "payment_intent.requires_action" ||
-        paymentIntent?.last_payment_error?.code === "authentication_required";
-      await notifyTeacherOfFailedCharge(paymentIntent, {
-        isAuthenticationFailure,
-      });
+      if (!isManualAuthorizationAttempt(paymentIntent)) {
+        const isAuthenticationFailure =
+          event.type === "payment_intent.requires_action" ||
+          paymentIntent?.last_payment_error?.code === "authentication_required";
+        await notifyTeacherOfFailedCharge(paymentIntent, {
+          isAuthenticationFailure,
+        });
+      }
     }
   } catch (err) {
     console.error("Error handling Stripe webhook event", err);

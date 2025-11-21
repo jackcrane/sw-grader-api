@@ -135,8 +135,19 @@ export const post = [
           targetPaymentIntentId
         );
       } else {
+        const manualAuthorizationMetadata = {
+          manualAuthorizationFlow: "teacher_portal",
+          manualAuthorizationLastAttemptAt: new Date().toISOString(),
+        };
+        if (userId) {
+          manualAuthorizationMetadata.manualAuthorizationUserId =
+            String(userId);
+        }
         paymentIntent = await stripe.paymentIntents.confirm(
-          targetPaymentIntentId
+          targetPaymentIntentId,
+          {
+            metadata: manualAuthorizationMetadata,
+          }
         );
       }
     } catch (err) {

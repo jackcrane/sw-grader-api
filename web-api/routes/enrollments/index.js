@@ -96,6 +96,7 @@ const chargeEnrollmentFeeForUser = async ({
           ? `FeatureBench enrollment fee – ${course.name}`
           : "FeatureBench enrollment fee"),
       metadata: {
+        source: "enrollment",
         courseId: course?.id ?? "",
         ...metadata,
       },
