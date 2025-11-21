@@ -29,3 +29,23 @@
 .cardElement :global(.StripeElement iframe) {
   width: 100%;
 }
+
+.cardSummary {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+}
+
+.cardSummaryTitle {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--surface-contrast-primary);
+}
+
+.cardSummaryMessage {
+  margin: 0;
+  font-size: 14px;
+  color: var(--surface-contrast-secondary);
+}

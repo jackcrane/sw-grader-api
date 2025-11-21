@@ -29,7 +29,6 @@ const SetupForm = ({ clientSecret, onComplete }) => {
   const [isComplete, setIsComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -39,7 +38,6 @@ const SetupForm = ({ clientSecret, onComplete }) => {
     }
     setSubmitting(true);
     setError("");
-    setSuccessMessage("");
 
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) {
@@ -56,14 +54,25 @@ const SetupForm = ({ clientSecret, onComplete }) => {
 
     if (result.error) {
       setError(result.error.message || "Unable to save payment method.");
-    } else if (result.setupIntent?.status === "succeeded") {
-      setSuccessMessage("Payment method saved.");
-      onComplete?.({
+      setSubmitting(false);
+      return;
+    }
+
+    if (result.setupIntent?.status !== "succeeded") {
+      setError("Unable to save payment method. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await onComplete?.({
         setupIntentId: result.setupIntent.id,
         paymentMethodId: result.setupIntent.payment_method,
       });
-    } else {
-      setError("Unable to save payment method. Please try again.");
+    } catch (err) {
+      setError(err?.message || "Unable to save payment method.");
+      setSubmitting(false);
+      return;
     }
 
     setSubmitting(false);
@@ -110,27 +119,13 @@ const SetupForm = ({ clientSecret, onComplete }) => {
           </p>
         </>
       )}
-      {successMessage && (
-        <>
-          <Spacer size={1} />
-          <p style={{ color: "var(--success-text, #1b873f)", fontSize: 14 }}>
-            {successMessage}
-          </p>
-        </>
-      )}
       <Spacer size={1.5} />
       <Button
         type="submit"
         variant="primary"
-        disabled={
-          !stripe || !isComplete || submitting || Boolean(successMessage)
-        }
+        disabled={!stripe || !isComplete || submitting}
       >
-        {submitting
-          ? "Saving..."
-          : successMessage
-          ? "Saved"
-          : "Save payment method"}
+        {submitting ? "Saving..." : "Save payment method"}
       </Button>
     </form>
   );
@@ -168,6 +163,9 @@ export const SetupElement = ({ onReady }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [paymentMethodError, setPaymentMethodError] = useState("");
+  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState(true);
 
   const loadSetupIntent = useCallback(async () => {
     setLoading(true);
@@ -189,14 +187,43 @@ export const SetupElement = ({ onReady }) => {
     loadSetupIntent();
   }, [refreshIndex, loadSetupIntent]);
 
+  const loadPaymentMethod = useCallback(async () => {
+    setLoadingPaymentMethod(true);
+    setPaymentMethodError("");
+    try {
+      const payload = await fetchJson("/api/billing/payment-method");
+      setPaymentMethod(payload?.paymentMethod ?? null);
+    } catch (err) {
+      setPaymentMethod(null);
+      setPaymentMethodError(
+        err?.message || "Unable to load your payment method."
+      );
+    } finally {
+      setLoadingPaymentMethod(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPaymentMethod();
+  }, [loadPaymentMethod]);
+
   const handleComplete = useCallback(
-    (payload) => {
-      onReady?.(payload);
+    async (payload) => {
+      const postPayload = await fetchJson("/api/billing/payment-method", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethodId: payload.paymentMethodId }),
+      });
+      setPaymentMethod(postPayload?.paymentMethod ?? null);
+      onReady?.({
+        ...payload,
+        paymentMethod: postPayload?.paymentMethod ?? null,
+      });
     },
     [onReady]
   );
 
-  if (loading) {
+  if (loading || loadingPaymentMethod) {
     return <div>Loading Stripe...</div>;
   }
 
@@ -214,6 +241,32 @@ export const SetupElement = ({ onReady }) => {
 
   if (!config) {
     return <div>Unable to load billing details.</div>;
+  }
+
+  if (paymentMethod) {
+    const brandLabel = paymentMethod.brand
+      ? paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)
+      : "card";
+    return (
+      <div className={styles.cardSummary}>
+        <p className={styles.cardSummaryTitle}>Payment method saved</p>
+        <p className={styles.cardSummaryMessage}>
+          You selected a {brandLabel} ending in {paymentMethod.last4}.
+        </p>
+      </div>
+    );
+  }
+
+  if (paymentMethodError) {
+    return (
+      <div>
+        <p style={{ color: "var(--danger-text, #c62828)" }}>
+          {paymentMethodError}
+        </p>
+        <Spacer size={1} />
+        <Button onClick={loadPaymentMethod}>Try again</Button>
+      </div>
+    );
   }
 
   return <StripeElementsWrapper config={config} onComplete={handleComplete} />;
