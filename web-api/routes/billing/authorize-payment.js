@@ -1,14 +1,11 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { getStripeClient, getStripePublishableKey } from "../../util/stripe.js";
+import { resolveEnrollmentFollowUps } from "../../services/enrollmentFollowUps.js";
 
 const getUserIdFromRequest = (req) => req.user?.localUserId ?? req.user?.id;
 
-const buildResponseForStatus = async ({
-  res,
-  notification,
-  paymentIntent,
-}) => {
+const buildResponseForStatus = async ({ res, paymentIntent }) => {
   if (!paymentIntent) {
     return res
       .status(404)
@@ -34,12 +31,6 @@ const buildResponseForStatus = async ({
   }
 
   if (paymentIntent.status === "succeeded") {
-    if (notification && !notification.readAt) {
-      await prisma.notification.update({
-        where: { id: notification.id },
-        data: { readAt: new Date() },
-      });
-    }
     return res.json({
       status: "succeeded",
       paymentIntentId: paymentIntent.id,
@@ -61,6 +52,45 @@ const retrieveNotificationForUser = async ({ notificationId, userId }) => {
       deleted: false,
     },
   });
+};
+
+const clearPaymentNotification = async (notification) => {
+  if (!notification?.id) {
+    return;
+  }
+
+  await prisma.notification.update({
+    where: { id: notification.id },
+    data: {
+      readAt: notification.readAt ?? new Date(),
+      deleted: true,
+    },
+  });
+};
+
+const handleSuccessfulAuthorization = async ({ notification, paymentIntent }) => {
+  const metadata = paymentIntent?.metadata ?? {};
+  const enrollmentId = metadata?.enrollmentId || null;
+  const studentId = metadata?.studentUserId || null;
+  const courseId = metadata?.courseId || null;
+
+  const promises = [];
+  if (notification) {
+    promises.push(clearPaymentNotification(notification));
+  }
+  if (enrollmentId || (studentId && courseId)) {
+    promises.push(
+      resolveEnrollmentFollowUps({
+        enrollmentId: enrollmentId || undefined,
+        studentId: studentId || undefined,
+        courseId: courseId || undefined,
+      })
+    );
+  }
+
+  if (promises.length) {
+    await Promise.all(promises);
+  }
 };
 
 export const post = [
@@ -124,9 +154,12 @@ export const post = [
       return res.status(403).json({ error: "forbidden" });
     }
 
+    if (paymentIntent?.status === "succeeded") {
+      await handleSuccessfulAuthorization({ notification, paymentIntent });
+    }
+
     return buildResponseForStatus({
       res,
-      notification,
       paymentIntent,
     });
   },

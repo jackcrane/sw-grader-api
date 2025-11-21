@@ -1,6 +1,12 @@
 import { WidthFix } from "../widthfix/WidthFix";
 import styles from "./Header.module.css";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import logo from "../../../assets/featurebench-body.svg";
 import {
   ArrowRightIcon,
@@ -21,6 +27,7 @@ import { getStripePromise } from "../../utils/stripeClient";
 import { Modal } from "../modal/Modal";
 import { SetupElement } from "../stripe/SetupElement";
 import { Spacer } from "../spacer/Spacer";
+import { Section } from "../form/Section";
 
 const NOTIFICATION_TYPE_ICON = {
   ASSIGNMENT_GRADED: CheckCircleIcon,
@@ -58,16 +65,19 @@ export const Header = () => {
   const [notificationActions, setNotificationActions] = useState({});
   const [authorizationModal, setAuthorizationModal] = useState(null);
 
-  const updateNotificationActionState = useCallback((notificationId, updates) => {
-    if (!notificationId) return;
-    setNotificationActions((prev) => ({
-      ...prev,
-      [notificationId]: {
-        ...(prev[notificationId] ?? {}),
-        ...updates,
-      },
-    }));
-  }, []);
+  const updateNotificationActionState = useCallback(
+    (notificationId, updates) => {
+      if (!notificationId) return;
+      setNotificationActions((prev) => ({
+        ...prev,
+        [notificationId]: {
+          ...(prev[notificationId] ?? {}),
+          ...updates,
+        },
+      }));
+    },
+    []
+  );
 
   const clearNotificationActionState = useCallback((notificationId) => {
     if (!notificationId) return;
@@ -86,8 +96,7 @@ export const Header = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       const clickedProfile =
-        profileMenuRef.current &&
-        profileMenuRef.current.contains(event.target);
+        profileMenuRef.current && profileMenuRef.current.contains(event.target);
       const clickedNotifications =
         notificationsRef.current &&
         notificationsRef.current.contains(event.target);
@@ -164,7 +173,11 @@ export const Header = () => {
         clearNotificationActionState(notificationId);
       }
     },
-    [clearNotificationActionState, refetchNotifications, updateNotificationActionState]
+    [
+      clearNotificationActionState,
+      refetchNotifications,
+      updateNotificationActionState,
+    ]
   );
 
   const handleAuthorizationSuccessInModal = useCallback(
@@ -180,9 +193,7 @@ export const Header = () => {
   );
 
   const updateAuthorizationModalState = useCallback((updates) => {
-    setAuthorizationModal((prev) =>
-      prev ? { ...prev, ...updates } : prev
-    );
+    setAuthorizationModal((prev) => (prev ? { ...prev, ...updates } : prev));
   }, []);
 
   const handleAuthorizePayment = async (notification) => {
@@ -526,7 +537,9 @@ export const Header = () => {
                           onClick={handleToggleStudentView}
                           role="menuitem"
                         >
-                          {viewAsStudent ? "Exit student view" : "View as student"}
+                          {viewAsStudent
+                            ? "Exit student view"
+                            : "View as student"}
                         </button>
                       )}
                       <button
@@ -680,11 +693,7 @@ const PaymentAuthorizationModal = ({
   );
 
   const handleChargeSavedPaymentMethod = useCallback(async () => {
-    if (
-      !state?.clientSecret ||
-      !stripePromise ||
-      !paymentMethod?.id
-    ) {
+    if (!state?.clientSecret || !stripePromise || !paymentMethod?.id) {
       setChargeError(
         "Unable to load your saved payment method for confirmation."
       );
@@ -714,12 +723,7 @@ const PaymentAuthorizationModal = ({
     } finally {
       setCharging(false);
     }
-  }, [
-    paymentMethod?.id,
-    processAuthorizationResponse,
-    state,
-    stripePromise,
-  ]);
+  }, [paymentMethod?.id, processAuthorizationResponse, state, stripePromise]);
 
   const handlePaymentMethodSaved = useCallback(async () => {
     await loadPaymentMethod();
@@ -745,83 +749,87 @@ const PaymentAuthorizationModal = ({
       title="Authorize payment"
       closeOnBackdrop={false}
     >
-      <div className={styles.authorizationModalContent}>
-        {successState ? (
-          <div className={styles.authorizationSuccess}>
-            <p className={styles.authorizationSuccessTitle}>Payment complete</p>
-            <p className={styles.authorizationSuccessMessage}>
-              The payment was successful and the student is now fully enrolled in
-              your course.
-            </p>
-            <button
-              type="button"
-              className={styles.authorizationSubmit}
-              onClick={onClose}
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          <>
-            <p className={styles.authorizationIntro}>
-              {studentName && courseName
-                ? `Charge the saved card for ${studentName}'s enrollment in ${courseName}.`
-                : "Charge your saved card to complete this enrollment."}
-            </p>
-            <div className={styles.authorizationSummary}>
-              {loadingPaymentMethod ? (
-                <p>Loading your saved payment method…</p>
-              ) : paymentMethod ? (
-                <p>
-                  Using {paymentMethod.brand?.toUpperCase() || "card"} ending in{" "}
-                  {paymentMethod.last4}.
-                </p>
-              ) : (
-                <p>No saved payment method found.</p>
-              )}
-              {paymentMethodError && (
-                <p className={styles.authorizationError}>
-                  {paymentMethodError}
-                </p>
-              )}
+      <Section title="Authorize payment">
+        <div className={styles.authorizationModalContent}>
+          {successState ? (
+            <div className={styles.authorizationSuccess}>
+              <p className={styles.authorizationSuccessTitle}>
+                Payment complete
+              </p>
+              <p className={styles.authorizationSuccessMessage}>
+                The payment was successful and the student is now fully enrolled
+                in your course.
+              </p>
+              <button
+                type="button"
+                className={styles.authorizationSubmit}
+                onClick={onClose}
+              >
+                Close
+              </button>
             </div>
-            <button
-              type="button"
-              className={styles.authorizationSubmit}
-              onClick={handleChargeSavedPaymentMethod}
-              disabled={
-                charging ||
-                loadingPaymentMethod ||
-                !paymentMethod ||
-                !stripePromise
-              }
-            >
-              {charging ? "Authorizing…" : "Charge saved payment method"}
-            </button>
-            {chargeError && (
-              <p className={styles.authorizationError}>{chargeError}</p>
-            )}
-            <Spacer size={1} />
-            <button
-              type="button"
-              className={styles.authorizationSecondary}
-              onClick={() => setShowSetupForm((value) => !value)}
-            >
-              {showSetupForm ? "Hide card form" : "Use a different card"}
-            </button>
-            {showSetupForm && (
-              <div className={styles.authorizationSetupWrapper}>
-                <SetupElement
-                  key={setupKey}
-                  loadSavedPaymentMethod={false}
-                  allowUpdatingPaymentMethod={false}
-                  onReady={handlePaymentMethodSaved}
-                />
+          ) : (
+            <>
+              <p className={styles.authorizationIntro}>
+                {studentName && courseName
+                  ? `Charge the saved card for ${studentName}'s enrollment in ${courseName}.`
+                  : "Charge your saved card to complete this enrollment."}
+              </p>
+              <div className={styles.authorizationSummary}>
+                {loadingPaymentMethod ? (
+                  <p>Loading your saved payment method…</p>
+                ) : paymentMethod ? (
+                  <p>
+                    Using {paymentMethod.brand?.toUpperCase() || "card"} ending
+                    in {paymentMethod.last4}.
+                  </p>
+                ) : (
+                  <p>No saved payment method found.</p>
+                )}
+                {paymentMethodError && (
+                  <p className={styles.authorizationError}>
+                    {paymentMethodError}
+                  </p>
+                )}
               </div>
-            )}
-          </>
-        )}
-      </div>
+              <button
+                type="button"
+                className={styles.authorizationSubmit}
+                onClick={handleChargeSavedPaymentMethod}
+                disabled={
+                  charging ||
+                  loadingPaymentMethod ||
+                  !paymentMethod ||
+                  !stripePromise
+                }
+              >
+                {charging ? "Authorizing…" : "Charge saved payment method"}
+              </button>
+              {chargeError && (
+                <p className={styles.authorizationError}>{chargeError}</p>
+              )}
+              <Spacer size={1} />
+              <button
+                type="button"
+                className={styles.authorizationSecondary}
+                onClick={() => setShowSetupForm((value) => !value)}
+              >
+                {showSetupForm ? "Hide card form" : "Use a different card"}
+              </button>
+              {showSetupForm && (
+                <div className={styles.authorizationSetupWrapper}>
+                  <SetupElement
+                    key={setupKey}
+                    loadSavedPaymentMethod={false}
+                    allowUpdatingPaymentMethod={false}
+                    onReady={handlePaymentMethodSaved}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Section>
     </Modal>
   );
 };

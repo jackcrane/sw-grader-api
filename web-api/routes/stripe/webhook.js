@@ -146,17 +146,19 @@ const notifyTeacherOfFailedCharge = async (
     "The FeatureBench team",
   ].join("\n");
 
-  if (teacher?.email) {
-    await sendEmail({
-      to: teacher.email,
-      subject: `Action needed: Unable to charge for ${courseName}`,
-      text: body,
-    });
-  } else {
-    console.warn(
-      "Stripe webhook unable to send failure email: missing teacher email",
-      { teacherId }
-    );
+  if (!isAuthenticationFailure) {
+    if (teacher?.email) {
+      await sendEmail({
+        to: teacher.email,
+        subject: `Action needed: Unable to charge for ${courseName}`,
+        text: body,
+      });
+    } else {
+      console.warn(
+        "Stripe webhook unable to send failure email: missing teacher email",
+        { teacherId }
+      );
+    }
   }
 
   if (enrollment && student && course) {

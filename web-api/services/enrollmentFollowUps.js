@@ -1,3 +1,4 @@
+import { prisma } from "#prisma";
 import { enqueueBillingJob } from "./billingQueue.js";
 
 export const EnrollmentFollowUpType = {
@@ -52,6 +53,11 @@ export const scheduleEnrollmentFollowUps = async ({
   const warningRunAt = new Date(now + WARNING_DELAY_MS);
   const dropRunAt = new Date(now + DROP_DELAY_MS);
 
+  await prisma.enrollment.updateMany({
+    where: { id: enrollmentId },
+    data: { billingFollowUpResolvedAt: null },
+  });
+
   const warningDelay = Math.max(0, warningRunAt.getTime() - now);
   const dropDelay = Math.max(0, dropRunAt.getTime() - now);
 
@@ -79,4 +85,26 @@ export const scheduleEnrollmentFollowUps = async ({
       dropDelay
     ),
   ]);
+};
+
+export const resolveEnrollmentFollowUps = async ({
+  enrollmentId,
+  studentId,
+  courseId,
+}) => {
+  const where = { deleted: false };
+  if (enrollmentId) {
+    where.id = enrollmentId;
+  } else {
+    if (!studentId || !courseId) {
+      return;
+    }
+    where.userId = studentId;
+    where.courseId = courseId;
+  }
+
+  await prisma.enrollment.updateMany({
+    where,
+    data: { billingFollowUpResolvedAt: new Date() },
+  });
 };

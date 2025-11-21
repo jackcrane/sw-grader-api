@@ -111,6 +111,10 @@ const handleJob = async (job = {}) => {
     return;
   }
 
+  if (enrollment.billingFollowUpResolvedAt) {
+    return;
+  }
+
   if (action === EnrollmentFollowUpType.WARNING) {
     await sendWarningEmail({
       teacher,
