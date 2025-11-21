@@ -1,0 +1,77 @@
+.container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 64px;
+  padding-bottom: 96px;
+}
+
+.panel {
+  width: min(100%, 480px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  /* box-shadow: 0 24px 45px color-mix(in srgb, var(--shadow, #0f172a) 10%, transparent); */
+  padding: 32px;
+}
+
+.panel h1 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--surface-contrast-secondary);
+}
+
+.form {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger, #b00020) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger, #b00020) 35%, transparent);
+  color: var(--danger, #b00020);
+  font-weight: 500;
+}
+
+.actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggle {
+  margin-top: 16px;
+  text-align: center;
+  color: var(--surface-contrast-secondary);
+}
+
+.toggle button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle button:disabled {
+  color: var(--surface-contrast-secondary);
+  cursor: not-allowed;
+}
+
+@media screen and (max-width: 640px) {
+  .panel {
+    padding: 24px 20px;
+  }
+}

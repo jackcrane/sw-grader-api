@@ -2,15 +2,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Page } from "../components/page/Page";
 import { useAuthContext } from "../context/AuthContext";
+import { Input } from "../components/input/Input";
+import { Button } from "../components/button/Button";
+import styles from "./LoginPage.module.css";
 
 const LoginPage = () => {
-  const {
-    login,
-    register,
-    isLoggingIn,
-    isRegistering,
-    isAuthenticated,
-  } = useAuthContext();
+  const { login, register, isLoggingIn, isRegistering, isAuthenticated } =
+    useAuthContext();
   const [mode, setMode] = useState("login");
   const [formError, setFormError] = useState(null);
   const [formState, setFormState] = useState({
@@ -20,8 +18,8 @@ const LoginPage = () => {
     password: "",
   });
 
-  const isSubmitting =
-    mode === "login" ? isLoggingIn : isRegistering;
+  const isRegisterMode = mode === "register";
+  const isSubmitting = isRegisterMode ? isRegistering : isLoggingIn;
 
   const handleChange = useCallback((event) => {
     const { name, value } = event.target;
@@ -71,8 +69,16 @@ const LoginPage = () => {
   }, []);
 
   const heading = useMemo(
-    () => (mode === "login" ? "Sign in to FeatureBench" : "Create your account"),
-    [mode]
+    () => (isRegisterMode ? "Create your account" : "Sign in to FeatureBench"),
+    [isRegisterMode]
+  );
+
+  const subheading = useMemo(
+    () =>
+      isRegisterMode
+        ? "Create an account to start using FeatureBench."
+        : "Enter the credentials you created for FeatureBench.",
+    [isRegisterMode]
   );
 
   if (isAuthenticated) {
@@ -81,89 +87,84 @@ const LoginPage = () => {
 
   return (
     <Page title="FeatureBench Login">
-      <h1>{heading}</h1>
-      <p>
-        {mode === "login"
-          ? "Enter the credentials you created for FeatureBench."
-          : "Provide a few details to create your FeatureBench account."}
-      </p>
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360 }}
-      >
-        {mode === "register" && (
-          <>
-            <label>
-              First name
-              <input
-                type="text"
-                name="firstName"
-                autoComplete="given-name"
-                value={formState.firstName}
-                onChange={handleChange}
-              />
-            </label>
-            <label>
-              Last name
-              <input
-                type="text"
-                name="lastName"
-                autoComplete="family-name"
-                value={formState.lastName}
-                onChange={handleChange}
-              />
-            </label>
-          </>
-        )}
-        <label>
-          Email address
-          <input
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            value={formState.email}
-            onChange={handleChange}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            name="password"
-            autoComplete={
-              mode === "login" ? "current-password" : "new-password"
-            }
-            required
-            value={formState.password}
-            onChange={handleChange}
-          />
-        </label>
-        {formError && (
-          <p style={{ color: "#b00020" }} role="alert">
-            {formError}
-          </p>
-        )}
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting
-            ? mode === "login"
-              ? "Signing in…"
-              : "Creating account…"
-            : mode === "login"
-              ? "Sign in"
-              : "Create account"}
-        </button>
-      </form>
-      <button
-        type="button"
-        style={{ marginTop: 16 }}
-        onClick={toggleMode}
-        disabled={isSubmitting}
-      >
-        {mode === "login"
-          ? "Need an account? Register"
-          : "Already have an account? Sign in"}
-      </button>
+      <div className={styles.container}>
+        <section className={styles.panel}>
+          <h1>{heading}</h1>
+          <p className={styles.subtitle}>{subheading}</p>
+          <form className={styles.form} onSubmit={handleSubmit}>
+            {isRegisterMode && (
+              <>
+                <Input
+                  label="First name"
+                  name="firstName"
+                  autoComplete="given-name"
+                  value={formState.firstName}
+                  onChange={handleChange}
+                  placeholder="John"
+                />
+                <Input
+                  label="Last name"
+                  name="lastName"
+                  autoComplete="family-name"
+                  value={formState.lastName}
+                  onChange={handleChange}
+                  placeholder="Doe"
+                />
+              </>
+            )}
+            <Input
+              label="Email address"
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+              value={formState.email}
+              onChange={handleChange}
+              placeholder="you@example.edu"
+            />
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              autoComplete={
+                isRegisterMode ? "new-password" : "current-password"
+              }
+              required
+              value={formState.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              minLength={isRegisterMode ? 8 : undefined}
+            />
+            {formError && (
+              <div className={styles.error} role="alert">
+                {formError}
+              </div>
+            )}
+            <div className={styles.actions}>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+              >
+                {isSubmitting
+                  ? isRegisterMode
+                    ? "Creating account…"
+                    : "Signing in…"
+                  : isRegisterMode
+                  ? "Create account"
+                  : "Sign in"}
+              </Button>
+            </div>
+          </form>
+          <div className={styles.toggle}>
+            {isRegisterMode ? "Already have an account?" : "Need an account?"}{" "}
+            <button type="button" onClick={toggleMode} disabled={isSubmitting}>
+              {isRegisterMode ? "Sign in instead" : "Create one"}
+            </button>
+          </div>
+        </section>
+      </div>
     </Page>
   );
 };

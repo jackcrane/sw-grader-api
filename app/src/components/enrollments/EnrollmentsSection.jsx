@@ -4,22 +4,19 @@ import { Spacer } from "../spacer/Spacer";
 import { Button } from "../button/Button";
 import { Row } from "../flex/Flex";
 import { Spinner } from "../spinner/Spinner";
-import { CreateCourseModal } from "./CreateCourseModal";
 import { EnrollmentRow } from "./EnrollmentRow";
-import { useAuthContext } from "../../context/AuthContext";
 import { Input } from "../input/Input";
 
 export const EnrollmentsSection = ({
   loading,
   enrollments,
   createEnrollment,
+  onCreateCourseClick,
 }) => {
-  const [newCourseModalOpen, setNewCourseModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState(null);
   const enrollmentsList = enrollments ?? [];
-  const { user } = useAuthContext();
 
   const handleJoinCourse = async () => {
     const trimmedCode = inviteCode.trim();
@@ -93,22 +90,6 @@ export const EnrollmentsSection = ({
       </Button>
       {joinError && (
         <p style={{ color: "#b00020", marginTop: 8 }}>{joinError}</p>
-      )}
-
-      {user.canCreateCourses && (
-        <>
-          <Spacer size={3} />
-          <Button onClick={() => setNewCourseModalOpen(true)}>
-            + Create a new course
-          </Button>
-          <CreateCourseModal
-            open={newCourseModalOpen}
-            onClose={() => setNewCourseModalOpen(false)}
-            onCreateCourse={async (courseDetails) => {
-              await createEnrollment?.(courseDetails);
-            }}
-          />
-        </>
       )}
     </div>
   );
