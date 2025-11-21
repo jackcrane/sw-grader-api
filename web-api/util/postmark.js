@@ -25,6 +25,8 @@ export const sendEmail = async ({ to, subject, text }) => {
     return;
   }
 
+  console.log("Sending email to", to, "with subject", subject);
+
   try {
     await client.sendEmail({
       From: fromAddress,
