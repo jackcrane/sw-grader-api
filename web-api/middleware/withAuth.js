@@ -1,52 +1,39 @@
 import {
+  acceptsJson,
   getSessionCookie,
   loadSessionFromCookie,
   sanitizeUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "../util/auth.js";
-import { syncUserFromWorkOs } from "../util/users.js";
+import { findUserById } from "../util/users.js";
+
+const respondUnauthenticated = (req, res) => {
+  res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions);
+  if (acceptsJson(req)) {
+    return res.status(401).json({ error: "unauthenticated" });
+  }
+  return res.redirect("/login");
+};
 
 async function withAuth(req, res, next) {
   const cookieValue = getSessionCookie(req);
   if (!cookieValue) {
-    return res.redirect("/api/auth/login");
+    return respondUnauthenticated(req, res);
   }
 
   const session = loadSessionFromCookie(cookieValue);
-
-  const { authenticated, reason, user } = await session.authenticate();
-
-  if (authenticated) {
-    const dbUser = await syncUserFromWorkOs(user);
-    req.user = sanitizeUser(user, dbUser);
-    return next();
+  if (!session?.userId) {
+    return respondUnauthenticated(req, res);
   }
 
-  // If the cookie is missing, redirect to login
-  if (!authenticated && reason === "no_session_cookie_provided") {
-    return res.redirect("/api/auth/login");
+  const user = await findUserById(session.userId);
+  if (!user || user.deleted) {
+    return respondUnauthenticated(req, res);
   }
 
-  // If the session is invalid, attempt to refresh
-  try {
-    const { authenticated, sealedSession } = await session.refresh();
-
-    if (!authenticated) {
-      return res.redirect("/api/auth/login");
-    }
-
-    // update the cookie
-    res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
-
-    // Redirect to the same route to ensure the updated cookie is used
-    return res.redirect(req.originalUrl);
-  } catch (e) {
-    // Failed to refresh access token, redirect user to login page
-    // after deleting the cookie
-    res.clearCookie("wos-session");
-    res.redirect("/api/auth/login");
-  }
+  req.user = sanitizeUser(user);
+  return next();
 }
 
 export { withAuth };

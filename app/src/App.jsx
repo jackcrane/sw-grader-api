@@ -35,7 +35,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/api/auth/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route
         path="/app"
         element={

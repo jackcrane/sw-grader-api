@@ -28,6 +28,7 @@ const useProvideAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isMountedRef = useRef(true);
   const refreshInFlight = useRef(0);
@@ -97,18 +98,47 @@ const useProvideAuth = () => {
     refreshSession();
   }, [refreshSession]);
 
-  const login = useCallback(async () => {
+  const login = useCallback(async ({ email, password }) => {
     setIsLoggingIn(true);
     setError(null);
     try {
-      const { authorizationUrl } = await fetchJson("/api/auth/login");
-      if (authorizationUrl) window.location.href = authorizationUrl;
+      const payload = await fetchJson("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      updateSessionFromPayload(payload);
+      return payload;
     } catch (err) {
-      if (isMountedRef.current) setError(err);
+      if (isMountedRef.current && (err?.status ?? 500) >= 500) {
+        setError(err);
+      }
+      throw err;
     } finally {
       if (isMountedRef.current) setIsLoggingIn(false);
     }
-  }, []);
+  }, [updateSessionFromPayload]);
+
+  const register = useCallback(async ({ email, password, firstName, lastName }) => {
+    setIsRegistering(true);
+    setError(null);
+    try {
+      const payload = await fetchJson("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, firstName, lastName }),
+      });
+      updateSessionFromPayload(payload);
+      return payload;
+    } catch (err) {
+      if (isMountedRef.current && (err?.status ?? 500) >= 500) {
+        setError(err);
+      }
+      throw err;
+    } finally {
+      if (isMountedRef.current) setIsRegistering(false);
+    }
+  }, [updateSessionFromPayload]);
 
   const logout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -134,8 +164,10 @@ const useProvideAuth = () => {
     isLoading,
     error,
     login,
+    register,
     logout,
     isLoggingIn,
+    isRegistering,
     isLoggingOut,
     refreshSession,
     viewAsStudent,

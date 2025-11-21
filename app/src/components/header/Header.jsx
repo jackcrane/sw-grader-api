@@ -5,10 +5,10 @@ import logo from "../../../assets/featurebench-body.svg";
 import { ArrowRightIcon, UserIcon } from "@phosphor-icons/react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useEnrollments } from "../../hooks/useEnrollments";
+import { Link } from "react-router-dom";
 
 export const Header = () => {
-  const { user, logout, login, viewAsStudent, setViewAsStudent } =
-    useAuthContext();
+  const { user, logout, viewAsStudent, setViewAsStudent } = useAuthContext();
   const { enrollments } = useEnrollments({ enabled: Boolean(user) });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -91,14 +91,10 @@ export const Header = () => {
               )}
             </div>
           ) : (
-            <a
-              onClick={login}
-              href="javascript: void()"
-              className={styles.link}
-            >
+            <Link to="/login" className={styles.link}>
               <ArrowRightIcon />
               Login
-            </a>
+            </Link>
           )}
         </div>
       </WidthFix>

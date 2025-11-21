@@ -40,6 +40,7 @@ export const Page = ({
       <main
         style={{
           paddingTop: showHeader ? 48 : 0,
+          minHeight: "95vh",
         }}
       >
         <WidthFix>{children}</WidthFix>

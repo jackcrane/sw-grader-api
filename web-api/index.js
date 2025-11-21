@@ -37,15 +37,17 @@ const serveFrontend = () => {
 
   // SPA fallback WITHOUT a route pattern (avoids path-to-regexp parsing)
   app.use((req, res, next) => {
-    if (req.method !== "GET") return next();
+    if (!["GET", "HEAD"].includes(req.method)) return next();
     if (req.path.startsWith("/api")) return next(); // let API routes handle
 
     // If it looks like a file request (has an extension), let static/404 handle it
     if (path.extname(req.path)) return next();
 
-    // Only for HTML navigations
+    const acceptHeader = (req.headers.accept || "").toLowerCase();
     const acceptsHTML =
-      req.headers.accept && req.headers.accept.includes("text/html");
+      !acceptHeader ||
+      acceptHeader.includes("text/html") ||
+      acceptHeader.includes("*/*");
     if (!acceptsHTML) return next();
 
     res.sendFile(indexHtml);
