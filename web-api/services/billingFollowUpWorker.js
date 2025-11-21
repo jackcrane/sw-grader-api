@@ -111,7 +111,7 @@ const handleJob = async (job = {}) => {
     return;
   }
 
-  if (enrollment.billingFollowUpResolvedAt) {
+  if (enrollment.billingFollowUpResolvedAt || enrollment.deleted) {
     return;
   }
 

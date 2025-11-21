@@ -32,6 +32,38 @@ const readEnrollment = async (courseId, enrollmentId) => {
   });
 };
 
+const clearPaymentNotificationsForEnrollment = async ({
+  courseId,
+  studentId,
+}) => {
+  if (!courseId || !studentId) return;
+  const now = new Date();
+  await prisma.notification.updateMany({
+    where: {
+      deleted: false,
+      type: "PAYMENT_ISSUE",
+      AND: [
+        {
+          data: {
+            path: ["courseId"],
+            equals: courseId,
+          },
+        },
+        {
+          data: {
+            path: ["studentId"],
+            equals: studentId,
+          },
+        },
+      ],
+    },
+    data: {
+      deleted: true,
+      readAt: now,
+    },
+  });
+};
+
 export const patch = [
   withAuth,
   async (req, res) => {
@@ -107,7 +139,12 @@ export const del = [
       },
       data: {
         deleted: true,
+        billingFollowUpResolvedAt: new Date(),
       },
+    });
+    await clearPaymentNotificationsForEnrollment({
+      courseId,
+      studentId: targetEnrollment.userId,
     });
 
     return res.json({ success: true });
