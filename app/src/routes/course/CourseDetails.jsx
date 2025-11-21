@@ -193,11 +193,27 @@ export const CourseDetails = () => {
                         : "card"}{" "}
                       ending in {paymentMethod.last4}.
                     </p>
+                    <Button
+                      onClick={() => setBillingModalOpen(true)}
+                      style={{ marginTop: 12 }}
+                    >
+                      Update payment method
+                    </Button>
                   </div>
                 ) : (
-                  <p style={{ margin: 0, color: "#555" }}>
-                    No payment method has been saved for this course yet.
-                  </p>
+                  <>
+                    <p style={{ margin: 0, color: "#555" }}>
+                      No payment method has been saved for this course yet.
+                    </p>
+                    <Spacer size={1} />
+                    <Button
+                      onClick={() => setBillingModalOpen(true)}
+                      style={smallButtonStyle}
+                      disabled={paymentMethodLoading}
+                    >
+                      Add payment method
+                    </Button>
+                  </>
                 )}
                 {paymentMethodError && (
                   <>
@@ -212,16 +228,6 @@ export const CourseDetails = () => {
                     </p>
                   </>
                 )}
-                <Spacer size={1} />
-                <Button
-                  onClick={() => setBillingModalOpen(true)}
-                  style={smallButtonStyle}
-                  disabled={paymentMethodLoading}
-                >
-                  {paymentMethod
-                    ? "Update payment method"
-                    : "Add payment method"}
-                </Button>
               </>
             )}
           </div>
