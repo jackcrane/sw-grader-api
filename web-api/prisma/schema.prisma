@@ -65,6 +65,7 @@ model Enrollment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
+  billingFollowUpResolvedAt DateTime?
 }
 
 enum EnrollmentType {
