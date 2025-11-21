@@ -6,6 +6,9 @@ import { Row } from "../flex/Flex";
 import { Spinner } from "../spinner/Spinner";
 import { EnrollmentRow } from "./EnrollmentRow";
 import { Input } from "../input/Input";
+import { Modal } from "../modal/Modal";
+import { SetupElement } from "../stripe/SetupElement";
+import { Section } from "../form/Section";
 
 export const EnrollmentsSection = ({
   loading,
@@ -16,6 +19,8 @@ export const EnrollmentsSection = ({
   const [inviteCode, setInviteCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState(null);
+  const [studentBillingEnrollment, setStudentBillingEnrollment] =
+    useState(null);
   const enrollmentsList = enrollments ?? [];
 
   const handleJoinCourse = async () => {
@@ -24,8 +29,16 @@ export const EnrollmentsSection = ({
     setJoining(true);
     setJoinError(null);
     try {
-      await createEnrollment({ inviteCode: trimmedCode });
+      const createdEnrollment = await createEnrollment({
+        inviteCode: trimmedCode,
+      });
       setInviteCode("");
+      if (
+        (createdEnrollment?.type ?? "").toUpperCase() === "STUDENT" &&
+        createdEnrollment?.course?.billingScheme === "PER_STUDENT"
+      ) {
+        setStudentBillingEnrollment(createdEnrollment);
+      }
     } catch (err) {
       setJoinError(err?.message ?? "Failed to join course");
     } finally {
@@ -91,6 +104,41 @@ export const EnrollmentsSection = ({
       {joinError && (
         <p style={{ color: "#b00020", marginTop: 8 }}>{joinError}</p>
       )}
+      <Modal
+        title="Add a payment method"
+        open={Boolean(studentBillingEnrollment)}
+        onClose={() => setStudentBillingEnrollment(null)}
+        footer={
+          <Button onClick={() => setStudentBillingEnrollment(null)}>
+            Close
+          </Button>
+        }
+      >
+        <Section
+          title="Payment method"
+          last
+          subtitle={
+            <>
+              <p
+                style={{
+                  marginBottom: 8,
+                }}
+              >
+                You will be charged $20 to enroll in this course.
+              </p>
+              <p>
+                FeatureBench partners with Stripe to securely process payments.
+              </p>
+            </>
+          }
+        >
+          <Spacer size={2} />
+          <SetupElement
+            loadSavedPaymentMethod={false}
+            onReady={() => setStudentBillingEnrollment(null)}
+          />
+        </Section>
+      </Modal>
     </div>
   );
 };
