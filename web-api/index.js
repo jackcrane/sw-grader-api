@@ -59,7 +59,7 @@ const buildCanvasConfigXml = (baseUrl) => {
   const launchUrl = `${safeBaseUrl}/api/lti/canvas/launch`;
   const deepLinkUrl = `${safeBaseUrl}/api/lti/canvas/deep-link`;
   const gradeSyncUrl = `${safeBaseUrl}/api/lti/canvas/grades`;
-  const courseNavUrl = `${safeBaseUrl}/lti/canvas`;
+  const courseNavUrl = launchUrl;
   const iconUrl = `${safeBaseUrl}/assets/featurebench-flower-contrast.svg`;
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +

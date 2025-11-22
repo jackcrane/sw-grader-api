@@ -55,12 +55,13 @@ export const CanvasIntegrationContent = ({
         </video>
       </Section>
       <Section
-        title="1. Add the FeatureBench LTI key"
+        title="1. Fill out the add app form"
         subtitle={
           <>
             <p>Fill in the Add App settings as shown here.</p>
           </>
         }
+        last
       >
         <Input value="By URL" readOnly label="Configuration Type" />
         <Spacer />
