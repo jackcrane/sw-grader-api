@@ -8,14 +8,22 @@ import { Spacer } from "../components/spacer/Spacer";
 import { EnrollmentsSection } from "../components/enrollments/EnrollmentsSection";
 import { Button } from "../components/button/Button";
 import { CreateCourseModal } from "../components/enrollments/CreateCourseModal";
+import { useNavigate } from "react-router-dom";
 
 export const AppLander = () => {
   const { user } = useAuthContext();
   const { enrollments, loading, createEnrollment } = useEnrollments();
   const [newCourseModalOpen, setNewCourseModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleCreateCourse = async (courseDetails) => {
-    await createEnrollment?.(courseDetails);
+    return createEnrollment?.(courseDetails);
+  };
+
+  const handleIntegrationContinue = (courseId) => {
+    if (courseId) {
+      navigate(`/${courseId}`);
+    }
   };
 
   return (
@@ -55,6 +63,7 @@ export const AppLander = () => {
         open={newCourseModalOpen}
         onClose={() => setNewCourseModalOpen(false)}
         onCreateCourse={handleCreateCourse}
+        onIntegrationContinue={handleIntegrationContinue}
       />
     </Page>
   );

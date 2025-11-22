@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useOutletContext } from "react-router-dom";
+import { Navigate, useNavigate, useOutletContext } from "react-router-dom";
 import { Card } from "../../components/card/Card";
 import { Spacer } from "../../components/spacer/Spacer";
 import { H2 } from "../../components/typography/Typography";
@@ -9,6 +9,7 @@ import { SetupElement } from "../../components/stripe/SetupElement";
 import setupStyles from "../../components/stripe/SetupElement.module.css";
 import { fetchJson } from "../../utils/fetchJson";
 import { Section } from "../../components/form/Section";
+import { CanvasIntegrationContent } from "../../components/integrations/CanvasIntegrationContent";
 
 const maskCode = (value) => {
   if (!value) return "";
@@ -37,6 +38,7 @@ const billingSchemeCopy = {
 export const CourseDetails = () => {
   const { courseId, enrollment, regenerateInviteCode, hasStaffPrivileges } =
     useOutletContext();
+  const navigate = useNavigate();
   const course = enrollment?.course ?? {};
   const isStaff =
     typeof hasStaffPrivileges === "boolean"
@@ -53,6 +55,7 @@ export const CourseDetails = () => {
   const [paymentMethodError, setPaymentMethodError] = useState(null);
   const [paymentMethodRefreshIndex, setPaymentMethodRefreshIndex] = useState(0);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [canvasModalOpen, setCanvasModalOpen] = useState(false);
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -126,6 +129,8 @@ export const CourseDetails = () => {
     setBillingModalOpen(false);
     setPaymentMethodRefreshIndex((value) => value + 1);
   };
+
+  const handleOpenCanvasSetup = () => setCanvasModalOpen(true);
 
   return (
     <div style={{ padding: 16 }}>
@@ -231,6 +236,29 @@ export const CourseDetails = () => {
               </>
             )}
           </div>
+        )}
+        {hasStaffPrivileges && (
+          <>
+            <Spacer size={2} />
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <strong>Canvas integration</strong>
+              <p style={{ margin: 0, color: "#555" }}>
+                Walk through the Canvas connection checklist any time.
+              </p>
+              <Button
+                onClick={handleOpenCanvasSetup}
+                style={{ alignSelf: "flex-start" }}
+              >
+                Open Canvas integration setup
+              </Button>
+            </div>
+          </>
         )}
       </Card>
       {isTeacher &&
@@ -343,6 +371,18 @@ export const CourseDetails = () => {
           <Spacer />
           <p style={{ color: "#b00020" }}>{error}</p>
         </>
+      )}
+      {hasStaffPrivileges && (
+        <Modal
+          title="Connect FeatureBench to Canvas"
+          open={canvasModalOpen}
+          onClose={() => setCanvasModalOpen(false)}
+          footer={
+            <Button onClick={() => setCanvasModalOpen(false)}>Close</Button>
+          }
+        >
+          <CanvasIntegrationContent />
+        </Modal>
       )}
       {isTeacher && course.billingScheme === "PER_COURSE" && (
         <Modal

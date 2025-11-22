@@ -31,7 +31,6 @@ model User {
 }
 
 
-
 model Course {
   id        String   @id @default(cuid())
   name      String
@@ -43,6 +42,7 @@ model Course {
   updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
+  canvasIntegration CanvasIntegration?
   deleted     Boolean  @default(false)
 
   billingScheme BillingScheme
@@ -52,6 +52,26 @@ enum BillingScheme {
   PER_STUDENT
   PER_COURSE
 }
+
+model CanvasIntegration {
+  id             String   @id @default(cuid())
+  courseId       String   @unique
+  course         Course   @relation(fields: [courseId], references: [id])
+  instanceUrl        String
+  canvasCourseId     String?
+  canvasAccountId    String?
+  clientId           String
+  clientSecret       String
+  accessToken        String?
+  refreshToken       String?
+  tokenExpiresAt     DateTime?
+  ltiDeploymentId    String?
+  ltiIssuer          String?
+  developerKey       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 
 model Enrollment {
   id        String   @id @default(cuid())
