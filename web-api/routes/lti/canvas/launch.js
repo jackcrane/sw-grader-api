@@ -89,7 +89,9 @@ const upsertCanvasIntegration = async ({ courseId, consumerKey, body }) => {
       body.resource_link_id ||
       null,
     canvasAccountId:
-      body.custom_canvas_account_id || body.custom_canvas_root_account_id || null,
+      body.custom_canvas_account_id ||
+      body.custom_canvas_root_account_id ||
+      null,
     ltiDeploymentId:
       body.custom_canvas_lti_deployment_id || body.resource_link_id || null,
     ltiIssuer:
@@ -215,6 +217,33 @@ const buildLaunchPage = ({
         color: ${headingColor};
         font-weight: 600;
       }
+      .status-row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+      }
+      .status-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .status-icon svg {
+        width: 48px;
+        height: 48px;
+      }
+      .status-icon-success {
+        background: #e6f8ec;
+        color: #0d8147;
+      }
+      .status-icon-error {
+        background: #fff3e6;
+        color: #d17128;
+      }
       p {
         font-size: 1rem;
         line-height: 1.6;
@@ -266,10 +295,27 @@ const buildLaunchPage = ({
   </head>
   <body>
     <main>
-      <div class="badge">${badgeText}</div>
-      <h1>${heading}</h1>
+      <div class="status-row">
+        <div class="status-icon ${
+          isError ? "status-icon-error" : "status-icon-success"
+        }">
+          ${
+            isError
+              ? `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M15.59 7L12 10.59 8.41 7 7 8.41 10.59 12 7 15.59 8.41 17 12 13.41 15.59 17 17 15.59 13.41 12 17 8.41z"/></svg>`
+              : `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>`
+          }
+        </div>
+        </div>
+        <div class="status-copy">
+          <h1>${heading}</h1>
+        </div>
       ${intro ? `<p class="lead">${intro}</p>` : ""}
-      ${bodyHtml ?? ""}
+      ${
+        (bodyHtml ?? "") +
+        (isError
+          ? `<p>If you need assistance, contact <a href="mailto:support@featurebench.com">support@featurebench.com</a>.</p>`
+          : "")
+      }
       ${metaHtml ? `<div class="meta">${metaHtml}</div>` : ""}
     </main>
   </body>
@@ -299,20 +345,19 @@ export const post = [
     }
 
     const consumerKey = (req.body.oauth_consumer_key || "").trim();
-    const course =
-      consumerKey && (await findCourseByConsumerKey(consumerKey));
+    const course = consumerKey && (await findCourseByConsumerKey(consumerKey));
     if (!course) {
       console.warn(
         "[Canvas LTI] Rejecting launch. Unknown consumer key:",
         consumerKey
       );
       const errorPage = buildLaunchPage({
-        heading: "Client Secret not recognized",
+        heading: "FeatureBench could not match your course.",
         intro:
-          "Update the Canvas app with the Consumer Key listed in FeatureBench, then try again.",
+          "Go back into your apps settings and edit the FeatureBench app. Change the Consumer Key to match the one shown in FeatureBench.",
         bodyHtml: `<p>Canvas sent <code>${
           consumerKey || "not provided"
-        }</code> as the Client Secret, but it doesn’t match any FeatureBench course.</p>`,
+        }</code> as the Consumer Key, but it doesn't match any FeatureBench course. It is important that you accurately match the Consumer Key in your app settings to what FeatureBench provides.</p>`,
         variant: "error",
         badgeText: "Canvas Launch",
       });
@@ -343,10 +388,6 @@ export const post = [
             courseName ? ` to ${courseName}` : ""
           }, ${userName}. FeatureBench is synced with your Canvas course.`,
           bodyHtml: `<p>Your Canvas launch is linked to the FeatureBench course <strong>${course.name}</strong>. We’ll use this connection to finalize assignment sync, roster imports, and grade passback.</p>`,
-          metaHtml: `Canvas reference: <code>${
-            req.body.resource_link_id || "n/a"
-          }</code><br />Client Secret: <code>${course.id}</code>`,
-          badgeText: "Canvas Launch",
         })
       : buildLaunchPage({
           heading: "Continue in FeatureBench",
