@@ -33,7 +33,7 @@ export const CanvasIntegrationContent = ({
           </div>
         </MonoSection>
       )}
-      <Section title="0. Create a new Canvas LTI app">
+      <Section title="1. Create a new Canvas LTI app">
         <p>
           From your Canvas course page, click the "Settings" section of your
           course. Then click the "Apps" tab, the "View App Configurations"
@@ -43,7 +43,6 @@ export const CanvasIntegrationContent = ({
         <video
           autoPlay
           muted
-          loop
           playsInline
           controls
           style={{
@@ -56,36 +55,13 @@ export const CanvasIntegrationContent = ({
         </video>
       </Section>
       <Section
-        title="1. Copy your FeatureBench Consumer Key"
-        subtitle={
-          <>
-            <p>
-              Paste this key into both the <strong>Consumer Key</strong> and{" "}
-              <strong>Shared Secret</strong> fields in Canvas. It ties the Canvas
-              app to this FeatureBench course.
-            </p>
-          </>
-        }
-      >
-        <Input value={consumerKeyValue} readOnly label="Consumer Key" />
-        {consumerKey ? (
-          <>
-            <Spacer />
-            <p style={{ margin: 0, color: "#555" }}>
-              Use this same value for the Shared Secret field when adding the
-              app.
-            </p>
-          </>
-        ) : null}
-      </Section>
-      <Section
         title="2. Fill out the add app form"
         subtitle={
           <>
             <p>Fill in the Add App settings as shown here.</p>
+            <p>Be sure to accurately fill in the Consumer Key.</p>
           </>
         }
-        last
       >
         <Input value="By URL" readOnly label="Configuration Type" />
         <Spacer />
@@ -93,9 +69,31 @@ export const CanvasIntegrationContent = ({
         <Spacer />
         <Input value={consumerKeyValue} readOnly label="Consumer Key" />
         <Spacer />
-        <Input value={consumerKeyValue} readOnly label="Shared Secret" />
-        <Spacer />
         <Input value={configUrl} readOnly label="Config URL" />
+      </Section>
+      <Section title="3. Verify your connection" last>
+        <p>
+          In order to finalize and save the connection, you must visit the
+          "FeatureBench" page in your Canvas course.
+        </p>
+        <ol>
+          <li>
+            Reload the Canvas page. This will make Canvas add the app to your
+            navigation menu.
+          </li>
+          <li>
+            Click the "FeatureBench" link in the navigation menu (vertical list
+            of pages in your course).
+          </li>
+          <li>
+            If you see a success message and a green checkmark, you're all set!
+            If you see an error message, please reach out to us at{" "}
+            <a href="mailto:support@featurebench.com">
+              support@featurebench.com
+            </a>
+            .
+          </li>
+        </ol>
       </Section>
     </>
   );

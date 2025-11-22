@@ -115,6 +115,7 @@ const __dirname = path.dirname(__filename);
 const routesDir = path.join(__dirname, "routes");
 
 app.get("/integrations/canvas.xml", (req, res) => {
+  console.log("canvas.xml request", req.headers);
   const baseUrl = resolvePublicBaseUrl(req);
   res.type("application/xml").send(buildCanvasConfigXml(baseUrl));
 });

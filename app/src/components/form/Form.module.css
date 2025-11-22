@@ -5,6 +5,10 @@
   padding: 0px 16px;
 }
 
+.section p {
+  margin-bottom: 8px;
+}
+
 @media screen and (max-width: 550px) {
   .section {
     flex-direction: column;
