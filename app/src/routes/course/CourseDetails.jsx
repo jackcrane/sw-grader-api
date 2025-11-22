@@ -381,7 +381,7 @@ export const CourseDetails = () => {
             <Button onClick={() => setCanvasModalOpen(false)}>Close</Button>
           }
         >
-          <CanvasIntegrationContent />
+          <CanvasIntegrationContent consumerKey={course?.id ?? ""} />
         </Modal>
       )}
       {isTeacher && course.billingScheme === "PER_COURSE" && (

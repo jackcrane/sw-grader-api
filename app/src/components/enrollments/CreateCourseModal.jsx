@@ -95,6 +95,7 @@ export const CreateCourseModal = ({
         <CanvasIntegrationContent
           heading="Great! Let’s connect FeatureBench to Canvas."
           description="Follow these instructions to add the FeatureBench LTI key to Canvas so you can sync assignments and grades."
+          consumerKey={newCourseId ?? ""}
         />
       ) : (
         <>
