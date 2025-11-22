@@ -81,25 +81,23 @@ const buildCanvasConfigXml = (baseUrl) => {
     `<lticm:property name="text">FeatureBench</lticm:property>` +
     `<lticm:property name="selection_height">650</lticm:property>` +
     `<lticm:property name="selection_width">900</lticm:property>` +
-    `<lticm:options name="placements">` +
-    `<lticm:property name="course_navigation">` +
+    `<lticm:options name="course_navigation">` +
     `<lticm:property name="url">${courseNavUrl}</lticm:property>` +
     `<lticm:property name="default">enabled</lticm:property>` +
     `<lticm:property name="enabled">true</lticm:property>` +
     `<lticm:property name="text">FeatureBench</lticm:property>` +
     `<lticm:property name="icon_url">${iconUrl}</lticm:property>` +
-    `</lticm:property>` +
-    `<lticm:property name="assignment_selection">` +
+    `</lticm:options>` +
+    `<lticm:options name="assignment_selection">` +
     `<lticm:property name="url">${deepLinkUrl}</lticm:property>` +
     `<lticm:property name="enabled">true</lticm:property>` +
     `<lticm:property name="text">Add FeatureBench Assignment</lticm:property>` +
     `<lticm:property name="icon_url">${iconUrl}</lticm:property>` +
     `<lticm:property name="selection_height">650</lticm:property>` +
     `<lticm:property name="selection_width">900</lticm:property>` +
-    `</lticm:property>` +
-    `<lticm:property name="grade_passback">` +
+    `</lticm:options>` +
+    `<lticm:options name="grade_passback">` +
     `<lticm:property name="url">${gradeSyncUrl}</lticm:property>` +
-    `</lticm:property>` +
     `</lticm:options>` +
     `</blti:extensions>` +
     `<cartridge_bundle identifierref="BLTI001_Bundle"/>` +
