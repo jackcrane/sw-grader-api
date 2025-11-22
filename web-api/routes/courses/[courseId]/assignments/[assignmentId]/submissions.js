@@ -46,12 +46,13 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const readAssignment = async (assignmentId) => {
+const readAssignment = async (assignmentId, courseId) => {
   if (!assignmentId) return null;
   return prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
+      courseId,
     },
     include: signaturesInclude,
   });
@@ -90,7 +91,7 @@ export const post = [
         .json({ error: "Only students can submit assignments." });
     }
 
-    const assignment = await readAssignment(assignmentId);
+    const assignment = await readAssignment(assignmentId, courseId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }

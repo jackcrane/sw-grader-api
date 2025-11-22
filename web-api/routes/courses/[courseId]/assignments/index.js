@@ -5,6 +5,7 @@ import {
   ValidationError,
   normalizeSignaturesPayload,
 } from "./validation.js";
+import { postAssignmentToCanvas } from "../../../../services/canvasClient.js";
 const signatureInclude = {
   signatures: {
     where: {
@@ -45,6 +46,7 @@ export const get = [
     const assignments = await prisma.assignment.findMany({
       where: {
         deleted: false,
+        courseId,
       },
       orderBy: {
         createdAt: "desc",
@@ -137,6 +139,7 @@ export const post = [
 
     const assignment = await prisma.assignment.create({
       data: {
+        courseId,
         name: trimmedName,
         description: description?.trim() || null,
         unitSystem: firstCorrectSignature.unitSystem,
@@ -161,6 +164,16 @@ export const post = [
     const assignmentWithSignatures = await prisma.assignment.findUnique({
       where: { id: assignment.id },
       include: signatureInclude,
+    });
+
+    postAssignmentToCanvas({
+      courseId,
+      assignment: assignmentWithSignatures,
+    }).catch((error) => {
+      console.error(
+        `[Canvas] Failed to sync assignment ${assignment.id} for course ${courseId}`,
+        error
+      );
     });
 
     return res.status(201).json(assignmentWithSignatures);

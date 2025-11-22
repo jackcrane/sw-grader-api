@@ -36,12 +36,13 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const readAssignment = async (assignmentId) => {
+const readAssignment = async (assignmentId, courseId) => {
   if (!assignmentId) return null;
   return prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
+      courseId,
     },
     include: signaturesInclude,
   });
@@ -135,7 +136,7 @@ export const get = [
       return res.status(404).json({ error: "Course enrollment not found." });
     }
 
-    const assignment = await readAssignment(assignmentId);
+    const assignment = await readAssignment(assignmentId, courseId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
@@ -268,7 +269,7 @@ export const patch = [
         .json({ error: "Only instructors can edit assignments." });
     }
 
-    const existingAssignment = await readAssignment(assignmentId);
+    const existingAssignment = await readAssignment(assignmentId, courseId);
     if (!existingAssignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
@@ -433,7 +434,7 @@ export const patch = [
       throw error;
     }
 
-    const updatedAssignment = await readAssignment(assignmentId);
+    const updatedAssignment = await readAssignment(assignmentId, courseId);
     return res.json(updatedAssignment);
   },
 ];
@@ -455,7 +456,7 @@ export const del = [
         .json({ error: "Only instructors can delete assignments." });
     }
 
-    const existingAssignment = await readAssignment(assignmentId);
+    const existingAssignment = await readAssignment(assignmentId, courseId);
     if (!existingAssignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
