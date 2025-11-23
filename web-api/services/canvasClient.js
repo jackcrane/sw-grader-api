@@ -30,7 +30,7 @@ const buildCanvasApiUrl = (integration, path) => {
   return `${base}${CANVAS_API_PREFIX}${sanitizePath(path)}`;
 };
 
-const getFeatureBenchBaseUrl = () => {
+export const getFeatureBenchBaseUrl = () => {
   const candidates = [
     process.env.PUBLIC_APP_URL,
     process.env.APP_PUBLIC_URL,
@@ -44,7 +44,7 @@ const getFeatureBenchBaseUrl = () => {
   return FEATURE_BENCH_FALLBACK_URL;
 };
 
-const buildFeatureBenchAssignmentUrl = (courseId, assignmentId) => {
+export const buildFeatureBenchAssignmentUrl = (courseId, assignmentId) => {
   const base = getFeatureBenchBaseUrl();
   if (!courseId || !assignmentId) return base;
   return `${base}/${courseId}/assignments/${assignmentId}`;
