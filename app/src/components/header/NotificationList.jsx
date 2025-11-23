@@ -6,6 +6,7 @@ import {
   ClipboardTextIcon,
   CreditCardIcon,
   ChatsCircleIcon,
+  WarningDiamondIcon,
 } from "@phosphor-icons/react";
 import styles from "./Header.module.css";
 
@@ -13,6 +14,7 @@ const NOTIFICATION_TYPE_ICON = {
   ASSIGNMENT_GRADED: CheckCircleIcon,
   ASSIGNMENT_POSTED: ClipboardTextIcon,
   PAYMENT_ISSUE: CreditCardIcon,
+  CANVAS_POINTS_MISMATCH: WarningDiamondIcon,
   OTHER: ChatsCircleIcon,
 };
 
@@ -20,6 +22,7 @@ const NOTIFICATION_TYPE_LABEL = {
   ASSIGNMENT_GRADED: "Assignment graded",
   ASSIGNMENT_POSTED: "Assignment posted",
   PAYMENT_ISSUE: "Payment issue",
+  CANVAS_POINTS_MISMATCH: "Canvas mismatch",
   OTHER: "Notification",
 };
 

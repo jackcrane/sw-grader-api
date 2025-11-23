@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, useParams, useSearchParams } from "react-router-dom";
 import classNames from "classnames";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
 import styles from "./AssignmentList.module.css";
@@ -27,6 +27,8 @@ export const AssignmentList = ({
   const [assignmentBeingEdited, setAssignmentBeingEdited] = useState(null);
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
   const { assignmentId: activeAssignmentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const modalQueryParam = searchParams.get("modal");
 
   const handleCreateAssignment = async (payload) => {
     return createAssignment(payload);
@@ -60,6 +62,35 @@ export const AssignmentList = ({
     await deleteAssignment(assignmentId);
     handleCloseModal();
   };
+
+  useEffect(() => {
+    if (!canManageAssignments) return;
+    if (assignmentModalOpen) return;
+    if (modalQueryParam !== "edit-assignment") return;
+    if (!assignments || !assignments.length) return;
+    if (!activeAssignmentId) return;
+
+    const assignmentToEdit = assignments.find(
+      (assignment) => assignment.id === activeAssignmentId
+    );
+    if (!assignmentToEdit) return;
+
+    setModalMode("edit");
+    setAssignmentBeingEdited(assignmentToEdit);
+    setAssignmentModalOpen(true);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("modal");
+    setSearchParams(nextParams, { replace: true });
+  }, [
+    assignments,
+    activeAssignmentId,
+    assignmentModalOpen,
+    canManageAssignments,
+    modalQueryParam,
+    searchParams,
+    setSearchParams,
+  ]);
 
   return (
     <>

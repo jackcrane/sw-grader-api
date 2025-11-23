@@ -451,6 +451,7 @@ const handleAssignmentLaunch = async (req, res) => {
       courseId: true,
       name: true,
       pointsPossible: true,
+      canvasPointsMismatchNotifiedAt: true,
       course: {
         select: {
           name: true,

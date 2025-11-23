@@ -124,6 +124,7 @@ model Assignment {
   unitSystem      String
   pointsPossible  Int
   gradeVisibility GradeVisibility
+  canvasPointsMismatchNotifiedAt DateTime?
 
   volume           Float
   surfaceArea      Float
@@ -245,5 +246,6 @@ enum NotificationType {
   ASSIGNMENT_GRADED
   ASSIGNMENT_POSTED
   PAYMENT_ISSUE
+  CANVAS_POINTS_MISMATCH
   OTHER
 }

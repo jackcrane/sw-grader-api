@@ -17,6 +17,24 @@ import { NotificationBell } from "./NotificationBell";
 import { ProfileMenu } from "./ProfileMenu";
 import { PaymentAuthorizationModal } from "./PaymentAuthorizationModal";
 
+const appendEditAssignmentModalParam = (href) => {
+  if (!href) return href;
+  const normalizedHref = href.startsWith("/") ? href : `/${href}`;
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://featurebench.com";
+
+  try {
+    const url = new URL(normalizedHref, origin);
+    url.searchParams.set("modal", "edit-assignment");
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch (error) {
+    const separator = normalizedHref.includes("?") ? "&" : "?";
+    return `${normalizedHref}${separator}modal=edit-assignment`;
+  }
+};
+
 export const Header = () => {
   const navigate = useNavigate();
   const { user, logout, viewAsStudent, setViewAsStudent } = useAuthContext();
@@ -97,8 +115,42 @@ export const Header = () => {
       if (href) {
         if (/^https?:\/\//i.test(href)) {
           window.open(href, "_blank", "noopener,noreferrer");
+          closeNotifications();
+          return;
+        }
+
+        const shouldOpenAssignmentEditModal =
+          notification?.type === "CANVAS_POINTS_MISMATCH";
+        const normalizedHref = href.startsWith("/") ? href : `/${href}`;
+        const destinationHref = shouldOpenAssignmentEditModal
+          ? appendEditAssignmentModalParam(normalizedHref)
+          : normalizedHref;
+        if (typeof window !== "undefined") {
+          const targetUrl = new URL(destinationHref, window.location.origin);
+          const isAlreadyOnTarget =
+            window.location.pathname === targetUrl.pathname &&
+            window.location.search === targetUrl.search &&
+            window.location.hash === targetUrl.hash;
+
+          if (isAlreadyOnTarget) {
+            closeNotifications();
+            return;
+          }
+
+          navigate(destinationHref);
+          window.setTimeout(() => {
+            const stillNotOnTarget = shouldOpenAssignmentEditModal
+              ? window.location.pathname !== targetUrl.pathname ||
+                window.location.hash !== targetUrl.hash
+              : window.location.pathname !== targetUrl.pathname ||
+                window.location.search !== targetUrl.search ||
+                window.location.hash !== targetUrl.hash;
+            if (stillNotOnTarget) {
+              window.location.assign(targetUrl.href);
+            }
+          }, 200);
         } else {
-          navigate(href);
+          navigate(destinationHref);
         }
         closeNotifications();
       }

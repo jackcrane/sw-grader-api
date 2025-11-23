@@ -84,6 +84,12 @@ export const notifyTeachersOfPointsMismatch = async ({
   featureBenchPoints,
 }) => {
   if (!assignment?.courseId) return;
+  if (assignment.canvasPointsMismatchNotifiedAt) {
+    console.log(
+      `[Canvas LTI] Points mismatch already reported for assignment ${assignment.id}. Skipping duplicate notifications.`
+    );
+    return;
+  }
 
   const teachers = await getCourseTeachers(assignment.courseId);
 
@@ -96,9 +102,23 @@ export const notifyTeachersOfPointsMismatch = async ({
 
   const assignmentName = assignment.name || "a FeatureBench assignment";
   const courseSegment = courseName ? ` in ${courseName}` : "";
+  const ctaHref =
+    assignment.courseId && assignment.id
+      ? `/${assignment.courseId}/assignments/${assignment.id}`
+      : null;
+  const notificationData = {
+    hasCta: Boolean(ctaHref),
+    ctaLabel: ctaHref ? "Review assignment" : null,
+    ctaHref,
+    assignmentId: assignment.id,
+    courseId: assignment.courseId,
+    courseName: courseName || null,
+    canvasPoints,
+    featureBenchPoints,
+  };
 
   await Promise.all(
-    teachers.map((teacher) => {
+    teachers.map(async (teacher) => {
       const teacherName = formatName(teacher) || "there";
       const lines = [
         `Hi ${teacherName},`,
@@ -111,13 +131,33 @@ export const notifyTeachersOfPointsMismatch = async ({
         "Thanks,",
         "The FeatureBench team",
       ];
-      return sendEmail({
-        to: teacher.email,
-        subject: `Canvas points mismatch for ${assignmentName}`,
-        text: lines.join("\n"),
-      });
+      await Promise.all([
+        sendEmail({
+          to: teacher.email,
+          subject: `Canvas points mismatch for ${assignmentName}`,
+          text: lines.join("\n"),
+        }),
+        prisma.notification.create({
+          data: {
+            userId: teacher.id,
+            type: "CANVAS_POINTS_MISMATCH",
+            title: `Fix Canvas points for ${assignmentName}`,
+            content: `Canvas has ${canvasPoints} point${
+              canvasPoints === 1 ? "" : "s"
+            } while FeatureBench has ${featureBenchPoints}. Update whichever is incorrect so they match.`,
+            data: notificationData,
+          },
+        }),
+      ]);
     })
   );
+
+  await prisma.assignment.update({
+    where: { id: assignment.id },
+    data: {
+      canvasPointsMismatchNotifiedAt: new Date(),
+    },
+  });
 
   console.log(
     `[Canvas LTI] Notified ${teachers.length} teacher(s) about points mismatch for assignment ${assignment.id}. Canvas=${canvasPoints}, FeatureBench=${featureBenchPoints}.`
