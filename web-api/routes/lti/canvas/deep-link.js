@@ -2,10 +2,6 @@ import express from "express";
 import crypto from "crypto";
 import { prisma } from "#prisma";
 import {
-  buildFeatureBenchAssignmentUrl,
-  getFeatureBenchBaseUrl,
-} from "../../../services/canvasClient.js";
-import {
   getSessionCookie,
   loadSessionFromCookie,
 } from "../../../util/auth.js";
@@ -46,6 +42,56 @@ const loadUserFromSession = async (req) => {
   }
 };
 
+const tryParseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeBaseUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed =
+    tryParseUrl(trimmed) ||
+    (!trimmed.includes("://") ? tryParseUrl(`https://${trimmed}`) : null);
+  if (parsed) {
+    return parsed.origin;
+  }
+  return trimmed.replace(/\/+$/, "");
+};
+
+const resolveFeatureBenchBaseUrl = (req) => {
+  const candidates = [
+    process.env.PUBLIC_APP_URL,
+    process.env.APP_PUBLIC_URL,
+    process.env.APP_URL,
+    process.env.APP_BASE_URL,
+  ];
+  for (const candidate of candidates) {
+    const sanitized = sanitizeBaseUrl(candidate);
+    if (sanitized) return sanitized;
+  }
+  const protoHeader = req.headers["x-forwarded-proto"];
+  const protocol =
+    (Array.isArray(protoHeader) ? protoHeader[0] : protoHeader)?.split(
+      ","
+    )[0] ||
+    req.protocol ||
+    "https";
+  const host = req.get("host") || "featurebench.com";
+  return `${protocol}://${host}`.replace(/\/+$/, "");
+};
+
+const buildAssignmentUrlForRequest = (req, courseId, assignmentId) => {
+  const base = resolveFeatureBenchBaseUrl(req);
+  if (!courseId || !assignmentId) return base;
+  return `${base}/${courseId}/assignments/${assignmentId}`;
+};
+
 const resolveAssignmentId = (req) => {
   const candidates = [
     req.query?.assignmentId,
@@ -82,8 +128,8 @@ const sanitizeReturnUrl = (value) => {
   }
 };
 
-const getFeatureBenchCourseUrl = (courseId) => {
-  const base = getFeatureBenchBaseUrl();
+const getFeatureBenchCourseUrl = (req, courseId) => {
+  const base = resolveFeatureBenchBaseUrl(req);
   if (!courseId) return base;
   return `${base}/${courseId}`;
 };
@@ -147,6 +193,7 @@ const buildAssignmentsPage = ({
   consumerKey,
   ltiVersion,
   dataToken,
+  courseUrl,
 }) => {
   const assignmentsJson = JSON.stringify(assignments).replace(/</g, "\\u003c");
   const dataInput = dataToken
@@ -157,7 +204,6 @@ const buildAssignmentsPage = ({
         consumerKey
       )}" />`
     : "";
-  const courseUrl = getFeatureBenchCourseUrl(course?.id);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -390,6 +436,11 @@ const handleAssignmentLaunch = async (req, res) => {
   }
 
   const sessionUser = await loadUserFromSession(req);
+  console.log(
+    `[Canvas LTI] Launching assignment ${assignment.id} (course ${assignment.courseId}) for ${
+      sessionUser ? `user ${sessionUser.id}` : "unauthenticated visitor"
+    }.`
+  );
 
   const launchRecord = await createCanvasAssignmentLaunch({
     assignment,
@@ -401,12 +452,17 @@ const handleAssignmentLaunch = async (req, res) => {
     await attachCanvasUserIdToUser(sessionUser.id, launchRecord.canvasUserId);
   }
 
-  const assignmentUrl = buildFeatureBenchAssignmentUrl(
+  const assignmentUrl = buildAssignmentUrlForRequest(
+    req,
     assignment.courseId,
     assignment.id
   );
+  console.log("[Canvas LTI] Resolved assignment URL:", assignmentUrl);
 
   if (sessionUser) {
+    console.log(
+      `[Canvas LTI] Redirecting authenticated user ${sessionUser.id} to ${assignmentUrl}`
+    );
     return res.redirect(302, assignmentUrl);
   }
 
@@ -419,13 +475,18 @@ const handleAssignmentLaunch = async (req, res) => {
     return res.status(500).type("text/html").send(page);
   }
 
-  const continueUrl = `${getFeatureBenchBaseUrl()}/canvas/launch/${launchRecord.token}`;
+  const continueUrl = `${resolveFeatureBenchBaseUrl(
+    req
+  )}/canvas/launch/${launchRecord.token}`;
+  console.log(
+    `[Canvas LTI] Redirecting unauthenticated Canvas visitor to ${continueUrl} to complete login.`
+  );
   return res.redirect(302, continueUrl);
 };
 
 const normalizeMessageType = (value) => {
   if (!value || typeof value !== "string") return "";
-  return value.replace(/[_\s]/g, "").toLowerCase();
+  return value.replace(/[_\s-]/g, "").toLowerCase();
 };
 
 export const post = [
@@ -475,6 +536,8 @@ export const post = [
       return res.status(400).type("text/html").send(page);
     }
 
+    const courseUrl = getFeatureBenchCourseUrl(req, course.id);
+
     const assignments = await prisma.assignment.findMany({
       where: { courseId: course.id, deleted: false },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
@@ -494,11 +557,12 @@ export const post = [
       description: assignment.description || "",
       pointsPossible: assignment.pointsPossible || 0,
       dueDate: assignment.dueDate ? assignment.dueDate.toISOString() : null,
-      launchUrl: buildFeatureBenchAssignmentUrl(course.id, assignment.id),
+      launchUrl: buildAssignmentUrlForRequest(req, course.id, assignment.id),
     }));
 
     const page = buildAssignmentsPage({
       course,
+      courseUrl,
       assignments: assignmentsPayload,
       returnUrl,
       consumerKey,

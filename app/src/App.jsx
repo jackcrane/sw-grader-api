@@ -17,6 +17,7 @@ import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
 import { CanvasLaunchPage } from "./routes/canvas/CanvasLaunchPage";
+import { NotFoundPage } from "./routes/NotFoundPage";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
@@ -72,10 +73,7 @@ const AppRoutes = () => {
           />
         </Route>
       </Route>
-      <Route
-        path="*"
-        element={<Navigate to={auth.isAuthenticated ? "/app" : "/"} replace />}
-      />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

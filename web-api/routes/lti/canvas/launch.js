@@ -29,10 +29,25 @@ const sanitizeDomain = (value) => {
   return trimmed.replace(/^https?:\/\//i, "").split("/")[0];
 };
 
+const tryParseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
 const sanitizeBaseUrl = (value) => {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
+  const parsed =
+    tryParseUrl(trimmed) ||
+    (!trimmed.includes("://") ? tryParseUrl(`https://${trimmed}`) : null);
+  if (parsed) {
+    return parsed.origin;
+  }
   return trimmed.replace(/\/+$/, "");
 };
 

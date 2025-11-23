@@ -8,9 +8,13 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     const nextPath = `${location.pathname}${location.search || ""}`;
-    const loginPath = nextPath && nextPath !== "/"
-      ? `/login?next=${encodeURIComponent(nextPath)}`
-      : "/login";
+    const loginPath =
+      nextPath && nextPath !== "/"
+        ? `/login?next=${encodeURIComponent(nextPath)}`
+        : "/login";
+    console.log(
+      `[Navigation] ProtectedRoute blocking ${nextPath || "/"}; redirecting to ${loginPath}.`
+    );
     return <Navigate to={loginPath} replace />;
   }
 

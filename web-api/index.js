@@ -30,7 +30,26 @@ app.use((req, res, next) => {
   next();
 });
 
-const sanitizeBaseUrl = (value) => value?.replace(/\/+$/, "");
+const tryParseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+const sanitizeBaseUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed =
+    tryParseUrl(trimmed) ||
+    (!trimmed.includes("://") ? tryParseUrl(`https://${trimmed}`) : null);
+  if (parsed) {
+    return parsed.origin;
+  }
+  return trimmed.replace(/\/+$/, "");
+};
 const resolvePublicBaseUrl = (req) => {
   const envUrl =
     sanitizeBaseUrl(process.env.PUBLIC_APP_URL) ||

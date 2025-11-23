@@ -1,6 +1,5 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
-import { buildFeatureBenchAssignmentUrl } from "../../../../services/canvasClient.js";
 import { attachCanvasUserIdToUser } from "../helpers.js";
 
 const getLaunchByToken = async (token) => {
@@ -13,6 +12,56 @@ const getLaunchByToken = async (token) => {
       },
     },
   });
+};
+
+const tryParseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeBaseUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed =
+    tryParseUrl(trimmed) ||
+    (!trimmed.includes("://") ? tryParseUrl(`https://${trimmed}`) : null);
+  if (parsed) {
+    return parsed.origin;
+  }
+  return trimmed.replace(/\/+$/, "");
+};
+
+const resolveFeatureBenchBaseUrl = (req) => {
+  const candidates = [
+    process.env.PUBLIC_APP_URL,
+    process.env.APP_PUBLIC_URL,
+    process.env.APP_URL,
+    process.env.APP_BASE_URL,
+  ];
+  for (const candidate of candidates) {
+    const sanitized = sanitizeBaseUrl(candidate);
+    if (sanitized) return sanitized;
+  }
+  const protoHeader = req.headers["x-forwarded-proto"];
+  const protocol =
+    (Array.isArray(protoHeader) ? protoHeader[0] : protoHeader)?.split(
+      ","
+    )[0] ||
+    req.protocol ||
+    "https";
+  const host = req.get("host") || "featurebench.com";
+  return `${protocol}://${host}`.replace(/\/+$/, "");
+};
+
+const buildAssignmentUrl = (req, courseId, assignmentId) => {
+  const base = resolveFeatureBenchBaseUrl(req);
+  if (!courseId || !assignmentId) return base;
+  return `${base}/${courseId}/assignments/${assignmentId}`;
 };
 
 export const get = [
@@ -62,9 +111,13 @@ export const get = [
       await attachCanvasUserIdToUser(userId, launch.canvasUserId);
     }
 
-    const assignmentUrl = buildFeatureBenchAssignmentUrl(
+    const assignmentUrl = buildAssignmentUrl(
+      req,
       launch.assignment.courseId,
       launch.assignment.id
+    );
+    console.log(
+      `[Canvas Launch API] User ${userId} consuming launch ${launchId}, redirecting to ${assignmentUrl}`
     );
 
     return res.json({

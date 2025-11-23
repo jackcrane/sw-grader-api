@@ -19,6 +19,28 @@ const sanitizeBaseUrl = (value) => {
   return value.trim().replace(/\/+$/, "");
 };
 
+const tryParseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeFeatureBenchBaseUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed =
+    tryParseUrl(trimmed) ||
+    (!trimmed.includes("://") ? tryParseUrl(`https://${trimmed}`) : null);
+  if (parsed) {
+    return parsed.origin;
+  }
+  return trimmed.replace(/\/+$/, "");
+};
+
 const sanitizePath = (value) => {
   if (!value || typeof value !== "string") return "";
   return value.startsWith("/") ? value : `/${value}`;
@@ -38,7 +60,7 @@ export const getFeatureBenchBaseUrl = () => {
     process.env.APP_BASE_URL,
   ];
   for (const candidate of candidates) {
-    const sanitized = sanitizeBaseUrl(candidate);
+    const sanitized = sanitizeFeatureBenchBaseUrl(candidate);
     if (sanitized) return sanitized;
   }
   return FEATURE_BENCH_FALLBACK_URL;
