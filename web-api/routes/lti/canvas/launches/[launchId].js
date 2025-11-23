@@ -1,6 +1,20 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
-import { attachCanvasUserIdToUser } from "../helpers.js";
+import {
+  attachCanvasUserIdToEnrollment,
+  resolveCanvasRoleCategory,
+  resolveFeatureBenchRoleCategory,
+  shouldForceReauthentication,
+  notifyTeachersOfPersistentEntitlementMismatch,
+  findEntitlementMismatchRecord,
+  upsertEntitlementMismatchRecord,
+  markEntitlementMismatchNotified,
+  clearEntitlementMismatchRecord,
+} from "../helpers.js";
+import {
+  SESSION_COOKIE_NAME,
+  sessionCookieOptions,
+} from "../../../../util/auth.js";
 
 const getLaunchByToken = async (token) => {
   if (!token) return null;
@@ -8,7 +22,16 @@ const getLaunchByToken = async (token) => {
     where: { token },
     include: {
       assignment: {
-        select: { id: true, courseId: true },
+        select: {
+          id: true,
+          courseId: true,
+          name: true,
+          course: {
+            select: {
+              name: true,
+            },
+          },
+        },
       },
     },
   });
@@ -98,6 +121,113 @@ export const get = [
     }
 
     const userId = req.user.localUserId ?? req.user.id;
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        userId,
+        courseId: launch.assignment.courseId,
+        deleted: false,
+      },
+      select: {
+        type: true,
+        canvasUserId: true,
+      },
+    });
+    const featureBenchRoleCategory = resolveFeatureBenchRoleCategory(
+      enrollment?.type
+    );
+    const canvasRoleCategory =
+      launch.canvasRoleCategory ||
+      resolveCanvasRoleCategory({
+        roles: launch.canvasRoles || undefined,
+        ext_roles: launch.canvasExtRoles || undefined,
+      });
+    const storedCanvasUserId =
+      typeof enrollment?.canvasUserId === "string" &&
+      enrollment.canvasUserId.trim()
+        ? enrollment.canvasUserId.trim()
+        : null;
+    const launchCanvasUserId =
+      typeof launch.canvasUserId === "string" && launch.canvasUserId.trim()
+        ? launch.canvasUserId.trim()
+        : null;
+    const canvasUserMismatch =
+      Boolean(storedCanvasUserId) &&
+      Boolean(launchCanvasUserId) &&
+      storedCanvasUserId !== launchCanvasUserId;
+    const roleCategoryMismatch = shouldForceReauthentication(
+      canvasRoleCategory,
+      featureBenchRoleCategory
+    );
+    const mismatchReasons = [];
+    if (!enrollment) {
+      mismatchReasons.push("missing_enrollment");
+    } else if (roleCategoryMismatch) {
+      mismatchReasons.push("role_mismatch");
+    }
+    if (canvasUserMismatch) {
+      mismatchReasons.push("canvas_user_mismatch");
+    }
+    console.log("[Canvas Launch API] Canvas/FeatureBench role comparison", {
+      userId,
+      assignmentId: launch.assignment.id,
+      courseId: launch.assignment.courseId,
+      enrollmentType: enrollment?.type ?? null,
+      canvasRoles: launch.canvasRoles ?? null,
+      canvasExtRoles: launch.canvasExtRoles ?? null,
+      canvasRoleCategory,
+      featureBenchRoleCategory,
+      launchCanvasUserId,
+      storedCanvasUserId,
+      mismatchReasons,
+    });
+    if (mismatchReasons.length) {
+      const existingMismatchRecord = await findEntitlementMismatchRecord({
+        assignmentId: launch.assignment.id,
+        userId,
+      });
+      await upsertEntitlementMismatchRecord({
+        assignmentId: launch.assignment.id,
+        courseId: launch.assignment.courseId,
+        userId,
+        reasons: mismatchReasons,
+        context: {
+          launchCanvasUserId,
+          storedCanvasUserId,
+          canvasRoleCategory,
+          featureBenchRoleCategory,
+          canvasRoles: launch.canvasRoles ?? null,
+          canvasExtRoles: launch.canvasExtRoles ?? null,
+        },
+        notified: existingMismatchRecord?.notified ?? false,
+      });
+      const shouldNotifyInstructor = !existingMismatchRecord?.notified;
+      if (shouldNotifyInstructor) {
+        await notifyTeachersOfPersistentEntitlementMismatch({
+          assignment: launch.assignment,
+          courseName: launch.assignment.course?.name ?? null,
+          user: req.user,
+          requestCanvasUserId: launchCanvasUserId,
+          storedCanvasUserId,
+          canvasRoleCategory,
+          featureBenchRoleCategory,
+        });
+        await markEntitlementMismatchNotified({
+          assignmentId: launch.assignment.id,
+          userId,
+        });
+      }
+      res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions);
+      return res.status(403).json({
+        error: "role_mismatch",
+        message:
+          "Canvas says you have staff access, but your FeatureBench enrollment does not. Ask your instructor to update your enrollment before launching again.",
+      });
+    }
+    await clearEntitlementMismatchRecord({
+      assignmentId: launch.assignment.id,
+      userId,
+    });
+
     await prisma.canvasAssignmentLaunch.update({
       where: { id: launch.id },
       data: {
@@ -107,8 +237,12 @@ export const get = [
       },
     });
 
-    if (launch.canvasUserId) {
-      await attachCanvasUserIdToUser(userId, launch.canvasUserId);
+    if (launch.canvasUserId && launch.assignment?.courseId) {
+      await attachCanvasUserIdToEnrollment({
+        userId,
+        courseId: launch.assignment.courseId,
+        canvasUserId: launch.canvasUserId,
+      });
     }
 
     const assignmentUrl = buildAssignmentUrl(

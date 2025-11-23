@@ -19,7 +19,7 @@ const logMissingConfig = () => {
   }
 };
 
-export const sendEmail = async ({ to, subject, text }) => {
+export const sendEmail = async ({ to, subject, text, cc }) => {
   if (!client || !fromAddress) {
     logMissingConfig();
     return;
@@ -28,13 +28,17 @@ export const sendEmail = async ({ to, subject, text }) => {
   console.log("Sending email to", to, "with subject", subject);
 
   try {
-    await client.sendEmail({
+    const payload = {
       From: fromAddress,
       To: to,
       Subject: subject,
       TextBody: text,
       MessageStream: messageStream,
-    });
+    };
+    if (cc) {
+      payload.Cc = cc;
+    }
+    await client.sendEmail(payload);
   } catch (error) {
     console.error("Failed to send Postmark email", error);
   }

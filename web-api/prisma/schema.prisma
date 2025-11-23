@@ -20,8 +20,6 @@ model User {
   firstName             String?
   lastName              String?
   stripeCustomerId      String?   @unique
-  canvasUserId          String?   @unique
-  canvasUserIdUpdatedAt DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -84,16 +82,35 @@ model Enrollment {
 
   type EnrollmentType
 
+  canvasUserId          String?
+  canvasUserIdUpdatedAt DateTime?
+
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   deleted                   Boolean   @default(false)
   billingFollowUpResolvedAt DateTime?
+
+  @@index([courseId, canvasUserId])
 }
 
 enum EnrollmentType {
   STUDENT
   TEACHER
   TA
+}
+
+model CanvasEntitlementMismatch {
+  id                 String   @id @default(cuid())
+  assignmentId       String
+  courseId           String
+  featureBenchUserId String
+  reasons            String[]
+  context            Json?
+  notified           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([assignmentId, featureBenchUserId])
 }
 
 model Assignment {
@@ -195,6 +212,9 @@ model CanvasAssignmentLaunch {
   canvasConsumerKey       String?
   canvasUserId            String?
   canvasCourseId          String?
+  canvasRoles             String?
+  canvasExtRoles          String?
+  canvasRoleCategory      String?
   canvasResultSourcedId   String?
   canvasOutcomeServiceUrl String?
   canvasReturnUrl         String?
