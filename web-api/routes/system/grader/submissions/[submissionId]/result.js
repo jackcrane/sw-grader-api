@@ -5,6 +5,7 @@ import {
   bufferFromBase64,
   evaluateSubmissionAgainstSignatures,
 } from "../../../../../services/submissionUtils.js";
+import { scheduleCanvasGradeSync } from "../../../../../services/canvasGradePassback.js";
 
 const signaturesInclude = {
   include: {
@@ -50,6 +51,18 @@ const readSubmission = async (submissionId) => {
       assignment: signaturesInclude,
     },
   });
+};
+
+const queueCanvasPassback = async (submissionId) => {
+  if (!submissionId) return;
+  try {
+    await scheduleCanvasGradeSync(submissionId);
+  } catch (error) {
+    console.warn(
+      `Failed to schedule Canvas grade sync for submission ${submissionId}`,
+      error
+    );
+  }
 };
 
 export const post = [
@@ -114,6 +127,8 @@ export const post = [
           },
         });
 
+        await queueCanvasPassback(submissionId);
+
         return res.status(200).json({
           ok: true,
           submissionId,
@@ -167,6 +182,8 @@ export const post = [
           screenshotUrl,
         },
       });
+
+      await queueCanvasPassback(submissionId);
 
       return res.status(200).json({
         ok: true,

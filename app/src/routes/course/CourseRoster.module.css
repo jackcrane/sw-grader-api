@@ -203,6 +203,10 @@
 .gradeValue {
   font-weight: 600;
   color: var(--body-contrast-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .gradePercent {

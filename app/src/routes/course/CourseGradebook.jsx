@@ -6,6 +6,7 @@ import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { parseGradeValue } from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
+import { CanvasSyncBadge } from "../../components/canvas/CanvasSyncBadge";
 
 const NOT_GRADED_LABEL = "Not yet graded";
 
@@ -32,7 +33,13 @@ const formatGradeCell = (submission, assignment) => {
   const pointsPossible = Number(assignment?.pointsPossible);
 
   if (gradeValue == null) {
-    return { label: NOT_GRADED_LABEL, percent: "—", status: "missing" };
+    return {
+      label: NOT_GRADED_LABEL,
+      percent: "—",
+      status: "missing",
+      canvasGradeSyncStatus: submission?.canvasGradeSyncStatus ?? null,
+      canvasGradeSyncedAt: submission?.canvasGradeSyncedAt ?? null,
+    };
   }
 
   const label = Number.isFinite(pointsPossible)
@@ -45,7 +52,13 @@ const formatGradeCell = (submission, assignment) => {
     percent = `${((clamped / pointsPossible) * 100).toFixed(1)}%`;
   }
 
-  return { label, percent, status: "scored" };
+  return {
+    label,
+    percent,
+    status: "scored",
+    canvasGradeSyncStatus: submission?.canvasGradeSyncStatus ?? null,
+    canvasGradeSyncedAt: submission?.canvasGradeSyncedAt ?? null,
+  };
 };
 
 const buildSubmissionLookup = (submissions = []) =>
@@ -168,7 +181,13 @@ export const CourseGradebook = () => {
                   </td>
                   {row.grades.map((grade) => (
                     <td key={grade.assignmentId}>
-                      <span className={styles.gradeValue}>{grade.label}</span>
+                      <span className={styles.gradeValue}>
+                        {grade.label}
+                        <CanvasSyncBadge
+                          status={grade.canvasGradeSyncStatus}
+                          syncedAt={grade.canvasGradeSyncedAt}
+                        />
+                      </span>
                       <span className={styles.gradePercent}>
                         {grade.percent}
                       </span>

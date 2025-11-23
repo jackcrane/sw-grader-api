@@ -3,6 +3,7 @@ import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { Spinner } from "../../components/spinner/Spinner";
+import { CanvasSyncBadge } from "../../components/canvas/CanvasSyncBadge";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import { parseGradeValue } from "../../utils/gradeUtils";
@@ -88,6 +89,8 @@ export const AssignmentDetails = () => {
     error: null,
     downloadUrl: null,
     downloadFilename: null,
+    canvasGradeSyncStatus: null,
+    canvasGradeSyncedAt: null,
   });
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
@@ -192,6 +195,8 @@ export const AssignmentDetails = () => {
       error: null,
       downloadUrl: null,
       downloadFilename: null,
+      canvasGradeSyncStatus: null,
+      canvasGradeSyncedAt: null,
     });
   };
 
@@ -216,6 +221,8 @@ export const AssignmentDetails = () => {
       downloadUrl: null,
       downloadFilename: null,
       error: null,
+      canvasGradeSyncStatus: null,
+      canvasGradeSyncedAt: null,
     });
     setUploadError(null);
     setSuccessMessage(null);
@@ -283,6 +290,10 @@ export const AssignmentDetails = () => {
           downloadUrl: submissionPayload?.fileUrl ?? null,
           downloadFilename: submissionPayload?.fileName ?? null,
           error: null,
+          canvasGradeSyncStatus:
+            submissionPayload?.canvasGradeSyncStatus ?? null,
+          canvasGradeSyncedAt:
+            submissionPayload?.canvasGradeSyncedAt ?? null,
         });
       } else {
         setQueueStatus(() => {
@@ -314,6 +325,8 @@ export const AssignmentDetails = () => {
         downloadUrl: null,
         downloadFilename: null,
         error: err?.message || "Failed to upload submission.",
+        canvasGradeSyncStatus: null,
+        canvasGradeSyncedAt: null,
       });
     } finally {
       setUploading(false);
@@ -377,6 +390,10 @@ export const AssignmentDetails = () => {
             gradedSubmission?.fileKey?.split?.("/")?.pop?.() ??
             null,
           error: null,
+          canvasGradeSyncStatus:
+            gradedSubmission?.canvasGradeSyncStatus ?? null,
+          canvasGradeSyncedAt:
+            gradedSubmission?.canvasGradeSyncedAt ?? null,
         });
         setQueueStatus(null);
         setSuccessMessage("Submission graded.");
@@ -398,6 +415,8 @@ export const AssignmentDetails = () => {
           error:
             payload.error ||
             "Unable to monitor the grading request. Check your submissions list.",
+          canvasGradeSyncStatus: null,
+          canvasGradeSyncedAt: null,
         });
         setQueueStatus(payload);
         setAutoTrackEnabled(false);
@@ -417,6 +436,8 @@ export const AssignmentDetails = () => {
           error:
             payload.error ||
             "Grading is taking longer than expected. We'll keep working on it.",
+          canvasGradeSyncStatus: null,
+          canvasGradeSyncedAt: null,
         });
         setQueueStatus(payload);
         stopQueueTracking();
@@ -473,6 +494,8 @@ export const AssignmentDetails = () => {
         downloadUrl: null,
         downloadFilename: null,
         error: null,
+        canvasGradeSyncStatus: null,
+        canvasGradeSyncedAt: null,
       });
       if (submission?.id) {
         setAutoTrackEnabled(true);
@@ -496,6 +519,8 @@ export const AssignmentDetails = () => {
         submission?.fileKey?.split?.("/")?.pop?.() ||
         null,
       error: null,
+      canvasGradeSyncStatus: submission?.canvasGradeSyncStatus ?? null,
+      canvasGradeSyncedAt: submission?.canvasGradeSyncedAt ?? null,
     });
   };
 
@@ -709,8 +734,13 @@ export const AssignmentDetails = () => {
                         </div>
                         <div className={styles.submissionDetails}>
                           <span>{formatDateTime(timestamp)}</span>
-                          <span>
+                          <span className={styles.gradeSummary}>
                             Grade: {formatSubmissionGrade(submission)}
+                            <CanvasSyncBadge
+                              status={submission?.canvasGradeSyncStatus}
+                              syncedAt={submission?.canvasGradeSyncedAt}
+                              size="sm"
+                            />
                           </span>
                         </div>
                       </div>
@@ -763,7 +793,14 @@ export const AssignmentDetails = () => {
                     </div>
                     <div className={styles.teacherSubmissionDetails}>
                       <span>{formatDateTime(submission.updatedAt)}</span>
-                      <span>Grade: {formatSubmissionGrade(submission)}</span>
+                      <span className={styles.gradeSummary}>
+                        Grade: {formatSubmissionGrade(submission)}
+                        <CanvasSyncBadge
+                          status={submission?.canvasGradeSyncStatus}
+                          syncedAt={submission?.canvasGradeSyncedAt}
+                          size="sm"
+                        />
+                      </span>
                       <span>{formatAttemptCount(submission.attemptCount)}</span>
                     </div>
                   </div>
@@ -795,6 +832,8 @@ export const AssignmentDetails = () => {
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
+        canvasGradeSyncStatus={previewModalState.canvasGradeSyncStatus}
+        canvasGradeSyncedAt={previewModalState.canvasGradeSyncedAt}
         queueStatus={queueStatus}
         onClose={closePreviewModal}
       />

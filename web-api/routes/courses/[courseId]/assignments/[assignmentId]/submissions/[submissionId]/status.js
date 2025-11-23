@@ -46,6 +46,8 @@ const fetchSubmission = async (submissionId, assignmentId) => {
       screenshotUrl: true,
       createdAt: true,
       updatedAt: true,
+      canvasGradeSyncStatus: true,
+      canvasGradeSyncedAt: true,
     },
   });
 };

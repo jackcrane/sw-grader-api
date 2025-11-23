@@ -14,14 +14,14 @@ datasource db {
 }
 
 model User {
-  id                    String    @id @default(cuid())
-  email                 String    @unique
-  passwordHash          String
-  firstName             String?
-  lastName              String?
-  stripeCustomerId      String?   @unique
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  firstName        String?
+  lastName         String?
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   enrollments              Enrollment[]
   submissions              Submission[]
@@ -121,9 +121,9 @@ model Assignment {
   courseId String?
   course   Course? @relation(fields: [courseId], references: [id])
 
-  unitSystem      String
-  pointsPossible  Int
-  gradeVisibility GradeVisibility
+  unitSystem                     String
+  pointsPossible                 Int
+  gradeVisibility                GradeVisibility
   canvasPointsMismatchNotifiedAt DateTime?
 
   volume           Float
@@ -166,10 +166,18 @@ model Submission {
   screenshotKey String?
   screenshotUrl String?
 
-  grade               Float?
-  feedback            String?
-  matchingSignatureId String?
-  matchingSignature   AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
+  grade                        Float?
+  feedback                     String?
+  matchingSignatureId          String?
+  matchingSignature            AssignmentSignature?   @relation(fields: [matchingSignatureId], references: [id])
+  canvasGradeSyncStatus        CanvasGradeSyncStatus?
+  canvasGradeSyncedAt          DateTime?
+  canvasGradeSyncQueuedAt      DateTime?
+  canvasGradeSyncLastAttemptAt DateTime?
+  canvasGradeSyncAttempts      Int                    @default(0)
+  canvasGradeSyncError         String?
+  canvasResultSourcedId        String?
+  canvasOutcomeServiceUrl      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -248,4 +256,12 @@ enum NotificationType {
   PAYMENT_ISSUE
   CANVAS_POINTS_MISMATCH
   OTHER
+}
+
+enum CanvasGradeSyncStatus {
+  PENDING
+  SYNCING
+  SUCCESS
+  FAILED
+  SKIPPED
 }

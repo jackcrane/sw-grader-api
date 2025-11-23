@@ -3,6 +3,7 @@ import { Modal } from "../modal/Modal";
 import { Button } from "../button/Button";
 import { Spinner } from "../spinner/Spinner";
 import { parseGradeValue } from "../../utils/gradeUtils";
+import { CanvasSyncBadge } from "../canvas/CanvasSyncBadge";
 import styles from "./SubmissionPreviewModal.module.css";
 
 const getTitle = (status) => {
@@ -31,6 +32,8 @@ export const SubmissionPreviewModal = ({
   error,
   queueStatus,
   onClose,
+  canvasGradeSyncStatus,
+  canvasGradeSyncedAt,
 }) => {
   if (!open) return null;
 
@@ -115,8 +118,19 @@ export const SubmissionPreviewModal = ({
                 Screenshot not available for this submission.
               </div>
             )}
-            <p className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}>
-              Grade earned: <strong>{gradeLabel ?? "Not yet graded"}</strong>
+            <p
+              className={`${styles.grade} ${
+                getGradeColorClass(gradeValue) ?? ""
+              }`}
+            >
+              <span>
+                Grade earned: <strong>{gradeLabel ?? "Not yet graded"}</strong>
+              </span>
+              <CanvasSyncBadge
+                status={canvasGradeSyncStatus}
+                syncedAt={canvasGradeSyncedAt}
+                size="md"
+              />
             </p>
             {feedback && (
               <div className={styles.feedback}>

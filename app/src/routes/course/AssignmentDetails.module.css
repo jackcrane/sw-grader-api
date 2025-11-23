@@ -210,6 +210,12 @@
   color: #333;
 }
 
+.gradeSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .downloadButton {
   flex-shrink: 0;
   white-space: nowrap;

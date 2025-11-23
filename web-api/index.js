@@ -10,6 +10,7 @@ import { registerRoutes } from "./util/router.js";
 import { startGraderHealthMonitor } from "./services/graderHealth.js";
 import { startPendingSubmissionWorker } from "./services/pendingSubmissionWorker.js";
 import { startBillingFollowUpWorker } from "./services/billingFollowUpWorker.js";
+import { startCanvasGradePassbackWorker } from "./services/canvasGradePassback.js";
 
 dotenv.config();
 
@@ -128,6 +129,7 @@ const buildCanvasConfigXml = (baseUrl) => {
 startGraderHealthMonitor();
 startPendingSubmissionWorker();
 startBillingFollowUpWorker();
+startCanvasGradePassbackWorker();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

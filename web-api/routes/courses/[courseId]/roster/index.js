@@ -76,7 +76,7 @@ export const get = [
     const assignmentIds = new Set(assignments.map((assignment) => assignment.id));
 
     const userIds = courseEnrollments.map((enrollmentItem) => enrollmentItem.userId);
-    const submissions = userIds.length
+  const submissions = userIds.length
       ? await prisma.submission.findMany({
           where: {
             userId: {
@@ -93,6 +93,8 @@ export const get = [
             userId: true,
             assignmentId: true,
             updatedAt: true,
+            canvasGradeSyncStatus: true,
+            canvasGradeSyncedAt: true,
           },
           orderBy: {
             updatedAt: "desc",
@@ -115,6 +117,8 @@ export const get = [
           grade: submission.grade,
           assignmentId: submission.assignmentId,
           updatedAt: submission.updatedAt,
+          canvasGradeSyncStatus: submission.canvasGradeSyncStatus,
+          canvasGradeSyncedAt: submission.canvasGradeSyncedAt,
         };
       }
       return acc;

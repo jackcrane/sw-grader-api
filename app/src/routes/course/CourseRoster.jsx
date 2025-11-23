@@ -5,6 +5,7 @@ import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
+import { CanvasSyncBadge } from "../../components/canvas/CanvasSyncBadge";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
@@ -72,6 +73,8 @@ const submissionPreviewInitialState = {
   downloadUrl: null,
   downloadFilename: null,
   error: null,
+  canvasGradeSyncStatus: null,
+  canvasGradeSyncedAt: null,
 };
 
 export const CourseRoster = () => {
@@ -133,6 +136,8 @@ export const CourseRoster = () => {
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
+      canvasGradeSyncStatus: submission?.canvasGradeSyncStatus ?? null,
+      canvasGradeSyncedAt: submission?.canvasGradeSyncedAt ?? null,
     });
   };
 
@@ -146,6 +151,8 @@ export const CourseRoster = () => {
       downloadUrl: null,
       downloadFilename: null,
       error: null,
+      canvasGradeSyncStatus: null,
+      canvasGradeSyncedAt: null,
     });
   };
 
@@ -412,6 +419,10 @@ export const CourseRoster = () => {
                           <div className={styles.gradeValues}>
                             <span className={styles.gradeValue}>
                               {gradeLabel}
+                              <CanvasSyncBadge
+                                status={submission?.canvasGradeSyncStatus}
+                                syncedAt={submission?.canvasGradeSyncedAt}
+                              />
                             </span>
                             <span className={styles.gradePercent}>{percent}</span>
                           </div>
@@ -447,6 +458,8 @@ export const CourseRoster = () => {
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
+        canvasGradeSyncStatus={previewModalState.canvasGradeSyncStatus}
+        canvasGradeSyncedAt={previewModalState.canvasGradeSyncedAt}
         onClose={closePreviewModal}
       />
     </section>
