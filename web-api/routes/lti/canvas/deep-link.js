@@ -1,9 +1,16 @@
 import express from "express";
+import crypto from "crypto";
 import { prisma } from "#prisma";
 import {
   buildFeatureBenchAssignmentUrl,
   getFeatureBenchBaseUrl,
 } from "../../../services/canvasClient.js";
+import {
+  getSessionCookie,
+  loadSessionFromCookie,
+} from "../../../util/auth.js";
+import { findUserById } from "../../../util/users.js";
+import { attachCanvasUserIdToUser } from "./helpers.js";
 
 const urlEncodedParser = express.urlencoded({ extended: false });
 
@@ -12,12 +19,45 @@ const logDeepLinkAttempt = (req) => {
   console.log("[Canvas LTI] Deep Link request body:", req.body);
 };
 
+const CANVAS_LAUNCH_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+const createLaunchToken = () => crypto.randomBytes(24).toString("hex");
+
 const findCourseByConsumerKey = async (consumerKey) => {
   if (!consumerKey) return null;
   return prisma.course.findFirst({
     where: { id: consumerKey, deleted: false },
     select: { id: true, name: true },
   });
+};
+
+const loadUserFromSession = async (req) => {
+  try {
+    const cookieValue = getSessionCookie(req);
+    if (!cookieValue) return null;
+    const session = loadSessionFromCookie(cookieValue);
+    if (!session?.userId) return null;
+    const user = await findUserById(session.userId);
+    if (!user || user.deleted) return null;
+    return user;
+  } catch (error) {
+    console.error("[Canvas LTI] Failed to load session user", error);
+    return null;
+  }
+};
+
+const resolveAssignmentId = (req) => {
+  const candidates = [
+    req.query?.assignmentId,
+    req.body?.featurebench_assignment_id,
+    req.body?.custom_featurebench_assignment_id,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return null;
 };
 
 const escapeHtml = (value) => {
@@ -69,6 +109,36 @@ const renderErrorPage = ({ heading, message }) => `<!doctype html>
     </main>
   </body>
 </html>`;
+
+const createCanvasAssignmentLaunch = async ({ assignment, body, user }) => {
+  if (!assignment?.id || !assignment?.courseId) {
+    throw new Error("Assignment and course are required for Canvas launch.");
+  }
+
+  const expiresAt = new Date(Date.now() + CANVAS_LAUNCH_EXPIRY_MS);
+  const token = user ? null : createLaunchToken();
+
+  return prisma.canvasAssignmentLaunch.create({
+    data: {
+      assignmentId: assignment.id,
+      courseId: assignment.courseId,
+      userId: user?.id ?? null,
+      token,
+      canvasConsumerKey: body?.oauth_consumer_key || null,
+      canvasUserId: body?.user_id || null,
+      canvasCourseId:
+        body?.custom_canvas_course_id ||
+        body?.custom_canvas_root_account_id ||
+        body?.context_id ||
+        null,
+      canvasResultSourcedId: body?.lis_result_sourcedid || null,
+      canvasOutcomeServiceUrl: body?.lis_outcome_service_url || null,
+      canvasReturnUrl: body?.launch_presentation_return_url || null,
+      expiresAt,
+      consumedAt: user ? new Date() : null,
+    },
+  });
+};
 
 const buildAssignmentsPage = ({
   course,
@@ -294,6 +364,65 @@ const buildAssignmentsPage = ({
 </html>`;
 };
 
+const handleAssignmentLaunch = async (req, res) => {
+  const assignmentId = resolveAssignmentId(req);
+  if (!assignmentId) {
+    const page = renderErrorPage({
+      heading: "Missing FeatureBench assignment",
+      message:
+        "Add ?assignmentId=FEATUREBENCH_ASSIGNMENT_ID to the external tool URL before using this link in Canvas.",
+    });
+    return res.status(400).type("text/html").send(page);
+  }
+
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { id: true, courseId: true, name: true },
+  });
+
+  if (!assignment || !assignment.courseId) {
+    const page = renderErrorPage({
+      heading: "FeatureBench could not find that assignment",
+      message:
+        "Verify that the assignment still exists and copy a fresh link from FeatureBench.",
+    });
+    return res.status(404).type("text/html").send(page);
+  }
+
+  const sessionUser = await loadUserFromSession(req);
+
+  const launchRecord = await createCanvasAssignmentLaunch({
+    assignment,
+    body: req.body || {},
+    user: sessionUser,
+  });
+
+  if (sessionUser && launchRecord?.canvasUserId) {
+    await attachCanvasUserIdToUser(sessionUser.id, launchRecord.canvasUserId);
+  }
+
+  const assignmentUrl = buildFeatureBenchAssignmentUrl(
+    assignment.courseId,
+    assignment.id
+  );
+
+  if (sessionUser) {
+    return res.redirect(302, assignmentUrl);
+  }
+
+  if (!launchRecord?.token) {
+    const page = renderErrorPage({
+      heading: "FeatureBench could not continue",
+      message:
+        "We could not generate a Canvas launch token. Close this window and try launching the assignment again.",
+    });
+    return res.status(500).type("text/html").send(page);
+  }
+
+  const continueUrl = `${getFeatureBenchBaseUrl()}/canvas/launch/${launchRecord.token}`;
+  return res.redirect(302, continueUrl);
+};
+
 const normalizeMessageType = (value) => {
   if (!value || typeof value !== "string") return "";
   return value.replace(/[_\s]/g, "").toLowerCase();
@@ -305,10 +434,15 @@ export const post = [
     logDeepLinkAttempt(req);
 
     const messageType = normalizeMessageType(req.body?.lti_message_type);
+    if (messageType === "basicltilaunchrequest") {
+      return handleAssignmentLaunch(req, res);
+    }
+
     if (messageType !== "contentitemselectionrequest") {
       const page = renderErrorPage({
         heading: "Unsupported LTI request",
-        message: "Canvas did not send a ContentItemSelectionRequest message.",
+        message:
+          "Canvas sent an LTI message we don't recognize. Confirm your configuration or contact support.",
       });
       return res.status(400).type("text/html").send(page);
     }
@@ -326,7 +460,8 @@ export const post = [
     if (!course) {
       const page = renderErrorPage({
         heading: "FeatureBench could not match your course",
-        message: "Double-check the Consumer Key in your Canvas app configuration and try again.",
+        message:
+          "Double-check the Consumer Key in your Canvas app configuration and try again.",
       });
       return res.status(200).type("text/html").send(page);
     }

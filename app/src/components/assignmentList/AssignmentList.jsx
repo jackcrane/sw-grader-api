@@ -11,6 +11,7 @@ export const AssignmentList = ({
   courseId,
   enrollmentType,
   detailsPane = null,
+  hasCanvasIntegration = false,
 }) => {
   const {
     assignments,
@@ -28,8 +29,7 @@ export const AssignmentList = ({
   const { assignmentId: activeAssignmentId } = useParams();
 
   const handleCreateAssignment = async (payload) => {
-    await createAssignment(payload);
-    handleCloseModal();
+    return createAssignment(payload);
   };
 
   const handleUpdateAssignment = async (assignmentId, payload) => {
@@ -164,6 +164,7 @@ export const AssignmentList = ({
           mode={modalMode}
           assignment={assignmentBeingEdited}
           onDeleteAssignment={handleDeleteAssignment}
+          hasCanvasIntegration={hasCanvasIntegration}
         />
       )}
     </>

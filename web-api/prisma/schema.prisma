@@ -14,37 +14,39 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  passwordHash String
-  firstName String?
-  lastName  String?
-  stripeCustomerId String? @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+  firstName             String?
+  lastName              String?
+  stripeCustomerId      String?   @unique
+  canvasUserId          String?   @unique
+  canvasUserIdUpdatedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  enrollments Enrollment[]
-  submissions Submission[]
-  notifications Notification[]
-  canCreateCourses Boolean @default(false)
-  deleted     Boolean  @default(false)
+  enrollments              Enrollment[]
+  submissions              Submission[]
+  notifications            Notification[]
+  canCreateCourses         Boolean                  @default(false)
+  deleted                  Boolean                  @default(false)
+  canvasAssignmentLaunches CanvasAssignmentLaunch[]
 }
 
-
 model Course {
-  id        String   @id @default(cuid())
-  name      String
-  abbr      String
+  id                String  @id @default(cuid())
+  name              String
+  abbr              String
   studentInviteCode String? @unique
   taInviteCode      String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  enrollments Enrollment[]
+  enrollments       Enrollment[]
   canvasIntegration CanvasIntegration?
-  assignments Assignment[]
-  deleted     Boolean  @default(false)
+  assignments       Assignment[]
+  deleted           Boolean            @default(false)
 
   billingScheme BillingScheme
 }
@@ -55,37 +57,36 @@ enum BillingScheme {
 }
 
 model CanvasIntegration {
-  id             String   @id @default(cuid())
-  courseId       String   @unique
-  course         Course   @relation(fields: [courseId], references: [id])
-  instanceUrl        String
-  canvasCourseId     String?
-  canvasAccountId    String?
-  clientId           String
-  clientSecret       String
-  accessToken        String?
-  refreshToken       String?
-  tokenExpiresAt     DateTime?
-  ltiDeploymentId    String?
-  ltiIssuer          String?
-  developerKey       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(cuid())
+  courseId        String    @unique
+  course          Course    @relation(fields: [courseId], references: [id])
+  instanceUrl     String
+  canvasCourseId  String?
+  canvasAccountId String?
+  clientId        String
+  clientSecret    String
+  accessToken     String?
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  ltiDeploymentId String?
+  ltiIssuer       String?
+  developerKey    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
-
 model Enrollment {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
 
   type EnrollmentType
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deleted   Boolean  @default(false)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deleted                   Boolean   @default(false)
   billingFollowUpResolvedAt DateTime?
 }
 
@@ -96,29 +97,30 @@ enum EnrollmentType {
 }
 
 model Assignment {
-  id        String   @id @default(cuid())
-  name      String
+  id          String  @id @default(cuid())
+  name        String
   description String?
 
-  courseId  String?
-  course    Course?    @relation(fields: [courseId], references: [id])
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id])
 
-  unitSystem String
-  pointsPossible Int
+  unitSystem      String
+  pointsPossible  Int
   gradeVisibility GradeVisibility
 
-  volume Float
-  surfaceArea Float
+  volume           Float
+  surfaceArea      Float
   tolerancePercent Float
 
   dueDate DateTime?
 
   submissions Submission[]
-  signatures AssignmentSignature[]
+  signatures  AssignmentSignature[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deleted   Boolean  @default(false)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  deleted                  Boolean                  @default(false)
+  canvasAssignmentLaunches CanvasAssignmentLaunch[]
 }
 
 enum GradeVisibility {
@@ -132,24 +134,24 @@ enum AssignmentSignatureType {
 }
 
 model Submission {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
   assignmentId String
-  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
 
-  volume Float?
-  surfaceArea Float?
-  fileKey String?
-  fileUrl String?
-  fileName String?
+  volume        Float?
+  surfaceArea   Float?
+  fileKey       String?
+  fileUrl       String?
+  fileName      String?
   screenshotKey String?
   screenshotUrl String?
 
-  grade Float?
-  feedback String?
+  grade               Float?
+  feedback            String?
   matchingSignatureId String?
-  matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
+  matchingSignature   AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -157,20 +159,20 @@ model Submission {
 }
 
 model AssignmentSignature {
-  id        String   @id @default(cuid())
+  id           String     @id @default(cuid())
   assignmentId String
-  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
 
-  sortOrder Int
-  type AssignmentSignatureType
-  unitSystem String
-  volume Float
-  surfaceArea Float
+  sortOrder     Int
+  type          AssignmentSignatureType
+  unitSystem    String
+  volume        Float
+  surfaceArea   Float
   centerOfMassX Float?
   centerOfMassY Float?
   centerOfMassZ Float?
   screenshotB64 String?
-  feedback String?
+  feedback      String?
   pointsAwarded Float?
 
   createdAt DateTime @default(now())
@@ -182,18 +184,41 @@ model AssignmentSignature {
   @@unique([assignmentId, sortOrder])
 }
 
+model CanvasAssignmentLaunch {
+  id                      String     @id @default(cuid())
+  token                   String?    @unique
+  assignmentId            String
+  assignment              Assignment @relation(fields: [assignmentId], references: [id])
+  courseId                String
+  userId                  String?
+  user                    User?      @relation(fields: [userId], references: [id])
+  canvasConsumerKey       String?
+  canvasUserId            String?
+  canvasCourseId          String?
+  canvasResultSourcedId   String?
+  canvasOutcomeServiceUrl String?
+  canvasReturnUrl         String?
+  expiresAt               DateTime
+  consumedAt              DateTime?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  @@index([assignmentId, userId])
+  @@index([assignmentId, canvasUserId])
+}
+
 model Notification {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
   type      NotificationType
   title     String
   content   String
   data      Json?
   readAt    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deleted   Boolean  @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deleted   Boolean          @default(false)
 }
 
 enum NotificationType {

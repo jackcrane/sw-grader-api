@@ -63,6 +63,27 @@ const offlineBannerStyle = {
   marginBottom: 12,
 };
 
+const getAppOrigin = () => {
+  if (typeof window === "undefined") {
+    return "https://featurebench.com";
+  }
+  return window.location.origin.replace(/\/+$/, "");
+};
+
+const buildCanvasExternalToolUrl = (assignmentId) => {
+  const origin = getAppOrigin();
+  const suffix = assignmentId
+    ? `?assignmentId=${encodeURIComponent(assignmentId)}`
+    : "";
+  return `${origin}/api/lti/canvas/deep-link${suffix}`;
+};
+
+const buildFeatureBenchAssignmentUrl = (courseId, assignmentId) => {
+  const origin = getAppOrigin();
+  if (!courseId || !assignmentId) return origin;
+  return `${origin}/${courseId}/assignments/${assignmentId}`;
+};
+
 const SignatureSection = ({
   index,
   isFirst,
@@ -331,6 +352,7 @@ export const CreateAssignmentModal = ({
   courseId,
   mode = "create",
   assignment = null,
+  hasCanvasIntegration = false,
 }) => {
   const { online: graderOnline } = useGraderStatus();
   const [name, setName] = useState("");
@@ -345,6 +367,8 @@ export const CreateAssignmentModal = ({
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [flowStep, setFlowStep] = useState("form"); // "form" | "canvas"
+  const [createdAssignment, setCreatedAssignment] = useState(null);
 
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
@@ -361,6 +385,8 @@ export const CreateAssignmentModal = ({
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
     setDeleting(false);
+    setFlowStep("form");
+    setCreatedAssignment(null);
   }, []);
 
   const hydrateFromAssignment = useCallback(() => {
@@ -518,6 +544,9 @@ export const CreateAssignmentModal = ({
     [overallErrors]
   );
 
+  const showCanvasStep =
+    flowStep === "canvas" && hasCanvasIntegration && Boolean(createdAssignment);
+
   const showInvalidTop = (key) => validationAttempted && overallErrors[key];
 
   const updateSignature = (index, partial) => {
@@ -549,6 +578,16 @@ export const CreateAssignmentModal = ({
       return next;
     });
   };
+
+  const handleCanvasChecklistDone = useCallback(() => {
+    setCreatedAssignment(null);
+    setFlowStep("form");
+    onClose?.();
+  }, [onClose]);
+
+  const handleCanvasCreateAnother = useCallback(() => {
+    resetForm();
+  }, [resetForm]);
 
   const handleSubmitAssignment = async () => {
     setValidationAttempted(true);
@@ -589,14 +628,19 @@ export const CreateAssignmentModal = ({
           throw new Error("Missing assignment or update handler.");
         }
         await onUpdateAssignment(assignment.id, payload);
+        onClose?.();
       } else {
         if (!onCreateAssignment) {
           throw new Error("Missing create handler.");
         }
-        await onCreateAssignment(payload);
+        const created = await onCreateAssignment(payload);
+        if (hasCanvasIntegration && created?.id) {
+          setCreatedAssignment(created);
+          setFlowStep("canvas");
+          return;
+        }
+        onClose?.();
       }
-
-      onClose?.();
     } catch (error) {
       console.error(
         isEditMode
@@ -609,7 +653,11 @@ export const CreateAssignmentModal = ({
     }
   };
 
-  const modalTitle = isEditMode ? "Edit Assignment" : "Create a new Assignment";
+  const modalTitle = showCanvasStep
+    ? "Add this assignment to Canvas"
+    : isEditMode
+    ? "Edit Assignment"
+    : "Create a new Assignment";
   const primaryButtonLabel = submitting
     ? isEditMode
       ? "Saving..."
@@ -636,7 +684,7 @@ export const CreateAssignmentModal = ({
   };
 
   const headerActions =
-    isEditMode && onDeleteAssignment ? (
+    !showCanvasStep && isEditMode && onDeleteAssignment ? (
       <Button
         onClick={handleDeleteAssignment}
         variant="danger"
@@ -646,136 +694,220 @@ export const CreateAssignmentModal = ({
       </Button>
     ) : null;
 
+  const footerContent = showCanvasStep ? (
+    <Row gap={2}>
+      <Button onClick={handleCanvasCreateAnother}>
+        Create another assignment
+      </Button>
+      <Button onClick={handleCanvasChecklistDone} variant="primary">
+        Done
+      </Button>
+    </Row>
+  ) : (
+    <Row gap={2}>
+      <Button onClick={onClose} disabled={submitting}>
+        Cancel
+      </Button>
+      <Button
+        onClick={handleSubmitAssignment}
+        variant="primary"
+        disabled={submitting}
+      >
+        {primaryButtonLabel}
+      </Button>
+    </Row>
+  );
+
   return (
     <Modal
       title={modalTitle}
       open={open}
       onClose={onClose}
       headerActions={headerActions}
-      footer={
-        <Row gap={2}>
-          <Button onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmitAssignment}
-            variant="primary"
-            disabled={submitting}
-          >
-            {primaryButtonLabel}
-          </Button>
-        </Row>
-      }
+      footer={footerContent}
     >
-      {graderOffline && (
-        <div style={{ ...offlineBannerStyle, marginBottom: 16 }}>
-          The SolidWorks grader is currently offline. You can still create or
-          edit assignments, but signature uploads are disabled until it comes
-          back online.
-        </div>
+      {showCanvasStep ? (
+        <CanvasSetupContent assignment={createdAssignment} />
+      ) : (
+        <>
+          {graderOffline && (
+            <div style={{ ...offlineBannerStyle, marginBottom: 16 }}>
+              The SolidWorks grader is currently offline. You can still create
+              or edit assignments, but signature uploads are disabled until it
+              comes back online.
+            </div>
+          )}
+          <Section title="Assignment Details">
+            <Input
+              label="Name"
+              placeholder="e.g., HW 1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              invalid={showInvalidTop("name")}
+            />
+            <Textarea
+              label="Description"
+              placeholder="What is this assignment about?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+            />
+            <Input
+              label="Due date"
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              invalid={showInvalidTop("dueDate")}
+            />
+          </Section>
+
+          {signatures.map((sig, idx) => (
+            <SignatureSection
+              key={idx}
+              index={idx}
+              isFirst={idx === 0}
+              signature={sig}
+              courseId={courseId}
+              validationAttempted={validationAttempted}
+              signatureErrors={signaturesErrors[idx]}
+              onChange={(partial) => updateSignature(idx, partial)}
+              onDelete={() => deleteSignature(idx)}
+              canDelete={canDeleteSignature(idx)}
+              graderOnline={graderOnline}
+            />
+          ))}
+
+          <Section
+            title="More Signatures"
+            subtitle={
+              <>
+                <p>
+                  You can add more signatures to provide more accurate grading:
+                </p>
+                <p>
+                  - Accept multiple correct variations to handle ambiguity in
+                  your assignments.
+                </p>
+                <p>
+                  - Explicitly define incorrect variations and provide
+                  immediate, specific feedback.
+                </p>
+                {validationAttempted && showInvalidTop("atLeastOneCorrect") && (
+                  <p style={{ color: "#b00020", marginTop: 8 }}>
+                    At least one signature must be marked as Correct.
+                  </p>
+                )}
+                {validationAttempted && showInvalidTop("signatures") && (
+                  <p style={{ color: "#b00020", marginTop: 8 }}>
+                    Please fix the highlighted signature fields.
+                  </p>
+                )}
+              </>
+            }
+          >
+            <Button onClick={addSignature}>Add Signature</Button>
+          </Section>
+
+          <Section title="Grading" last={true}>
+            <Input
+              label="Tolerance percent (recommended 0.1%-0.5%)"
+              type="number"
+              value={tolerancePercent}
+              onChange={(e) => setTolerancePercent(e.target.value)}
+              min={0}
+              step="0.01"
+              invalid={showInvalidTop("tolerancePercent")}
+            />
+            <Input
+              label="Points possible"
+              placeholder="e.g., 100"
+              type="number"
+              value={pointsPossible}
+              onChange={(e) => setPointsPossible(e.target.value)}
+              min={1}
+              step={1}
+              invalid={showInvalidTop("pointsPossible")}
+            />
+            <Select
+              label="Grade Visibility"
+              value={gradeVisibility}
+              onChange={(e) => setGradeVisibility(e.target.value)}
+              options={[
+                { value: "INSTANT", label: "Show grades immediately" },
+                {
+                  value: "ON_DUE_DATE",
+                  label: "Don't show grades until due date passes",
+                },
+              ]}
+            />
+          </Section>
+        </>
       )}
-      <Section title="Assignment Details">
-        <Input
-          label="Name"
-          placeholder="e.g., HW 1"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          invalid={showInvalidTop("name")}
-        />
-        <Textarea
-          label="Description"
-          placeholder="What is this assignment about?"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={4}
-        />
-        <Input
-          label="Due date"
-          type="datetime-local"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          invalid={showInvalidTop("dueDate")}
-        />
-      </Section>
-
-      {signatures.map((sig, idx) => (
-        <SignatureSection
-          key={idx}
-          index={idx}
-          isFirst={idx === 0}
-          signature={sig}
-          courseId={courseId}
-          validationAttempted={validationAttempted}
-          signatureErrors={signaturesErrors[idx]}
-          onChange={(partial) => updateSignature(idx, partial)}
-          onDelete={() => deleteSignature(idx)}
-          canDelete={canDeleteSignature(idx)}
-          graderOnline={graderOnline}
-        />
-      ))}
-
-      <Section
-        title="More Signatures"
-        subtitle={
-          <>
-            <p>You can add more signatures to provide more accurate grading:</p>
-            <p>
-              - Accept multiple correct variations to handle ambiguity in your
-              assignments.
-            </p>
-            <p>
-              - Explicitly define incorrect variations and provide immediate,
-              specific feedback.
-            </p>
-            {validationAttempted && showInvalidTop("atLeastOneCorrect") && (
-              <p style={{ color: "#b00020", marginTop: 8 }}>
-                At least one signature must be marked as Correct.
-              </p>
-            )}
-            {validationAttempted && showInvalidTop("signatures") && (
-              <p style={{ color: "#b00020", marginTop: 8 }}>
-                Please fix the highlighted signature fields.
-              </p>
-            )}
-          </>
-        }
-      >
-        <Button onClick={addSignature}>Add Signature</Button>
-      </Section>
-
-      <Section title="Grading" last={true}>
-        <Input
-          label="Tolerance percent (recommended 0.1%-0.5%)"
-          type="number"
-          value={tolerancePercent}
-          onChange={(e) => setTolerancePercent(e.target.value)}
-          min={0}
-          step="0.01"
-          invalid={showInvalidTop("tolerancePercent")}
-        />
-        <Input
-          label="Points possible"
-          placeholder="e.g., 100"
-          type="number"
-          value={pointsPossible}
-          onChange={(e) => setPointsPossible(e.target.value)}
-          min={1}
-          step={1}
-          invalid={showInvalidTop("pointsPossible")}
-        />
-        <Select
-          label="Grade Visibility"
-          value={gradeVisibility}
-          onChange={(e) => setGradeVisibility(e.target.value)}
-          options={[
-            { value: "INSTANT", label: "Show grades immediately" },
-            {
-              value: "ON_DUE_DATE",
-              label: "Don't show grades until due date passes",
-            },
-          ]}
-        />
-      </Section>
     </Modal>
+  );
+};
+
+const CanvasSetupContent = ({ assignment }) => {
+  if (!assignment) return null;
+  const assignmentName = assignment.name?.trim() || "this assignment";
+  const deepLinkUrl = buildCanvasExternalToolUrl(assignment.id);
+  const assignmentUrl = buildFeatureBenchAssignmentUrl(
+    assignment.courseId,
+    assignment.id
+  );
+
+  return (
+    <>
+      <Section title="Publish this assignment in Canvas">
+        <p style={{ marginTop: 0, color: "#4b5563" }}>
+          Use this checklist any time you want FeatureBench and Canvas to stay
+          in sync. Students will launch FeatureBench directly from Canvas using
+          the link below.
+        </p>
+      </Section>
+      <Section title="1. Build the Canvas assignment">
+        <ol>
+          <li>Open your Canvas course.</li>
+          <li>
+            Go to <strong>Assignments</strong> and click{" "}
+            <strong>+ Assignment</strong>.
+          </li>
+          <li>
+            Name it <strong>{assignmentName}</strong> (or something similar) so
+            students can recognize it.
+          </li>
+          <li>
+            Match the same point value and due date you set in FeatureBench.
+          </li>
+        </ol>
+      </Section>
+      <Section title="2. Configure the submission type">
+        <ol>
+          <li>
+            Change the <strong>Submission Type</strong> to{" "}
+            <strong>External Tool</strong>.
+          </li>
+          <li>
+            Paste the FeatureBench launch URL into the External Tool URL field.
+          </li>
+          <li>
+            Check the box labeled <strong>Load This Tool In A New Tab</strong>.
+          </li>
+        </ol>
+        <Input
+          label="External Tool URL"
+          value={deepLinkUrl}
+          readOnly
+          onFocus={(event) => event.target.select()}
+        />
+      </Section>
+      <Section title="3. Publish and test" last>
+        <p style={{ color: "#4b5563" }}>
+          Save the assignment in Canvas, then open it to finalize the
+          connection. Share this FeatureBench link if you need students to open
+          it directly.
+        </p>
+      </Section>
+    </>
   );
 };

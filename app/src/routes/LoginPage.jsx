@@ -1,14 +1,21 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Page } from "../components/page/Page";
 import { useAuthContext } from "../context/AuthContext";
 import { Input } from "../components/input/Input";
 import { Button } from "../components/button/Button";
 import styles from "./LoginPage.module.css";
 
+const sanitizeNextPath = (value) => {
+  if (!value || typeof value !== "string") return "/app";
+  if (!value.startsWith("/")) return "/app";
+  return value;
+};
+
 const LoginPage = () => {
   const { login, register, isLoggingIn, isRegistering, isAuthenticated } =
     useAuthContext();
+  const location = useLocation();
   const [mode, setMode] = useState("login");
   const [formError, setFormError] = useState(null);
   const [formState, setFormState] = useState({
@@ -81,8 +88,12 @@ const LoginPage = () => {
     [isRegisterMode]
   );
 
+  const searchParams = new URLSearchParams(location.search);
+  const nextParam = searchParams.get("next") || "";
+  const nextPath = sanitizeNextPath(nextParam);
+
   if (isAuthenticated) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to={nextPath} replace />;
   }
 
   return (

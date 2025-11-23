@@ -16,6 +16,7 @@ import { CourseDetails } from "./routes/course/CourseDetails";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
+import { CanvasLaunchPage } from "./routes/canvas/CanvasLaunchPage";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
@@ -41,6 +42,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AppLander />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/canvas/launch/:launchId"
+        element={
+          <ProtectedRoute>
+            <CanvasLaunchPage />
           </ProtectedRoute>
         }
       />

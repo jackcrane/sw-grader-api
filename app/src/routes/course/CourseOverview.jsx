@@ -8,6 +8,9 @@ export const CourseOverview = () => {
     courseId: enrollment.courseId,
     enrollmentType: enrollment.type,
   };
+  const hasCanvasIntegration = Boolean(
+    enrollment.course?.canvasIntegration?.id
+  );
 
   return (
     <div>
@@ -15,6 +18,7 @@ export const CourseOverview = () => {
         courseId={enrollment.courseId}
         enrollmentType={enrollment.type}
         detailsPane={<Outlet context={outletContext} />}
+        hasCanvasIntegration={hasCanvasIntegration}
       />
     </div>
   );

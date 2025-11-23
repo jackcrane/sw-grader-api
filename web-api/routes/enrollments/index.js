@@ -236,7 +236,17 @@ export const get = [
         },
       },
       include: {
-        course: true,
+        course: {
+          include: {
+            canvasIntegration: {
+              select: {
+                id: true,
+                canvasCourseId: true,
+                instanceUrl: true,
+              },
+            },
+          },
+        },
       },
     });
 
