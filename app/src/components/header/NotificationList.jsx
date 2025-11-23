@@ -36,6 +36,7 @@ export const NotificationList = ({
   notifications,
   actionState,
   onNotificationCta,
+  onNotificationDismiss,
 }) => {
   if (!notifications.length) {
     return (
@@ -57,13 +58,19 @@ export const NotificationList = ({
           notification={notification}
           actionState={actionState[notification.id] ?? {}}
           onNotificationCta={onNotificationCta}
+          onNotificationDismiss={onNotificationDismiss}
         />
       ))}
     </ul>
   );
 };
 
-const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
+const NotificationItem = ({
+  notification,
+  actionState,
+  onNotificationCta,
+  onNotificationDismiss,
+}) => {
   const Icon = getIconComponent(notification.type);
   const notificationData =
     notification && typeof notification.data === "object"
@@ -79,6 +86,11 @@ const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
     isPaymentAuthorization && actionState?.loading
       ? "Authorizing…"
       : baseLabel;
+  const showDismissButton =
+    notification.type === "CANVAS_POINTS_MISMATCH" &&
+    typeof onNotificationDismiss === "function";
+  const dismissLabel = actionState?.dismissing ? "Dismissing…" : "Dismiss";
+  const showActionArea = notificationData?.hasCta || showDismissButton;
 
   return (
     <li className={styles.notificationItem}>
@@ -91,16 +103,32 @@ const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
         </span>
         <p className={styles.notificationTitle}>{notification.title}</p>
         <p className={styles.notificationText}>{notification.content}</p>
-        {notificationData?.hasCta && (
+        {showActionArea && (
           <>
-            <button
-              type="button"
-              className={styles.notificationCta}
-              onClick={() => onNotificationCta(notification)}
-              disabled={Boolean(actionState?.loading)}
-            >
-              {ctaLabel}
-            </button>
+            <div className={styles.notificationActions}>
+              {notificationData?.hasCta && (
+                <button
+                  type="button"
+                  className={styles.notificationCta}
+                  onClick={() => onNotificationCta(notification)}
+                  disabled={Boolean(
+                    actionState?.loading || actionState?.dismissing
+                  )}
+                >
+                  {ctaLabel}
+                </button>
+              )}
+              {showDismissButton && (
+                <button
+                  type="button"
+                  className={styles.notificationDismiss}
+                  onClick={() => onNotificationDismiss(notification)}
+                  disabled={Boolean(actionState?.dismissing)}
+                >
+                  {dismissLabel}
+                </button>
+              )}
+            </div>
             {isPaymentAuthorization && actionState?.error && (
               <p className={styles.notificationActionError}>
                 {actionState.error}
@@ -109,6 +137,11 @@ const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
             {isPaymentAuthorization && actionState?.success && (
               <p className={styles.notificationActionSuccess}>
                 Payment authorized. Thanks for taking care of that!
+              </p>
+            )}
+            {showDismissButton && actionState?.dismissError && (
+              <p className={styles.notificationActionError}>
+                {actionState.dismissError}
               </p>
             )}
           </>

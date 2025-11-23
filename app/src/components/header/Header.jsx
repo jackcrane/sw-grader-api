@@ -16,6 +16,7 @@ import { usePaymentAuthorization } from "../../hooks/usePaymentAuthorization";
 import { NotificationBell } from "./NotificationBell";
 import { ProfileMenu } from "./ProfileMenu";
 import { PaymentAuthorizationModal } from "./PaymentAuthorizationModal";
+import { fetchJson } from "../../utils/fetchJson";
 
 const appendEditAssignmentModalParam = (href) => {
   if (!href) return href;
@@ -41,6 +42,7 @@ export const Header = () => {
   const { enrollments } = useEnrollments({ enabled: Boolean(user) });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [dismissActions, setDismissActions] = useState({});
 
   const {
     notifications,
@@ -158,6 +160,73 @@ export const Header = () => {
     [authorizePaymentNotification, closeNotifications, navigate]
   );
 
+  const updateDismissState = useCallback((notificationId, updates) => {
+    if (!notificationId) return;
+    setDismissActions((prev) => ({
+      ...prev,
+      [notificationId]: {
+        ...(prev[notificationId] ?? {}),
+        ...updates,
+      },
+    }));
+  }, []);
+
+  const clearDismissState = useCallback((notificationId) => {
+    if (!notificationId) return;
+    setDismissActions((prev) => {
+      if (!prev[notificationId]) return prev;
+      const next = { ...prev };
+      delete next[notificationId];
+      return next;
+    });
+  }, []);
+
+  const handleNotificationDismiss = useCallback(
+    async (notification) => {
+      const notificationId = notification?.id;
+      if (!notificationId) return false;
+
+      updateDismissState(notificationId, {
+        dismissing: true,
+        dismissError: null,
+      });
+
+      try {
+        await fetchJson(`/api/notifications/${notificationId}`, {
+          method: "DELETE",
+        });
+        clearDismissState(notificationId);
+        await refreshNotifications();
+        return true;
+      } catch (error) {
+        updateDismissState(notificationId, {
+          dismissing: false,
+          dismissError:
+            error?.info?.error ||
+            error?.info?.message ||
+            error?.message ||
+            "Unable to dismiss notification.",
+        });
+        return false;
+      }
+    },
+    [clearDismissState, refreshNotifications, updateDismissState]
+  );
+
+  const combinedActionState = useMemo(() => {
+    if (!dismissActions || !Object.keys(dismissActions).length) {
+      return notificationActions;
+    }
+    const nextState = { ...notificationActions };
+    Object.entries(dismissActions).forEach(([notificationId, state]) => {
+      nextState[notificationId] = {
+        ...(nextState[notificationId] ?? {}),
+        ...state,
+      };
+    });
+    return nextState;
+  }, [dismissActions, notificationActions]);
+
   const handleAuthorizationSuccessInModal = useCallback(
     async (notificationId) => {
       await handleModalSuccess(notificationId);
@@ -191,7 +260,8 @@ export const Header = () => {
                   notifications={notifications}
                   onRefresh={refreshNotifications}
                   onNotificationCta={handleNotificationCta}
-                  actionState={notificationActions}
+                  onNotificationDismiss={handleNotificationDismiss}
+                  actionState={combinedActionState}
                 />
                 <ProfileMenu
                   user={user}

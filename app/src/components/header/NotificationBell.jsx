@@ -13,6 +13,7 @@ export const NotificationBell = ({
   notifications,
   onRefresh,
   onNotificationCta,
+  onNotificationDismiss,
   actionState,
 }) => {
   const containerRef = useRef(null);
@@ -65,6 +66,7 @@ export const NotificationBell = ({
           hasPending={hasPending}
           onRefresh={onRefresh}
           onNotificationCta={onNotificationCta}
+          onNotificationDismiss={onNotificationDismiss}
           actionState={actionState}
         />
       )}

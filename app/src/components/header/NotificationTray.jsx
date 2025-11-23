@@ -9,6 +9,7 @@ export const NotificationTray = ({
   hasPending,
   onRefresh,
   onNotificationCta,
+  onNotificationDismiss,
   actionState,
 }) => {
   const renderBody = () => {
@@ -40,6 +41,7 @@ export const NotificationTray = ({
         notifications={notifications}
         actionState={actionState}
         onNotificationCta={onNotificationCta}
+        onNotificationDismiss={onNotificationDismiss}
       />
     );
   };

@@ -252,8 +252,15 @@
   color: rgba(15, 23, 42, 0.85);
 }
 
-.notificationCta {
+.notificationActions {
   margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.notificationCta {
   border: none;
   background: var(--primary);
   color: var(--primary-contrast-primary);
@@ -264,8 +271,32 @@
   font-size: 0.8rem;
 }
 
-.notificationCta:hover {
+.notificationCta:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.notificationCta:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.notificationDismiss {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.notificationDismiss:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notificationDismiss:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .notificationEmpty {
