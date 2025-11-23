@@ -181,46 +181,52 @@ export const get = [
       mismatchReasons,
     });
     if (mismatchReasons.length) {
-      const existingMismatchRecord = await findEntitlementMismatchRecord({
-        assignmentId: launch.assignment.id,
-        userId,
-      });
-      await upsertEntitlementMismatchRecord({
-        assignmentId: launch.assignment.id,
-        courseId: launch.assignment.courseId,
-        userId,
-        reasons: mismatchReasons,
-        context: {
-          launchCanvasUserId,
-          storedCanvasUserId,
-          canvasRoleCategory,
-          featureBenchRoleCategory,
-          canvasRoles: launch.canvasRoles ?? null,
-          canvasExtRoles: launch.canvasExtRoles ?? null,
-        },
-        notified: existingMismatchRecord?.notified ?? false,
-      });
-      const shouldNotifyInstructor = !existingMismatchRecord?.notified;
-      if (shouldNotifyInstructor) {
-        await notifyTeachersOfPersistentEntitlementMismatch({
-          assignment: launch.assignment,
-          courseName: launch.assignment.course?.name ?? null,
-          user: req.user,
-          requestCanvasUserId: launchCanvasUserId,
-          storedCanvasUserId,
-          canvasRoleCategory,
-          featureBenchRoleCategory,
-        });
-        await markEntitlementMismatchNotified({
+      const isMissingEnrollmentOnly =
+        mismatchReasons.length === 1 &&
+        mismatchReasons[0] === "missing_enrollment";
+      if (!isMissingEnrollmentOnly) {
+        const existingMismatchRecord = await findEntitlementMismatchRecord({
           assignmentId: launch.assignment.id,
           userId,
         });
+        await upsertEntitlementMismatchRecord({
+          assignmentId: launch.assignment.id,
+          courseId: launch.assignment.courseId,
+          userId,
+          reasons: mismatchReasons,
+          context: {
+            launchCanvasUserId,
+            storedCanvasUserId,
+            canvasRoleCategory,
+            featureBenchRoleCategory,
+            canvasRoles: launch.canvasRoles ?? null,
+            canvasExtRoles: launch.canvasExtRoles ?? null,
+          },
+          notified: existingMismatchRecord?.notified ?? false,
+        });
+        const shouldNotifyInstructor = !existingMismatchRecord?.notified;
+        if (shouldNotifyInstructor) {
+          await notifyTeachersOfPersistentEntitlementMismatch({
+            assignment: launch.assignment,
+            courseName: launch.assignment.course?.name ?? null,
+            user: req.user,
+            requestCanvasUserId: launchCanvasUserId,
+            storedCanvasUserId,
+            canvasRoleCategory,
+            featureBenchRoleCategory,
+          });
+          await markEntitlementMismatchNotified({
+            assignmentId: launch.assignment.id,
+            userId,
+          });
+        }
+        res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions);
       }
-      res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions);
       return res.status(403).json({
-        error: "role_mismatch",
-        message:
-          "Canvas says you have staff access, but your FeatureBench enrollment does not. Ask your instructor to update your enrollment before launching again.",
+        error: isMissingEnrollmentOnly ? "missing_enrollment" : "role_mismatch",
+        message: isMissingEnrollmentOnly
+          ? "FeatureBench could not find your enrollment for this course. Check your syllabus or reach out to an instructor for help accessing the assignment."
+          : "Canvas says you have staff access, but your FeatureBench enrollment does not. Ask your instructor to update your enrollment before launching again.",
       });
     }
     await clearEntitlementMismatchRecord({

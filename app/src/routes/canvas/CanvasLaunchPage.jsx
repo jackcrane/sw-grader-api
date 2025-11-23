@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { Page } from "../../components/page/Page";
 import { Spacer } from "../../components/spacer/Spacer";
 import { Button } from "../../components/button/Button";
@@ -33,17 +34,20 @@ export const CanvasLaunchPage = () => {
         }
         setStatus("error");
         console.error("[Canvas Launch] Failed to consume launch token", err);
-        setError(
+        const message =
           err?.info?.message ||
-            "We couldn’t continue from Canvas. Try again or return to your courses."
-        );
+          "We couldn’t continue from Canvas. Try again or return to your courses.";
+        setError(message);
+        toast.error(message);
       }
     };
     if (launchId) {
       consumeLaunch();
     } else {
       setStatus("error");
-      setError("Missing Canvas launch identifier.");
+      const message = "Missing Canvas launch identifier.";
+      setError(message);
+      toast.error(message);
       console.error("[Canvas Launch] Missing launchId in route params.");
     }
     return () => {
