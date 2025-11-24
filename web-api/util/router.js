@@ -4,6 +4,7 @@ import path from "path";
 import { pathToFileURL } from "url";
 // eslint-disable-next-line no-unused-vars
 import express from "express";
+import * as Sentry from "@sentry/node";
 
 const respondWithInternalError = (error, req, res, next) => {
   // Preserve default Express error handling if headers already sent
@@ -15,6 +16,14 @@ const respondWithInternalError = (error, req, res, next) => {
     req?.originalUrl ?? ""
   }`.trim();
   console.error(`Unhandled error in route ${routeLabel}`, error);
+  if (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("route", routeLabel || "unknown");
+      if (req?.headers?.host) scope.setTag("host", req.headers.host);
+      scope.setExtra("requestId", req?.id);
+      Sentry.captureException(error);
+    });
+  }
 
   // Default JSON response for API routes
   return res.status(500).json({ error: "Internal server error." });

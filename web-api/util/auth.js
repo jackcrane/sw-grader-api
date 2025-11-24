@@ -39,7 +39,9 @@ export const createSessionToken = (userOrId) => {
   if (!userId) {
     throw new Error("A user ID is required to create a session");
   }
-  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: SESSION_TTL_SECONDS });
+  return jwt.sign({ userId }, getJwtSecret(), {
+    expiresIn: SESSION_TTL_SECONDS,
+  });
 };
 
 export const acceptsJson = (req) => {
