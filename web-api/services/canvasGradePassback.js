@@ -22,6 +22,14 @@ const truncate = (value, length = 400) => {
   return `${str.slice(0, length - 3)}...`;
 };
 
+const escapeXml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+
 const buildResultXml = ({
   resultSourcedId,
   normalizedScore,
@@ -29,75 +37,121 @@ const buildResultXml = ({
   pointsPossible,
 }) => {
   const score = normalizedScore ?? 0;
-  const scoreText = Number(score).toFixed(5);
+  const scoreText = escapeXml(Number(score).toFixed(5));
   const gradeLabel =
     Number.isFinite(grade) && Number.isFinite(pointsPossible)
       ? `${grade}/${pointsPossible}`
-      : grade ?? "0";
+      : String(grade ?? "0");
+  const safeGradeLabel = gradeLabel ? escapeXml(gradeLabel) : null;
+
   const messageIdentifier = `featurebench-${Date.now()}-${crypto.randomUUID()}`;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<imsx_POXEnvelopeRequest xmlns="http://www.imsglobal.org/lis/oms1p0/pox">\n  <imsx_POXHeader>\n    <imsx_POXRequestHeaderInfo>\n      <imsx_version>V1.0</imsx_version>\n      <imsx_messageIdentifier>${messageIdentifier}</imsx_messageIdentifier>\n    </imsx_POXRequestHeaderInfo>\n  </imsx_POXHeader>\n  <imsx_POXBody>\n    <replaceResultRequest>\n      <resultRecord>\n        <sourcedGUID>\n          <sourcedId>${resultSourcedId}</sourcedId>\n        </sourcedGUID>\n        <result>\n          <resultScore>\n            <language>en</language>\n            <textString>${scoreText}</textString>\n          </resultScore>\n          <resultData>\n            <textString>${gradeLabel}</textString>\n          </resultData>\n        </result>\n      </resultRecord>\n    </replaceResultRequest>\n  </imsx_POXBody>\n</imsx_POXEnvelopeRequest>`;
+  const safeMessageId = escapeXml(messageIdentifier);
+  const safeSourcedId = escapeXml(resultSourcedId);
+
+  const resultDataXml = safeGradeLabel
+    ? `
+          <resultData>
+            <text>${safeGradeLabel}</text>
+          </resultData>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<imsx_POXEnvelopeRequest xmlns="http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
+  <imsx_POXHeader>
+    <imsx_POXRequestHeaderInfo>
+      <imsx_version>V1.0</imsx_version>
+      <imsx_messageIdentifier>${safeMessageId}</imsx_messageIdentifier>
+    </imsx_POXRequestHeaderInfo>
+  </imsx_POXHeader>
+  <imsx_POXBody>
+    <replaceResultRequest>
+      <resultRecord>
+        <sourcedGUID>
+          <sourcedId>${safeSourcedId}</sourcedId>
+        </sourcedGUID>
+        <result>
+          <resultScore>
+            <language>en</language>
+            <textString>${scoreText}</textString>
+          </resultScore>
+          ${resultDataXml}
+        </result>
+      </resultRecord>
+    </replaceResultRequest>
+  </imsx_POXBody>
+</imsx_POXEnvelopeRequest>`;
 };
 
-const buildOAuthHeader = ({
-  url,
-  body,
-  consumerKey,
-  consumerSecret,
-}) => {
-  if (!consumerKey || !consumerSecret) {
-    throw Object.assign(new Error("Canvas consumer credentials missing."), {
-      retryable: false,
-    });
-  }
+const buildOAuthHeader = ({ url, body, consumerKey, consumerSecret }) => {
   const parsedUrl = new URL(url);
-  const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`;
-  const parameters = [];
-  parsedUrl.searchParams.forEach((value, key) => {
-    parameters.push([key, value]);
-  });
+  const baseUrl = `${parsedUrl.origin}${parsedUrl.pathname}`;
+
+  // EXACT BODY HASH used by Canvas
+  const oauth_body_hash = crypto
+    .createHash("sha1")
+    .update(Buffer.from(body, "utf8"))
+    .digest("base64");
+
   const oauthParams = {
     oauth_consumer_key: consumerKey,
     oauth_nonce: crypto.randomBytes(16).toString("hex"),
     oauth_signature_method: "HMAC-SHA1",
     oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
     oauth_version: "1.0",
-    oauth_body_hash: crypto
-      .createHash("sha1")
-      .update(body)
-      .digest("base64"),
+    oauth_body_hash,
   };
+
+  // collect ALL params for signature (Canvas requires this)
+  const params = [];
+
+  // query params
+  parsedUrl.searchParams.forEach((value, key) => {
+    params.push([key, value]);
+  });
+
+  // OAuth params
   Object.entries(oauthParams).forEach(([key, value]) => {
-    parameters.push([key, value]);
+    params.push([key, value]);
   });
-  const sorted = parameters.sort((a, b) => {
-    if (a[0] === b[0]) {
-      return a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0;
+
+  // sort (OAuth spec)
+  params.sort(([aKey, aValue], [bKey, bValue]) => {
+    if (aKey === bKey) {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
     }
-    return a[0] < b[0] ? -1 : 1;
+    return aKey < bKey ? -1 : 1;
   });
-  const parameterString = sorted
+
+  const parameterString = params
     .map(([key, value]) => `${percentEncode(key)}=${percentEncode(value)}`)
     .join("&");
+
   const baseString = [
     "POST",
     percentEncode(baseUrl),
     percentEncode(parameterString),
   ].join("&");
+
   const signingKey = `${percentEncode(consumerSecret)}&`;
-  const oauthSignature = crypto
+
+  const oauth_signature = crypto
     .createHmac("sha1", signingKey)
     .update(baseString)
     .digest("base64");
-  const finalParams = {
-    ...oauthParams,
-    oauth_signature: oauthSignature,
-  };
-  const headerValue =
-    "OAuth " +
-    Object.entries(finalParams)
-      .map(([key, value]) => `${percentEncode(key)}="${percentEncode(value)}"`)
+
+  // DO NOT percent-encode oauth_body_hash
+  const authorizationHeader =
+    `OAuth realm="", ` +
+    Object.entries({ ...oauthParams, oauth_signature })
+      .map(([key, value]) => {
+        if (key === "oauth_body_hash") {
+          return `${key}="${value}"`;
+        }
+        return `${key}="${percentEncode(value)}"`;
+      })
       .join(", ");
-  return headerValue;
+
+  return authorizationHeader;
 };
 
 const sendCanvasOutcomeRequest = async ({
@@ -106,7 +160,7 @@ const sendCanvasOutcomeRequest = async ({
   consumerKey,
   consumerSecret,
 }) => {
-  const authorization = buildOAuthHeader({
+  const auth = buildOAuthHeader({
     url: outcomeUrl,
     body,
     consumerKey,
@@ -116,25 +170,37 @@ const sendCanvasOutcomeRequest = async ({
   const response = await fetch(outcomeUrl, {
     method: "POST",
     headers: {
-      Authorization: authorization,
+      Authorization: auth,
       "Content-Type": "application/xml",
     },
-    body,
+    body: Buffer.from(body, "utf8"), // critical
   });
 
-  const responseText = await response.text();
-  const success =
-    response.ok && /<imsx_codeMajor>\s*success\s*<\/imsx_codeMajor>/i.test(responseText);
-  if (!success) {
-    const error = new Error(
+  const text = await response.text();
+
+  const ok =
+    response.ok &&
+    /<imsx_codeMajor>\s*success\s*<\/imsx_codeMajor>/i.test(text);
+
+  if (!ok) {
+    console.log("[Canvas Sync] Canvas grade sync failed.", {
+      outcomeUrl,
+      auth,
+      body,
+      response: text,
+    });
+
+    console.log(response.status, response.statusText);
+
+    const err = new Error(
       response.ok
         ? "Canvas outcome service responded with failure."
-        : `Canvas outcome service HTTP ${response.status}`
+        : `HTTP ${response.status}`
     );
-    error.response = truncate(responseText, 500);
-    error.status = response.status;
-    error.retryable = !response.ok && response.status >= 500;
-    throw error;
+    err.response = truncate(text);
+    err.status = response.status;
+    err.retryable = response.status >= 500;
+    throw err;
   }
 };
 
@@ -190,6 +256,7 @@ const buildNormalizedScore = (grade, pointsPossible) => {
 };
 
 const processCanvasGradeJob = async ({ submissionId }) => {
+  console.log(`[Canvas Sync] Worker processing submission ${submissionId}.`);
   const submission = await prisma.submission.findFirst({
     where: { id: submissionId, deleted: false },
     include: {
@@ -203,6 +270,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
     },
   });
   if (!submission) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} missing when worker ran; skipping.`
+    );
     return markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Submission no longer available.",
@@ -210,6 +280,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
   }
 
   if (submission.grade == null) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} no longer graded; skipping.`
+    );
     return markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Submission has no grade to sync.",
@@ -218,6 +291,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
 
   const courseId = submission.assignment?.courseId;
   if (!courseId) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} missing course context during worker run.`
+    );
     return markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Assignment is missing course context.",
@@ -228,6 +304,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
     where: { courseId },
   });
   if (!integration || !integration.clientId || !integration.clientSecret) {
+    console.warn(
+      `[Canvas Sync] Course ${courseId} still missing Canvas credentials for submission ${submissionId}.`
+    );
     return markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Canvas integration is not configured.",
@@ -252,6 +331,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
   }
 
   if (!resultSourcedId || !outcomeUrl) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} lacks Canvas launch metadata during worker run.`
+    );
     return markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Canvas launch metadata not found.",
@@ -291,14 +373,22 @@ const processCanvasGradeJob = async ({ submissionId }) => {
       canvasGradeSyncedAt: new Date(),
       canvasGradeSyncError: null,
     });
+    console.log(
+      `[Canvas Sync] Submission ${submissionId} successfully synced to Canvas.`
+    );
   } catch (error) {
     const message =
-      truncate(error?.response) || truncate(error?.message) ||
+      truncate(error?.response) ||
+      truncate(error?.message) ||
       "Canvas grade sync failed.";
     await markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "FAILED",
       canvasGradeSyncError: message,
     });
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} failed to sync to Canvas: ${message}`,
+      error
+    );
     const shouldRetry =
       (error?.retryable !== false && attemptNumber < MAX_ATTEMPTS) || false;
     const failure = new Error(message);
@@ -309,6 +399,9 @@ const processCanvasGradeJob = async ({ submissionId }) => {
 
 export const scheduleCanvasGradeSync = async (submissionId) => {
   if (!submissionId) return;
+  console.log(
+    `[Canvas Sync] Scheduling submission ${submissionId} for Canvas grade passback.`
+  );
   const submission = await prisma.submission.findFirst({
     where: { id: submissionId, deleted: false },
     include: {
@@ -321,11 +414,17 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
     },
   });
   if (!submission || submission.grade == null) {
+    console.log(
+      `[Canvas Sync] Submission ${submissionId} missing data or not graded; skipping schedule.`
+    );
     return;
   }
 
   const courseId = submission.assignment?.courseId;
   if (!courseId) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} missing course context; marking as skipped.`
+    );
     await markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Assignment is missing course context.",
@@ -337,6 +436,9 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
     where: { courseId },
   });
   if (!integration || !integration.clientId || !integration.clientSecret) {
+    console.warn(
+      `[Canvas Sync] Course ${courseId} missing Canvas credentials; cannot sync submission ${submissionId}.`
+    );
     await markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Canvas integration is not configured.",
@@ -351,9 +453,14 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
   const resultSourcedId =
     submission.canvasResultSourcedId || launch?.canvasResultSourcedId || null;
   const outcomeUrl =
-    submission.canvasOutcomeServiceUrl || launch?.canvasOutcomeServiceUrl || null;
+    submission.canvasOutcomeServiceUrl ||
+    launch?.canvasOutcomeServiceUrl ||
+    null;
 
   if (!resultSourcedId || !outcomeUrl) {
+    console.warn(
+      `[Canvas Sync] Submission ${submissionId} missing Canvas outcome metadata; skipping.`
+    );
     await markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "SKIPPED",
       canvasGradeSyncError: "Canvas launch metadata not found.",
@@ -376,10 +483,14 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
 
   try {
     await enqueueCanvasGradeJob({ submissionId });
+    console.log(
+      `[Canvas Sync] Submission ${submissionId} queued for Canvas grade worker.`
+    );
   } catch (error) {
     await markSubmissionState(submissionId, {
       canvasGradeSyncStatus: "FAILED",
-      canvasGradeSyncError: truncate(error?.message) || "Failed to queue Canvas sync.",
+      canvasGradeSyncError:
+        truncate(error?.message) || "Failed to queue Canvas sync.",
     });
     console.warn(
       `Failed to enqueue Canvas grade sync for submission ${submissionId}`,
@@ -393,6 +504,7 @@ let workerStarted = false;
 export const startCanvasGradePassbackWorker = async () => {
   if (workerStarted) return;
   workerStarted = true;
+  console.log("[Canvas Sync] Starting Canvas grade passback worker.");
   consumeCanvasGradeJobs(async (job) => {
     await processCanvasGradeJob(job);
   }).catch((error) => {
