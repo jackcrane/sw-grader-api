@@ -56,7 +56,8 @@ export const post = [
   verifyGraderSecret,
   async (req, res) => {
     const { submissionId } = req.params;
-    const { volume, surfaceArea, screenshot, error } = req.body ?? {};
+    const { volume, surfaceArea, screenshot, error, featureTree } =
+      req.body ?? {};
 
     if (!submissionId) {
       return res.status(400).json({ error: "Submission id is required." });
@@ -65,6 +66,8 @@ export const post = [
     const normalizedError =
       typeof error === "string" ? error.trim() : "";
     const failureOnly = normalizedError.length > 0;
+    const featureTreePayload =
+      featureTree === undefined ? null : featureTree;
 
     const measuredVolume = Number(volume);
     const measuredSurfaceArea = Number(surfaceArea);
@@ -111,6 +114,7 @@ export const post = [
             matchingSignatureId: null,
             screenshotKey: null,
             screenshotUrl: null,
+            featureTree: null,
           },
         });
 
@@ -165,6 +169,7 @@ export const post = [
           matchingSignatureId: evaluation.matchingSignatureId ?? null,
           screenshotKey,
           screenshotUrl,
+          featureTree: featureTreePayload,
         },
       });
 

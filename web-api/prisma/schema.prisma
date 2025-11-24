@@ -121,6 +121,7 @@ model Submission {
   fileName String?
   screenshotKey String?
   screenshotUrl String?
+  featureTree Json?
 
   grade Float?
   feedback String?
