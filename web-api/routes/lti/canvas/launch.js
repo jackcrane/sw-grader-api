@@ -94,10 +94,16 @@ const isStaffLaunch = (body) => {
 
 const upsertCanvasIntegration = async ({ courseId, consumerKey, body }) => {
   const instanceUrl = resolveInstanceUrl(body);
+  const existingIntegration = await prisma.canvasIntegration.findUnique({
+    where: { courseId },
+  });
+
+  const resolvedClientSecret =
+    existingIntegration?.clientSecret || consumerKey;
+
   const integrationData = {
     instanceUrl,
     clientId: consumerKey,
-    clientSecret: consumerKey,
     canvasCourseId:
       body.custom_canvas_course_id ||
       body.context_id ||
@@ -114,6 +120,7 @@ const upsertCanvasIntegration = async ({ courseId, consumerKey, body }) => {
       body.tool_consumer_info_product_family_code ||
       null,
     developerKey: body.tool_consumer_instance_name || null,
+    clientSecret: resolvedClientSecret,
   };
 
   await prisma.canvasIntegration.upsert({

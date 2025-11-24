@@ -482,6 +482,7 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
   });
 
   try {
+    await startCanvasGradePassbackWorker();
     await enqueueCanvasGradeJob({ submissionId });
     console.log(
       `[Canvas Sync] Submission ${submissionId} queued for Canvas grade worker.`
@@ -501,7 +502,7 @@ export const scheduleCanvasGradeSync = async (submissionId) => {
 
 let workerStarted = false;
 
-export const startCanvasGradePassbackWorker = async () => {
+export async function startCanvasGradePassbackWorker() {
   if (workerStarted) return;
   workerStarted = true;
   console.log("[Canvas Sync] Starting Canvas grade passback worker.");
@@ -511,4 +512,4 @@ export const startCanvasGradePassbackWorker = async () => {
     workerStarted = false;
     console.error("Canvas grade worker crashed", error);
   });
-};
+}

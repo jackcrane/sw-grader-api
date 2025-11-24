@@ -99,6 +99,9 @@ export const enqueueCanvasGradeJob = async (payload) => {
   }
   await startCanvasGradeQueue();
   const channel = await getPublishChannel();
+  console.log(
+    `[Canvas Sync] Enqueuing submission ${payload.submissionId} for Canvas grade passback.`
+  );
   channel.sendToQueue(
     CANVAS_GRADE_QUEUE_NAME,
     Buffer.from(JSON.stringify(payload)),
@@ -127,6 +130,9 @@ export const consumeCanvasGradeJobs = async (handler) => {
     }
 
     try {
+      console.log(
+        `[Canvas Sync] Processing Canvas grade job for submission ${job.submissionId}.`
+      );
       await handler(job);
       channel.ack(msg);
     } catch (error) {
