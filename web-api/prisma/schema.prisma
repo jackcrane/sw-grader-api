@@ -28,6 +28,8 @@ model User {
   notifications Notification[]
   canCreateCourses Boolean @default(false)
   deleted     Boolean  @default(false)
+
+  passwordResetTokens PasswordResetToken[]
 }
 
 
@@ -178,4 +180,16 @@ enum NotificationType {
   ASSIGNMENT_POSTED
   PAYMENT_ISSUE
   OTHER
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

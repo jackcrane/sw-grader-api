@@ -16,6 +16,8 @@ import { CourseDetails } from "./routes/course/CourseDetails";
 import { AuthProvider, useAuthContext } from "./context/AuthContext";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
+import ForgotPasswordPage from "./routes/ForgotPasswordPage";
+import ResetPasswordPage from "./routes/ResetPasswordPage";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
@@ -36,6 +38,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/app"
         element={
@@ -45,7 +49,7 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/:courseId/*"
+        path="/:courseId(c[a-z0-9]{8,})/*"
         element={
           <ProtectedRoute>
             <CourseLayout />

@@ -113,8 +113,11 @@ export const CourseLayout = () => {
     }
   };
 
-  const assignmentsRootMatch = useMatch({ path: "/:courseId", end: true });
-  const assignmentsDetailsMatch = useMatch("/:courseId/assignments/*");
+  const coursePathPattern = "/:courseId(c[a-z0-9]{8,})";
+  const assignmentsRootMatch = useMatch({ path: coursePathPattern, end: true });
+  const assignmentsDetailsMatch = useMatch(
+    `${coursePathPattern}/assignments/*`
+  );
   const isAssignmentsActive = Boolean(
     assignmentsRootMatch || assignmentsDetailsMatch
   );

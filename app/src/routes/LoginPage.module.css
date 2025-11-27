@@ -44,10 +44,29 @@
 }
 
 .actions {
-  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.notice {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #2563eb) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 35%, transparent);
+  color: var(--accent, #2563eb);
+  font-weight: 500;
+}
+
+.secondaryAction {
+  margin-top: 8px;
+  text-align: right;
+}
+
+.secondaryAction a {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .toggle {

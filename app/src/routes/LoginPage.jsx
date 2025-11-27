@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Page } from "../components/page/Page";
 import { useAuthContext } from "../context/AuthContext";
 import { Input } from "../components/input/Input";
@@ -140,12 +140,17 @@ const LoginPage = () => {
                 {formError}
               </div>
             )}
+            {!isRegisterMode && (
+              <div className={styles.secondaryAction}>
+                <Link to="/forgot-password">Forgot your password?</Link>
+              </div>
+            )}
             <div className={styles.actions}>
               <Button
                 type="submit"
                 variant="primary"
                 disabled={isSubmitting}
-                aria-busy={isSubmitting}
+                isLoading={isSubmitting}
               >
                 {isSubmitting
                   ? isRegisterMode
