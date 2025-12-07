@@ -113,7 +113,7 @@ export const CourseLayout = () => {
     }
   };
 
-  const coursePathPattern = "/:courseId(c[a-z0-9]{8,})";
+  const coursePathPattern = "/:courseId";
   const assignmentsRootMatch = useMatch({ path: coursePathPattern, end: true });
   const assignmentsDetailsMatch = useMatch(
     `${coursePathPattern}/assignments/*`

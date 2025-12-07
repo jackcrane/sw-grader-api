@@ -49,7 +49,7 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/:courseId(c[a-z0-9]{8,})/*"
+        path="/:courseId/*"
         element={
           <ProtectedRoute>
             <CourseLayout />

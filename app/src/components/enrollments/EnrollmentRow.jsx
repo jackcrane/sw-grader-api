@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Row } from "../flex/Flex";
 import styles from "./EnrollmentRow.module.css";
 
@@ -9,31 +10,39 @@ export const EnrollmentRow = ({ enrollment }) => {
   const typeLabel = enrollment.type ? enrollment.type.toLowerCase() : null;
   const courseId = enrollment.course?.id ?? enrollment.courseId ?? null;
 
-  return (
-    <a
-      href={courseId ? `/${courseId}` : undefined}
-      className={styles.row}
-      aria-disabled={!courseId}
-    >
-      <Row justify="space-between" align="center">
-        <div>
-          <div style={{ fontWeight: 600 }}>{courseName}</div>
-          {courseAbbr && (
-            <div style={{ fontSize: 12, color: "#555" }}>{courseAbbr}</div>
-          )}
-        </div>
-        {typeLabel && (
-          <div
-            style={{
-              fontSize: 12,
-              textTransform: "capitalize",
-              color: "#555",
-            }}
-          >
-            {typeLabel}
-          </div>
+  const rowBody = (
+    <Row justify="space-between" align="center">
+      <div>
+        <div style={{ fontWeight: 600 }}>{courseName}</div>
+        {courseAbbr && (
+          <div style={{ fontSize: 12, color: "#555" }}>{courseAbbr}</div>
         )}
-      </Row>
-    </a>
+      </div>
+      {typeLabel && (
+        <div
+          style={{
+            fontSize: 12,
+            textTransform: "capitalize",
+            color: "#555",
+          }}
+        >
+          {typeLabel}
+        </div>
+      )}
+    </Row>
+  );
+
+  if (!courseId) {
+    return (
+      <div className={styles.row} aria-disabled="true">
+        {rowBody}
+      </div>
+    );
+  }
+
+  return (
+    <Link to={`/${courseId}`} className={styles.row}>
+      {rowBody}
+    </Link>
   );
 };
