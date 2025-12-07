@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { Link, NavLink, useParams } from "react-router-dom";
 import classNames from "classnames";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
 import styles from "./AssignmentList.module.css";
@@ -26,6 +26,7 @@ export const AssignmentList = ({
   const [assignmentBeingEdited, setAssignmentBeingEdited] = useState(null);
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
   const { assignmentId: activeAssignmentId } = useParams();
+  const isAssignmentSelected = Boolean(activeAssignmentId);
 
   const handleCreateAssignment = async (payload) => {
     await createAssignment(payload);
@@ -63,7 +64,12 @@ export const AssignmentList = ({
 
   return (
     <>
-      <div className={styles.list}>
+      <div
+        className={classNames(styles.list, {
+          [styles.listModeDetail]: isAssignmentSelected,
+          [styles.listModeList]: !isAssignmentSelected,
+        })}
+      >
         <div className={classNames(styles.side, styles.left)}>
           {canManageAssignments && (
             <div
@@ -147,6 +153,13 @@ export const AssignmentList = ({
           })}
         </div>
         <div className={classNames(styles.side, styles.right)}>
+          {isAssignmentSelected && (
+            <div className={styles.mobileBack}>
+              <Link to={`/${courseId}`} className={styles.backLink}>
+                ← Back to assignments
+              </Link>
+            </div>
+          )}
           {detailsPane || (
             <div className={styles.emptyState}>
               Select an assignment to view details
