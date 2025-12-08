@@ -160,7 +160,11 @@ export const get = [
 
     const canViewStats = ["TEACHER", "TA"].includes(enrollment.type);
     const stats = canViewStats
-      ? await getSubmissionStats(courseId, assignmentId, assignment.pointsPossible)
+      ? await getSubmissionStats(
+          courseId,
+          assignmentId,
+          assignment.pointsPossible
+        )
       : null;
 
     const teacherSubmissionsRaw = canViewStats
@@ -225,11 +229,7 @@ export const get = [
       const latestSubmissions = Array.from(submissionsByUser.values())
         .map((entry) => entry.latest)
         .filter(Boolean)
-        .sort(
-          (a, b) =>
-            getSubmissionTimestamp(b) -
-            getSubmissionTimestamp(a)
-        );
+        .sort((a, b) => getSubmissionTimestamp(b) - getSubmissionTimestamp(a));
 
       const signedSubmissions = await withSignedAssetUrlsMany(
         latestSubmissions

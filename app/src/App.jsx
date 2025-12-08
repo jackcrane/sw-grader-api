@@ -18,17 +18,21 @@ import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
 import ForgotPasswordPage from "./routes/ForgotPasswordPage";
 import ResetPasswordPage from "./routes/ResetPasswordPage";
+import {
+  FeatureTree,
+  testTreeData,
+} from "./components/featureTree/FeatureTree";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
 
-  if (auth.isLoading) {
-    return (
-      <Page title="FeatureBench – Checking your session">
-        Checking your session…
-      </Page>
-    );
-  }
+  // if (auth.isLoading) {
+  //   return (
+  //     <Page title="FeatureBench – Checking your session">
+  //       Checking your session…
+  //     </Page>
+  //   );
+  // }
 
   if (auth.error) {
     return <ErrorScreen error={auth.error} />;
@@ -40,6 +44,7 @@ const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/test" element={<FeatureTree data={testTreeData} />} />
       <Route
         path="/app"
         element={
