@@ -57,6 +57,15 @@
   text-align: left;
 }
 
+.assignmentHeaderLink {
+  display: block;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--body-contrast-primary);
+  text-underline-offset: 4px;
+  color: inherit;
+}
+
 .gradeCell {
   background: var(--surface);
   transition: background 0.2s ease;
@@ -117,6 +126,14 @@
   color: var(--body-contrast-primary);
 }
 
+.studentLink {
+  display: block;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--body-contrast-primary);
+  text-underline-offset: 4px;
+}
+
 .studentMeta {
   display: block;
   color: var(--body-contrast-secondary);
@@ -152,6 +169,38 @@
   font-size: 0.8rem;
   color: var(--body-contrast-secondary);
   margin-top: 2px;
+}
+
+.gradeCellInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gradeCellDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.gradeCellIcon {
+  border: none;
+  background: transparent;
+  color: var(--body-contrast-secondary);
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.gradeCellIcon:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.gradeCellIcon:not(:disabled):hover {
+  background: color-mix(in srgb, var(--border) 10%, transparent);
 }
 
 .averageCell {

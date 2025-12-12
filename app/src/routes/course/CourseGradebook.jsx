@@ -1,10 +1,13 @@
 import classNames from "classnames";
-import React, { useMemo } from "react";
-import { Navigate, useOutletContext } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { Link, Navigate, useOutletContext } from "react-router-dom";
+import { Prohibit, Hourglass, SignOut } from "@phosphor-icons/react";
 import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
+import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
+import { fetchJson } from "../../utils/fetchJson";
 import {
   getSubmissionGradeLabel,
   getSubmissionGradeStatus,
@@ -65,12 +68,36 @@ const buildSubmissionLookup = (submissions = []) =>
     return acc;
   }, {});
 
+const deriveSubmissionFilename = (submission) => {
+  if (!submission) return null;
+  return (
+    submission.fileName || submission.fileKey?.split?.("/")?.pop?.() || null
+  );
+};
+
+const submissionPreviewInitialState = {
+  status: "idle",
+  screenshotUrl: null,
+  gradeValue: null,
+  gradeLabel: null,
+  downloadUrl: null,
+  downloadFilename: null,
+  feedback: null,
+  error: null,
+  queueStatus: null,
+};
+
 export const CourseGradebook = () => {
   const { canViewRoster, courseId } = useOutletContext();
   const canViewGradebook = Boolean(canViewRoster);
   const { roster, assignments, loading, error } = useCourseRoster(courseId, {
     enabled: canViewGradebook,
   });
+
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewModalState, setPreviewModalState] = useState(
+    submissionPreviewInitialState
+  );
 
   const students = useMemo(
     () =>
@@ -84,6 +111,7 @@ export const CourseGradebook = () => {
     if (!assignments.length) {
       return students.map((student) => ({
         id: student.id,
+        userId: student.user?.id ?? null,
         name: formatName(student.user),
         email: student.user?.email ?? "No email provided",
         role: roleLabels[student.type] ?? student.type,
@@ -94,13 +122,18 @@ export const CourseGradebook = () => {
 
     return students.map((student) => {
       const lookup = buildSubmissionLookup(student.submissions);
-      const grades = assignments.map((assignment) => ({
-        assignmentId: assignment.id,
-        ...formatGradeCell(lookup[assignment.id], assignment),
-      }));
+      const grades = assignments.map((assignment) => {
+        const submission = lookup[assignment.id];
+        return {
+          assignmentId: assignment.id,
+          submission,
+          ...formatGradeCell(submission, assignment),
+        };
+      });
 
       return {
         id: student.id,
+        userId: student.user?.id ?? null,
         name: formatName(student.user),
         email: student.user?.email ?? "No email provided",
         role: roleLabels[student.type] ?? student.type,
@@ -113,6 +146,71 @@ export const CourseGradebook = () => {
   if (!canViewGradebook) {
     return <Navigate to={`/${courseId}`} replace />;
   }
+
+  const closePreviewModal = () => {
+    setPreviewModalOpen(false);
+    setPreviewModalState(submissionPreviewInitialState);
+  };
+
+  const showLoadingPreview = () => {
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "loading",
+      screenshotUrl: null,
+      gradeValue: null,
+      gradeLabel: null,
+      downloadUrl: null,
+      downloadFilename: null,
+      feedback: null,
+      error: null,
+      queueStatus: null,
+    });
+  };
+
+  const showSubmissionPreview = (submission, gradeLabel) => {
+    if (!submission) return;
+    setPreviewModalOpen(true);
+    setPreviewModalState({
+      status: "success",
+      screenshotUrl: submission?.screenshotUrl ?? null,
+      gradeValue: submission?.grade ?? null,
+      gradeLabel,
+      feedback: submission?.feedback ?? null,
+      downloadUrl: submission?.fileUrl ?? null,
+      downloadFilename: deriveSubmissionFilename(submission),
+      error: null,
+      queueStatus: submission?.queueStatus ?? null,
+    });
+  };
+
+  const handleViewSubmission = async (assignmentId, userId, gradeLabel) => {
+    if (!assignmentId || !userId) return;
+    showLoadingPreview();
+    try {
+      const params = new URLSearchParams();
+      params.set("userId", userId);
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${assignmentId}/submissions?${params}`
+      );
+      const submission = payload?.submissions?.[0] ?? null;
+      if (!submission) {
+        throw new Error("No submission recorded for this assignment.");
+      }
+      showSubmissionPreview(submission, gradeLabel);
+    } catch (err) {
+      setPreviewModalState({
+        status: "error",
+        screenshotUrl: null,
+        gradeValue: null,
+        gradeLabel: gradeLabel ?? null,
+        downloadUrl: null,
+        downloadFilename: null,
+        feedback: null,
+        error: err?.message || "Unable to load submission.",
+        queueStatus: null,
+      });
+    }
+  };
 
   return (
     <section className={styles.gradebook}>
@@ -157,14 +255,19 @@ export const CourseGradebook = () => {
                 <th className={styles.studentColumn}>Student</th>
                 {assignments.map((assignment) => (
                   <th key={assignment.id}>
-                    <span className={styles.assignmentName}>
-                      {assignment.name}
-                    </span>
-                    <span className={styles.assignmentMeta}>
-                      {Number.isFinite(Number(assignment.pointsPossible))
-                        ? `${assignment.pointsPossible} pts`
-                        : "Ungraded"}
-                    </span>
+                    <Link
+                      className={styles.assignmentHeaderLink}
+                      to={`/${courseId}/assignments/${assignment.id}`}
+                    >
+                      <span className={styles.assignmentName}>
+                        {assignment.name}
+                      </span>
+                      <span className={styles.assignmentMeta}>
+                        {Number.isFinite(Number(assignment.pointsPossible))
+                          ? `${assignment.pointsPossible} pts`
+                          : "Ungraded"}
+                      </span>
+                    </Link>
                   </th>
                 ))}
                 <th className={styles.averageColumn}>Average</th>
@@ -174,7 +277,16 @@ export const CourseGradebook = () => {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.studentCell}>
-                    <span className={styles.studentName}>{row.name}</span>
+                    {row.userId ? (
+                      <Link
+                        to={`/${courseId}/roster/${row.userId}`}
+                        className={styles.studentLink}
+                      >
+                        <span className={styles.studentName}>{row.name}</span>
+                      </Link>
+                    ) : (
+                      <span className={styles.studentName}>{row.name}</span>
+                    )}
                     {/* <span className={styles.studentMeta}>
                       {row.email} • {row.role}
                     </span> */}
@@ -189,10 +301,66 @@ export const CourseGradebook = () => {
                         [styles.gradeCellWaiting]: grade.status === "waiting",
                       })}
                     >
-                      <span className={styles.gradeValue}>{grade.label}</span>
-                      <span className={styles.gradePercent}>
-                        {grade.percent}
-                      </span>
+                      <div className={styles.gradeCellInner}>
+                        <div className={styles.gradeCellDetails}>
+                          <span className={styles.gradeValue}>{grade.label}</span>
+                          <span className={styles.gradePercent}>
+                            {grade.percent}
+                          </span>
+                        </div>
+                        {(() => {
+                          if (grade.status === "no-submission") {
+                            return null;
+                          }
+
+                          if (grade.status === "missing") {
+                            return (
+                              <button
+                                type="button"
+                                className={styles.gradeCellIcon}
+                                disabled
+                                aria-label="Assignment missing"
+                              >
+                                <Prohibit size={16} />
+                              </button>
+                            );
+                          }
+
+                          if (grade.status === "waiting") {
+                            return (
+                              <button
+                                type="button"
+                                className={styles.gradeCellIcon}
+                                disabled
+                                aria-label="Awaiting grading"
+                              >
+                                <Hourglass size={16} />
+                              </button>
+                            );
+                          }
+
+                          if (grade.status === "scored") {
+                            return (
+                              <button
+                                type="button"
+                                className={styles.gradeCellIcon}
+                                aria-label="View submission"
+                                onClick={() =>
+                                  handleViewSubmission(
+                                    grade.assignmentId,
+                                    row.userId,
+                                    grade.label
+                                  )
+                                }
+                              >
+                                <SignOut size={16} />
+                              </button>
+                            );
+                          }
+
+                          return null;
+                        })()}
+                      </div>
                     </td>
                   ))}
                   <td className={styles.averageCell}>
@@ -206,6 +374,19 @@ export const CourseGradebook = () => {
           </table>
         </div>
       )}
+      <SubmissionPreviewModal
+        open={previewModalOpen}
+        status={previewModalState.status}
+        screenshotUrl={previewModalState.screenshotUrl}
+        gradeValue={previewModalState.gradeValue}
+        gradeLabel={previewModalState.gradeLabel}
+        downloadUrl={previewModalState.downloadUrl}
+        downloadFilename={previewModalState.downloadFilename}
+        error={previewModalState.error}
+        feedback={previewModalState.feedback}
+        queueStatus={previewModalState.queueStatus}
+        onClose={closePreviewModal}
+      />
     </section>
   );
 };
