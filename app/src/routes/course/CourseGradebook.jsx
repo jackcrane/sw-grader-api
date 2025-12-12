@@ -111,6 +111,7 @@ export const CourseGradebook = () => {
     if (!assignments.length) {
       return students.map((student) => ({
         id: student.id,
+        enrollmentId: student.id,
         userId: student.user?.id ?? null,
         name: formatName(student.user),
         email: student.user?.email ?? "No email provided",
@@ -133,6 +134,7 @@ export const CourseGradebook = () => {
 
       return {
         id: student.id,
+        enrollmentId: student.id,
         userId: student.user?.id ?? null,
         name: formatName(student.user),
         email: student.user?.email ?? "No email provided",
@@ -277,16 +279,16 @@ export const CourseGradebook = () => {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.studentCell}>
-                    {row.userId ? (
-                      <Link
-                        to={`/${courseId}/roster/${row.userId}`}
-                        className={styles.studentLink}
-                      >
+                      {row.enrollmentId ? (
+                        <Link
+                          to={`/${courseId}/roster/${row.enrollmentId}`}
+                          className={styles.studentLink}
+                        >
+                          <span className={styles.studentName}>{row.name}</span>
+                        </Link>
+                      ) : (
                         <span className={styles.studentName}>{row.name}</span>
-                      </Link>
-                    ) : (
-                      <span className={styles.studentName}>{row.name}</span>
-                    )}
+                      )}
                     {/* <span className={styles.studentMeta}>
                       {row.email} • {row.role}
                     </span> */}

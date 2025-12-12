@@ -129,14 +129,18 @@
 }
 
 .studentRow {
-  border: none;
-  background: transparent;
-  text-align: left;
+  text-decoration: none;
+  color: inherit;
   width: 100%;
   padding: 16px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 72px;
 }
 
 .studentRow:hover {
@@ -145,6 +149,18 @@
 
 .studentRowActive {
   background: color-mix(in srgb, var(--surface) 60%, var(--border));
+}
+
+.studentRowDetails {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+
+.studentRowIcon {
+  color: var(--body-contrast-secondary);
 }
 
 .studentName {

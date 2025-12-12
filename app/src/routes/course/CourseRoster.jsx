@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
-import { Navigate, useOutletContext } from "react-router-dom";
+import {
+  Navigate,
+  NavLink,
+  useOutletContext,
+  useParams,
+} from "react-router-dom";
 import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { Button } from "../../components/button/Button";
@@ -13,6 +18,7 @@ import {
   parseGradeValue,
 } from "../../utils/gradeUtils";
 import styles from "./CourseRoster.module.css";
+import { CaretRight } from "@phosphor-icons/react";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -63,6 +69,8 @@ const deriveSubmissionFilename = (submission) => {
   );
 };
 
+const normalizeId = (value) => (value == null ? null : String(value));
+
 const submissionPreviewInitialState = {
   status: "idle",
   screenshotUrl: null,
@@ -104,19 +112,37 @@ export const CourseRoster = () => {
     [roster]
   );
 
+  const { enrollmentId: routeEnrollmentId } = useParams();
+
   useEffect(() => {
     if (visibleRoster.length === 0) {
       setSelectedEnrollmentId(null);
       return;
     }
-    if (
-      selectedEnrollmentId &&
-      visibleRoster.some((entry) => entry.id === selectedEnrollmentId)
-    ) {
-      return;
+
+    const normalizedRouteId = normalizeId(routeEnrollmentId);
+    if (normalizedRouteId) {
+      const matchingEntry = visibleRoster.find(
+        (entry) => normalizeId(entry.id) === normalizedRouteId
+      );
+      if (matchingEntry) {
+        if (selectedEnrollmentId !== normalizedRouteId) {
+          setSelectedEnrollmentId(normalizedRouteId);
+        }
+        return;
+      }
     }
-    setSelectedEnrollmentId(visibleRoster[0]?.id ?? null);
-  }, [visibleRoster, selectedEnrollmentId]);
+
+    const isCurrentValid =
+      selectedEnrollmentId &&
+      visibleRoster.some(
+        (entry) => normalizeId(entry.id) === selectedEnrollmentId
+      );
+
+    if (!isCurrentValid) {
+      setSelectedEnrollmentId(normalizeId(visibleRoster[0]?.id));
+    }
+  }, [visibleRoster, selectedEnrollmentId, routeEnrollmentId]);
 
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
@@ -152,7 +178,7 @@ export const CourseRoster = () => {
   };
 
   const activeEnrollment = visibleRoster.find(
-    (entry) => entry.id === selectedEnrollmentId
+    (entry) => normalizeId(entry.id) === selectedEnrollmentId
   );
 
   const submissions = activeEnrollment?.submissions ?? [];
@@ -303,27 +329,27 @@ export const CourseRoster = () => {
         {!loading && !error && visibleRoster.length === 0 && (
           <p className={styles.state}>No students enrolled yet.</p>
         )}
-        {visibleRoster.map((entry) => {
-          const isActive = entry.id === activeEnrollment?.id;
-          return (
-            <button
-              key={entry.id}
-              type="button"
-              className={classNames(styles.studentRow, {
+        {visibleRoster.map((entry) => (
+          <NavLink
+            key={entry.id}
+            to={`/${courseId}/roster/${entry.id}`}
+            end
+            className={({ isActive }) =>
+              classNames(styles.studentRow, {
                 [styles.studentRowActive]: isActive,
-              })}
-              onClick={() => setSelectedEnrollmentId(entry.id)}
-            >
-              <div>
-                <h2 className={styles.studentName}>{formatName(entry.user)}</h2>
-                <p className={styles.studentMeta}>
-                  {entry.user?.email || "No email"} •{" "}
-                  {roleLabels[entry.type] ?? entry.type}
-                </p>
-              </div>
-            </button>
-          );
-        })}
+              })
+            }
+          >
+            <div className={styles.studentRowDetails}>
+              <h2 className={styles.studentName}>{formatName(entry.user)}</h2>
+              <p className={styles.studentMeta}>
+                {entry.user?.email || "No email"} •{" "}
+                {roleLabels[entry.type] ?? entry.type}
+              </p>
+            </div>
+            <CaretRight size={16} className={styles.studentRowIcon} />
+          </NavLink>
+        ))}
       </div>
       <div className={classNames(styles.column, styles.details)}>
         {!activeEnrollment ? (

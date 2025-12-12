@@ -58,6 +58,7 @@ const AppRoutes = () => {
       >
         <Route path="gradebook" element={<CourseGradebook />} />
         <Route path="roster" element={<CourseRoster />} />
+        <Route path="roster/:enrollmentId" element={<CourseRoster />} />
         <Route path="details" element={<CourseDetails />} />
         <Route path="" element={<CourseOverview />}>
           <Route index element={<AssignmentDetailsPlaceholder />} />
