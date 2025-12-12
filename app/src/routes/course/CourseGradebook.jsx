@@ -1,13 +1,16 @@
+import classNames from "classnames";
 import React, { useMemo } from "react";
 import { Navigate, useOutletContext } from "react-router-dom";
 import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
-import { parseGradeValue } from "../../utils/gradeUtils";
+import {
+  getSubmissionGradeLabel,
+  getSubmissionGradeStatus,
+  parseGradeValue,
+} from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
-
-const NOT_GRADED_LABEL = "Not yet graded";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -29,23 +32,30 @@ const formatPercent = (value) => {
 
 const formatGradeCell = (submission, assignment) => {
   const gradeValue = parseGradeValue(submission?.grade);
-  const pointsPossible = Number(assignment?.pointsPossible);
-
-  if (gradeValue == null) {
-    return { label: NOT_GRADED_LABEL, percent: "—", status: "missing" };
-  }
-
-  const label = Number.isFinite(pointsPossible)
-    ? `${gradeValue}/${pointsPossible}`
-    : `${gradeValue}`;
+  const pointsPossibleNumber = Number(assignment?.pointsPossible);
+  const label = getSubmissionGradeLabel({
+    gradeValue,
+    hasSubmission: Boolean(submission),
+    pointsPossible: assignment?.pointsPossible,
+    dueDate: assignment?.dueDate,
+  });
+  const status = getSubmissionGradeStatus({
+    gradeValue,
+    hasSubmission: Boolean(submission),
+    dueDate: assignment?.dueDate,
+  });
 
   let percent = "—";
-  if (Number.isFinite(pointsPossible) && pointsPossible > 0) {
-    const clamped = Math.min(Math.max(gradeValue, 0), pointsPossible);
-    percent = `${((clamped / pointsPossible) * 100).toFixed(1)}%`;
+  if (
+    gradeValue != null &&
+    Number.isFinite(pointsPossibleNumber) &&
+    pointsPossibleNumber > 0
+  ) {
+    const clamped = Math.min(Math.max(gradeValue, 0), pointsPossibleNumber);
+    percent = `${((clamped / pointsPossibleNumber) * 100).toFixed(1)}%`;
   }
 
-  return { label, percent, status: "scored" };
+  return { label, percent, status };
 };
 
 const buildSubmissionLookup = (submissions = []) =>
@@ -130,11 +140,14 @@ export const CourseGradebook = () => {
         <p className={styles.state}>No students enrolled yet.</p>
       )}
 
-      {!loading && !error && students.length > 0 && assignments.length === 0 && (
-        <p className={styles.state}>
-          Create an assignment to start recording grades.
-        </p>
-      )}
+      {!loading &&
+        !error &&
+        students.length > 0 &&
+        assignments.length === 0 && (
+          <p className={styles.state}>
+            Create an assignment to start recording grades.
+          </p>
+        )}
 
       {!loading && !error && students.length > 0 && assignments.length > 0 && (
         <div className={styles.tableWrapper}>
@@ -162,12 +175,20 @@ export const CourseGradebook = () => {
                 <tr key={row.id}>
                   <td className={styles.studentCell}>
                     <span className={styles.studentName}>{row.name}</span>
-                    <span className={styles.studentMeta}>
+                    {/* <span className={styles.studentMeta}>
                       {row.email} • {row.role}
-                    </span>
+                    </span> */}
                   </td>
                   {row.grades.map((grade) => (
-                    <td key={grade.assignmentId}>
+                    <td
+                      key={grade.assignmentId}
+                      className={classNames(styles.gradeCell, {
+                        [styles.gradeCellNoSubmission]:
+                          grade.status === "no-submission",
+                        [styles.gradeCellMissing]: grade.status === "missing",
+                        [styles.gradeCellWaiting]: grade.status === "waiting",
+                      })}
+                    >
                       <span className={styles.gradeValue}>{grade.label}</span>
                       <span className={styles.gradePercent}>
                         {grade.percent}

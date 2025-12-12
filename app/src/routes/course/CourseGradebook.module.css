@@ -57,6 +57,30 @@
   text-align: left;
 }
 
+.gradeCell {
+  background: var(--surface);
+  transition: background 0.2s ease;
+}
+
+.gradeCellNoSubmission {
+  background: var(--grade-cell-bg-no-submission) !important;
+}
+
+.gradeCellNoSubmission *,
+.gradeCellMissing *,
+.gradeCellWaiting * {
+  font-weight: 300 !important;
+  font-size: 12px !important;
+}
+
+.gradeCellMissing {
+  background: var(--grade-cell-bg-missing) !important;
+}
+
+.gradeCellWaiting {
+  background: var(--grade-cell-bg-waiting) !important;
+}
+
 .table th {
   font-size: 0.75rem;
   text-transform: uppercase;

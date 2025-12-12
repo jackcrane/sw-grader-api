@@ -2,7 +2,10 @@ import React from "react";
 import { Modal } from "../modal/Modal";
 import { Button } from "../button/Button";
 import { Spinner } from "../spinner/Spinner";
-import { parseGradeValue } from "../../utils/gradeUtils";
+import {
+  parseGradeValue,
+  SUBMISSION_STATUS_LABELS,
+} from "../../utils/gradeUtils";
 import styles from "./SubmissionPreviewModal.module.css";
 
 const getTitle = (status) => {
@@ -116,7 +119,12 @@ export const SubmissionPreviewModal = ({
               </div>
             )}
             <p className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}>
-              Grade earned: <strong>{gradeLabel ?? "Not yet graded"}</strong>
+              Grade earned:{" "}
+              {gradeValue != null ? (
+                <strong>{gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE}</strong>
+              ) : (
+                gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE
+              )}
             </p>
             {feedback && (
               <div className={styles.feedback}>
