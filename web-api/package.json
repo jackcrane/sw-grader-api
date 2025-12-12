@@ -8,7 +8,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "bore": "bore local 3000 --to bore.pub",
-    "autofill:users": "node autofillers/users.js"
+    "autofill:users": "node autofillers/users.js",
+    "autofill:assignment": "node autofillers/assignment.js"
   },
   "keywords": [],
   "author": "",
