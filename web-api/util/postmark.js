@@ -20,6 +20,8 @@ const logMissingConfig = () => {
 };
 
 export const sendEmail = async ({ to, subject, text }) => {
+  if (to.includes("featurebench-test.com")) return; // Drop test emails
+
   if (!client || !fromAddress) {
     logMissingConfig();
     return;

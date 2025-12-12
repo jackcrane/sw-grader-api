@@ -8,10 +8,11 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
-import { parseGradeValue } from "../../utils/gradeUtils";
+import {
+  getSubmissionGradeLabel,
+  parseGradeValue,
+} from "../../utils/gradeUtils";
 import styles from "./CourseRoster.module.css";
-
-const NOT_GRADED_LABEL = "Not yet graded";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -48,19 +49,17 @@ const nextRole = (type) => (type === "STUDENT" ? "TA" : "STUDENT");
 
 const formatGradeLabel = (gradeValue, pointsPossible) => {
   const numeric = parseGradeValue(gradeValue);
-  if (numeric == null) return NOT_GRADED_LABEL;
-  if (Number.isFinite(pointsPossible)) {
-    return `${numeric}/${pointsPossible}`;
-  }
-  return `${numeric}`;
+  return getSubmissionGradeLabel({
+    gradeValue: numeric,
+    hasSubmission: true,
+    pointsPossible,
+  });
 };
 
 const deriveSubmissionFilename = (submission) => {
   if (!submission) return null;
   return (
-    submission.fileName ||
-    submission.fileKey?.split?.("/")?.pop?.() ||
-    null
+    submission.fileName || submission.fileKey?.split?.("/")?.pop?.() || null
   );
 };
 
@@ -71,6 +70,7 @@ const submissionPreviewInitialState = {
   gradeLabel: null,
   downloadUrl: null,
   downloadFilename: null,
+  feedback: null,
   error: null,
 };
 
@@ -130,6 +130,7 @@ export const CourseRoster = () => {
       screenshotUrl: submission?.screenshotUrl ?? null,
       gradeValue: submission?.grade ?? null,
       gradeLabel,
+      feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
@@ -145,6 +146,7 @@ export const CourseRoster = () => {
       gradeLabel: null,
       downloadUrl: null,
       downloadFilename: null,
+      feedback: null,
       error: null,
     });
   };
@@ -165,7 +167,9 @@ export const CourseRoster = () => {
   const lastSubmissionDate = submissions.reduce((latest, entry) => {
     if (!entry?.updatedAt) return latest;
     if (!latest) return entry.updatedAt;
-    return new Date(entry.updatedAt) > new Date(latest) ? entry.updatedAt : latest;
+    return new Date(entry.updatedAt) > new Date(latest)
+      ? entry.updatedAt
+      : latest;
   }, null);
   const statsCards = useMemo(
     () => [
@@ -189,11 +193,19 @@ export const CourseRoster = () => {
       },
       {
         label: "Last submission",
-        value: submissions.length > 0 ? formatDateTime(lastSubmissionDate) : "—",
-        subtext: submissions.length > 0 ? "Latest upload time" : "No submissions yet",
+        value:
+          submissions.length > 0 ? formatDateTime(lastSubmissionDate) : "—",
+        subtext:
+          submissions.length > 0 ? "Latest upload time" : "No submissions yet",
       },
     ],
-    [averageGrade, gradedCount, totalAssignments, submissions.length, lastSubmissionDate]
+    [
+      averageGrade,
+      gradedCount,
+      totalAssignments,
+      submissions.length,
+      lastSubmissionDate,
+    ]
   );
 
   const canManageRoster =
@@ -204,7 +216,10 @@ export const CourseRoster = () => {
     setActionError(null);
     setPendingAction("role");
     try {
-      await updateEnrollmentType(activeEnrollment.id, nextRole(activeEnrollment.type));
+      await updateEnrollmentType(
+        activeEnrollment.id,
+        nextRole(activeEnrollment.type)
+      );
     } catch (err) {
       setActionError(err?.message || "Failed to update roster role.");
     } finally {
@@ -216,7 +231,9 @@ export const CourseRoster = () => {
     if (!activeEnrollment) return;
     if (
       typeof window !== "undefined" &&
-      !window.confirm(`Remove ${formatName(activeEnrollment.user)} from the course?`)
+      !window.confirm(
+        `Remove ${formatName(activeEnrollment.user)} from the course?`
+      )
     ) {
       return;
     }
@@ -256,6 +273,7 @@ export const CourseRoster = () => {
         gradeLabel: null,
         downloadUrl: null,
         downloadFilename: null,
+        feedback: null,
         error: err?.message || "Unable to load submission.",
       });
     }
@@ -299,7 +317,8 @@ export const CourseRoster = () => {
               <div>
                 <h2 className={styles.studentName}>{formatName(entry.user)}</h2>
                 <p className={styles.studentMeta}>
-                  {entry.user?.email || "No email"} • {roleLabels[entry.type] ?? entry.type}
+                  {entry.user?.email || "No email"} •{" "}
+                  {roleLabels[entry.type] ?? entry.type}
                 </p>
               </div>
             </button>
@@ -336,7 +355,8 @@ export const CourseRoster = () => {
                   <div>
                     <div className={styles.sectionTitle}>Manage access</div>
                     <p className={styles.sectionMeta}>
-                      Promote standout students to TAs or remove inactive accounts.
+                      Promote standout students to TAs or remove inactive
+                      accounts.
                     </p>
                   </div>
                   <div className={styles.actions}>
@@ -387,11 +407,12 @@ export const CourseRoster = () => {
                     const pointsLabel = Number.isFinite(pointsPossible)
                       ? `${pointsPossible} pts`
                       : "Ungraded";
-                    const gradeLabel = hasGrade
-                      ? Number.isFinite(pointsPossible)
-                        ? `${gradeValue}/${pointsPossible}`
-                        : `${gradeValue}`
-                      : NOT_GRADED_LABEL;
+                    const gradeLabel = getSubmissionGradeLabel({
+                      gradeValue,
+                      hasSubmission: Boolean(submission),
+                      pointsPossible: assignment?.pointsPossible,
+                      dueDate: assignment?.dueDate,
+                    });
                     const percent =
                       hasGrade &&
                       Number.isFinite(pointsPossible) &&
@@ -401,7 +422,7 @@ export const CourseRoster = () => {
                     return (
                       <React.Fragment key={assignment.id}>
                         <div className={styles.gradeRow}>
-                          <div>
+                          <div style={{ flex: 1 }}>
                             <div className={styles.assignmentName}>
                               {assignment.name}
                             </div>
@@ -413,13 +434,17 @@ export const CourseRoster = () => {
                             <span className={styles.gradeValue}>
                               {gradeLabel}
                             </span>
-                            <span className={styles.gradePercent}>{percent}</span>
+                            <span className={styles.gradePercent}>
+                              {percent}
+                            </span>
                           </div>
                           {submission && (
                             <div className={styles.gradeRowActions}>
                               <Button
                                 onClick={() => handleViewAssignment(assignment)}
-                                disabled={previewModalState.status === "loading"}
+                                disabled={
+                                  previewModalState.status === "loading"
+                                }
                               >
                                 View
                               </Button>
@@ -447,6 +472,7 @@ export const CourseRoster = () => {
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
+        feedback={previewModalState.feedback}
         onClose={closePreviewModal}
       />
     </section>

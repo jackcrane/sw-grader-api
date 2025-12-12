@@ -5,7 +5,10 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { Spinner } from "../../components/spinner/Spinner";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
-import { parseGradeValue } from "../../utils/gradeUtils";
+import {
+  getSubmissionGradeLabel,
+  parseGradeValue,
+} from "../../utils/gradeUtils";
 import styles from "./AssignmentDetails.module.css";
 
 const formatDateTime = (value) => {
@@ -154,14 +157,12 @@ export const AssignmentDetails = () => {
   const formatSubmissionGrade = useCallback(
     (submission) => {
       const gradeValue = parseGradeValue(submission?.grade);
-      if (gradeValue == null) {
-        return "Not yet graded";
-      }
-      const pointsPossibleValue = Number(assignment?.pointsPossible);
-      if (Number.isFinite(pointsPossibleValue)) {
-        return `${gradeValue}/${pointsPossibleValue}`;
-      }
-      return `${gradeValue}`;
+      return getSubmissionGradeLabel({
+        gradeValue,
+        hasSubmission: Boolean(submission),
+        pointsPossible: assignment?.pointsPossible,
+        dueDate: assignment?.dueDate,
+      });
     },
     [assignment]
   );

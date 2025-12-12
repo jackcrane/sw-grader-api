@@ -1,0 +1,106 @@
+[
+  {
+    "assignmentId": "cmj3f2ds50000uw0mfrmr82dk",
+    "missingRate": 0.2,
+    "signatures": [
+      {
+        "file": "hw2.3/good.SLDPRT",
+        "probability": 10
+      },
+      {
+        "file": "hw2.3/wrong-angle.SLDPRT",
+        "probability": 1
+      },
+      {
+        "file": "hw2.3/wrong-direction.SLDPRT",
+        "probability": 3
+      },
+      {
+        "file": "hw2.3/wrong-direction-wrong-thin-dist.SLDPRT",
+        "probability": 2
+      },
+      {
+        "file": "hw2.3/wrong-thin-dist.SLDPRT",
+        "probability": 2
+      }
+    ]
+  },
+  {
+    "assignmentId": "cmj3f5jw60004uw0mobbvr3kg",
+    "missingRate": 0.1,
+    "signatures": [
+      {
+        "file": "hw2.4/good.SLDPRT",
+        "probability": 10
+      },
+      {
+        "file": "hw2.4/good-extratall.SLDPRT",
+        "probability": 4
+      },
+      {
+        "file": "hw2.4/7-from-edge.SLDPRT",
+        "probability": 2
+      },
+      {
+        "file": "hw2.4/swapped-holes.SLDPRT",
+        "probability": 1
+      }
+    ]
+  },
+  {
+    "assignmentId": "cmj3f7cqm0008uw0mfz54nnqw",
+    "missingRate": 0.13,
+    "signatures": [
+      {
+        "file": "hw6/good.SLDPRT",
+        "probability": 10
+      },
+      {
+        "file": "hw6/all-chamfer.SLDPRT",
+        "probability": 3
+      },
+      {
+        "file": "hw6/no-chamfer.SLDPRT",
+        "probability": 2
+      },
+      {
+        "file": "hw6/no-fillet.SLDPRT",
+        "probability": 2
+      },
+      {
+        "file": "hw6/swapped-3-4-dims.SLDPRT",
+        "probability": 1
+      },
+      {
+        "file": "hw6/wrong-fillet-chamfer-dimension.SLDPRT",
+        "probability": 1
+      }
+    ]
+  },
+  {
+    "assignmentId": "cmj3f8foq000buw0mubt38ioh",
+    "missingRate": 0,
+    "signatures": [
+      {
+        "file": "test/good.SLDPRT",
+        "probability": 7
+      },
+      {
+        "file": "test/no-chamfer.SLDPRT",
+        "probability": 2
+      },
+      {
+        "file": "test/no-mirror.SLDPRT",
+        "probability": 3
+      },
+      {
+        "file": "test/no-sweep.SLDPRT",
+        "probability": 1
+      },
+      {
+        "file": "test/too-big.SLDPRT",
+        "probability": 1
+      }
+    ]
+  }
+]
