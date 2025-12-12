@@ -84,6 +84,24 @@ const buildApiUrl = (baseUrl, pathSuffix) => {
   return `${normalized}/api${sanitized}`;
 };
 
+const getAssignmentConfigs = () => {
+  const configs = Array.isArray(assignmentConfig)
+    ? assignmentConfig
+    : [assignmentConfig];
+  const normalized = configs.filter(Boolean);
+  if (!normalized.length) {
+    throw new Error(
+      "At least one assignment configuration entry is required in assignment-config.json"
+    );
+  }
+  return normalized;
+};
+
+const normalizeMissingRate = (value) => {
+  if (typeof value !== "number") return 0;
+  return Math.max(0, Math.min(1, value));
+};
+
 const fetchCourses = () =>
   prisma.course.findMany({
     where: {
@@ -196,23 +214,26 @@ const readErrorMessage = async (response) => {
   }
 };
 
-const prepareSignatures = async () => {
-  const rawSignatures = (assignmentConfig.signatures || []).map(
-    (signature) => ({
-      ...signature,
-      probability:
-        typeof signature.probability === "number" && signature.probability >= 0
-          ? signature.probability
-          : 1,
-    })
-  );
-
-  if (!assignmentConfig.assignmentId) {
-    throw new Error("Assignment ID is missing from the configuration.");
+const prepareSignatures = async (config) => {
+  if (!config?.assignmentId) {
+    throw new Error("Assignment ID is missing from the configuration entry.");
   }
 
+  const rawSignatures = (Array.isArray(config.signatures)
+    ? config.signatures
+    : []
+  ).map((signature) => ({
+    ...signature,
+    probability:
+      typeof signature.probability === "number" && signature.probability >= 0
+        ? signature.probability
+        : 1,
+  }));
+
   if (!rawSignatures.length) {
-    throw new Error("No signatures defined in the assignment configuration.");
+    throw new Error(
+      `No signatures defined for assignment ${config.assignmentId}.`
+    );
   }
 
   const loaded = [];
@@ -267,28 +288,24 @@ const createSessionCookie = (userId) => {
   return `${SESSION_COOKIE_NAME}=${token}`;
 };
 
-const run = async () => {
-  const { courseQuery, baseUrl } = parseArgs();
-  const { fetchFn, FormData } = await getHttpHelpers();
-  const course = await determineCourse(courseQuery);
-  const students = await fetchStudents(course.id);
-
-  const signatures = await prepareSignatures();
+const submitAssignmentForStudents = async (
+  config,
+  { course, students, baseUrl, fetchFn, FormData }
+) => {
+  const signatures = await prepareSignatures(config);
   const signatureWeight = totalWeight(signatures);
-  const missingRate =
-    typeof assignmentConfig.missingRate === "number"
-      ? Math.max(0, Math.min(1, assignmentConfig.missingRate))
-      : 0;
-
-  if (!students.length) {
-    console.log("No enrolled students found for the selected course.");
-    return;
+  if (signatureWeight <= 0) {
+    throw new Error(
+      `Assignment ${config.assignmentId} needs at least one signature with positive probability.`
+    );
   }
 
+  const missingRate = normalizeMissingRate(config.missingRate);
+
   console.log(
-    `Submitting assignment ${assignmentConfig.assignmentId} for ${
-      students.length
-    } students in ${describeCourse(course)}`
+    `Submitting assignment ${config.assignmentId} for ${students.length} students in ${describeCourse(
+      course
+    )}`
   );
 
   const stats = {
@@ -296,6 +313,11 @@ const run = async () => {
     skipped: 0,
     errors: 0,
   };
+
+  const url = buildApiUrl(
+    baseUrl,
+    `/courses/${course.id}/assignments/${config.assignmentId}/submissions`
+  );
 
   for (const enrollment of students) {
     const user = enrollment.user;
@@ -305,7 +327,7 @@ const run = async () => {
 
     if (Math.random() < missingRate) {
       stats.skipped += 1;
-      console.log(`[skip] ${user.email} left assignment missing`);
+      console.log(`[skip] ${user.email} left ${config.assignmentId} missing`);
       continue;
     }
 
@@ -315,11 +337,6 @@ const run = async () => {
       "file",
       new Blob([signature.buffer], { type: "application/octet-stream" }),
       signature.fileName
-    );
-
-    const url = buildApiUrl(
-      baseUrl,
-      `/courses/${course.id}/assignments/${assignmentConfig.assignmentId}/submissions`
     );
 
     try {
@@ -342,20 +359,63 @@ const run = async () => {
 
       stats.submitted += 1;
       console.log(
-        `[${stats.submitted}/${students.length}] ${user.email} submitted ${signature.fileName}`
+        `[${stats.submitted}/${students.length}] ${user.email} submitted ${
+          signature.fileName
+        } (${config.assignmentId})`
       );
     } catch (error) {
       stats.errors += 1;
       console.error(
-        `[error] ${user.email} could not submit:`,
+        `[error] ${user.email} could not submit ${config.assignmentId}:`,
         error?.message || error
       );
     }
   }
 
   console.log(
-    `Finished: ${stats.submitted} submissions, ${stats.skipped} skipped${
+    `Finished ${config.assignmentId}: ${stats.submitted} submissions, ${stats.skipped} skipped${
       stats.errors ? `, ${stats.errors} errors` : ""
+    }.`
+  );
+
+  return stats;
+};
+
+const run = async () => {
+  const { courseQuery, baseUrl } = parseArgs();
+  const { fetchFn, FormData } = await getHttpHelpers();
+  const course = await determineCourse(courseQuery);
+  const students = await fetchStudents(course.id);
+
+  if (!students.length) {
+    console.log("No enrolled students found for the selected course.");
+    return;
+  }
+
+  const assignments = getAssignmentConfigs();
+
+  const totals = {
+    submitted: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  for (const config of assignments) {
+    const stats = await submitAssignmentForStudents(config, {
+      course,
+      students,
+      baseUrl,
+      fetchFn,
+      FormData,
+    });
+    totals.submitted += stats.submitted;
+    totals.skipped += stats.skipped;
+    totals.errors += stats.errors;
+  }
+
+  console.log(
+    `All assignments done: ${totals.submitted} submissions, ${totals.skipped} skipped${
+      totals.errors ? `, ${totals.errors} errors` : ""
     }.`
   );
 };
