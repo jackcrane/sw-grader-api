@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "bore": "bore local 3000 --to bore.pub"
+    "bore": "bore local 3000 --to bore.pub",
+    "autofill:users": "node autofillers/users.js"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +17,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@faker-js/faker": "^10.1.0",
+    "@inquirer/prompts": "^8.0.2",
     "@prisma/client": "^6.0.0",
     "@sentry/node": "^10.27.0",
     "amqplib": "^0.10.9",
@@ -23,6 +26,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "inquirer": "8",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.10",
