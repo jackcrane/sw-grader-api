@@ -70,6 +70,7 @@ const submissionPreviewInitialState = {
   gradeLabel: null,
   downloadUrl: null,
   downloadFilename: null,
+  feedback: null,
   error: null,
 };
 
@@ -129,6 +130,7 @@ export const CourseRoster = () => {
       screenshotUrl: submission?.screenshotUrl ?? null,
       gradeValue: submission?.grade ?? null,
       gradeLabel,
+      feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
@@ -144,6 +146,7 @@ export const CourseRoster = () => {
       gradeLabel: null,
       downloadUrl: null,
       downloadFilename: null,
+      feedback: null,
       error: null,
     });
   };
@@ -270,6 +273,7 @@ export const CourseRoster = () => {
         gradeLabel: null,
         downloadUrl: null,
         downloadFilename: null,
+        feedback: null,
         error: err?.message || "Unable to load submission.",
       });
     }
@@ -468,6 +472,7 @@ export const CourseRoster = () => {
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
+        feedback={previewModalState.feedback}
         onClose={closePreviewModal}
       />
     </section>
