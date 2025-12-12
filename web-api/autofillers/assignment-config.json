@@ -1,0 +1,26 @@
+{
+  "assignmentId": "cmj3f2ds50000uw0mfrmr82dk",
+  "missingRate": 0.2,
+  "signatures": [
+    {
+      "file": "hw2.3/good.SLDPRT",
+      "probability": 10
+    },
+    {
+      "file": "hw2.3/wrong-angle.SLDPRT",
+      "probability": 1
+    },
+    {
+      "file": "hw2.3/wrong-direction.SLDPRT",
+      "probability": 3
+    },
+    {
+      "file": "hw2.3/wrong-direction-wrong-thin-dist.SLDPRT",
+      "probability": 2
+    },
+    {
+      "file": "hw2.3/wrong-thin-dist.SLDPRT",
+      "probability": 2
+    }
+  ]
+}
