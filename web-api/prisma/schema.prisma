@@ -58,9 +58,9 @@ enum BillingScheme {
 model Enrollment {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   type EnrollmentType
 
@@ -112,9 +112,9 @@ enum AssignmentSignatureType {
 model Submission {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignmentId String
-  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   volume Float?
   surfaceArea Float?
@@ -128,7 +128,7 @@ model Submission {
   grade Float?
   feedback String?
   matchingSignatureId String?
-  matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id])
+  matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,7 +138,7 @@ model Submission {
 model AssignmentSignature {
   id        String   @id @default(cuid())
   assignmentId String
-  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   sortOrder Int
   type AssignmentSignatureType
@@ -164,7 +164,7 @@ model AssignmentSignature {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
   content   String
