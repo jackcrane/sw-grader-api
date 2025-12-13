@@ -6,8 +6,6 @@
 
 .helper {
   margin: 0;
-  color: var(--body-contrast-secondary);
-  font-size: 0.9rem;
 }
 
 .tableWrapper {
@@ -35,7 +33,17 @@
 }
 
 .rowUnmatched td {
-  background: color-mix(in srgb, var(--grade-cell-bg-waiting) 65%, white);
+  background: var(--grade-cell-bg-waiting) !important;
+}
+
+.mismatchNotice {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--grade-cell-bg-waiting) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .select {
@@ -54,6 +62,4 @@
 }
 
 .sectionLabel {
-  font-size: 0.8rem;
-  color: var(--body-contrast-secondary);
 }
