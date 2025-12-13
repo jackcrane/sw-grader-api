@@ -196,9 +196,8 @@ const parseCanvasGradebook = (text = "") => {
       const normalizedLower = normalizedStudent.toLowerCase();
       if (normalizedLower === "student") return null;
       if (normalizedLower.includes("points possible")) return null;
-      const { displayName, firstName, lastName } = parseCanvasName(
-        normalizedStudent
-      );
+      const { displayName, firstName, lastName } =
+        parseCanvasName(normalizedStudent);
       if (!displayName) return null;
       const key = makeCanvasStudentKey(displayName, index);
       const normalizedFirst = normalizeNameValue(firstName);
@@ -326,10 +325,7 @@ export const CourseGradebook = () => {
       return;
     }
     setCanvasAssignmentMatches(
-      buildCanvasAssignmentMatches(
-        canvasGradebookData.assignments,
-        assignments
-      )
+      buildCanvasAssignmentMatches(canvasGradebookData.assignments, assignments)
     );
   }, [canvasGradebookData.assignments, assignments]);
 
@@ -468,16 +464,12 @@ export const CourseGradebook = () => {
         assignment,
       ])
     );
-    const rowsByStudentId = new Map(
-      rows.map((row) => [String(row.id), row])
-    );
+    const rowsByStudentId = new Map(rows.map((row) => [String(row.id), row]));
     const assignmentsById = new Map(
       assignments.map((assignment) => [String(assignment.id), assignment])
     );
 
-    const updatedDataRows = canvasGradebookData.dataRows.map((row) => [
-      ...row,
-    ]);
+    const updatedDataRows = canvasGradebookData.dataRows.map((row) => [...row]);
 
     matchedStudentEntries.forEach(([canvasKey, studentId]) => {
       const canvasStudent = canvasStudentsByKey.get(canvasKey);
@@ -486,35 +478,34 @@ export const CourseGradebook = () => {
       const rowData = updatedDataRows[canvasStudent.rowIndex];
       if (!rowData) return;
 
-      matchedAssignmentEntries.forEach(([assignmentKey, featureAssignmentId]) => {
-        const canvasAssignment = canvasAssignmentsByKey.get(assignmentKey);
-        const fbAssignment = assignmentsById.get(String(featureAssignmentId));
-        if (!canvasAssignment || !fbAssignment) return;
+      matchedAssignmentEntries.forEach(
+        ([assignmentKey, featureAssignmentId]) => {
+          const canvasAssignment = canvasAssignmentsByKey.get(assignmentKey);
+          const fbAssignment = assignmentsById.get(String(featureAssignmentId));
+          if (!canvasAssignment || !fbAssignment) return;
 
-        const gradeEntry = gradeRow.grades.find(
-          (grade) => grade.assignmentId === fbAssignment.id
-        );
-        const gradeValue = parseGradeValue(gradeEntry?.submission?.grade);
-        const fbPoints = Number(fbAssignment.pointsPossible ?? 0);
-        if (
-          gradeValue == null ||
-          !Number.isFinite(fbPoints) ||
-          fbPoints <= 0 ||
-          canvasAssignment.pointsPossible <= 0
-        ) {
-          return;
-        }
+          const gradeEntry = gradeRow.grades.find(
+            (grade) => grade.assignmentId === fbAssignment.id
+          );
+          const gradeValue = parseGradeValue(gradeEntry?.submission?.grade);
+          const fbPoints = Number(fbAssignment.pointsPossible ?? 0);
+          if (
+            gradeValue == null ||
+            !Number.isFinite(fbPoints) ||
+            fbPoints <= 0 ||
+            canvasAssignment.pointsPossible <= 0
+          ) {
+            return;
+          }
 
-        const percent = Math.max(
-          0,
-          Math.min(1, gradeValue / fbPoints)
-        );
-        const scaled =
-          Math.round(percent * canvasAssignment.pointsPossible * 10) / 10;
-        if (canvasAssignment.columnIndex != null) {
-          rowData[canvasAssignment.columnIndex] = scaled.toFixed(1);
+          const percent = Math.max(0, Math.min(1, gradeValue / fbPoints));
+          const scaled =
+            Math.round(percent * canvasAssignment.pointsPossible * 10) / 10;
+          if (canvasAssignment.columnIndex != null) {
+            rowData[canvasAssignment.columnIndex] = scaled.toFixed(1);
+          }
         }
-      });
+      );
     });
 
     const updatedRows = [
@@ -569,11 +560,17 @@ export const CourseGradebook = () => {
             drill into a student&apos;s submissions.
           </p>
         </div>
-        <div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
+        >
           <p className={styles.legend}>Scores shown as earned / possible.</p>
           <Spacer size={2} />
-          <Button variant="primary" onClick={() => setExportModalOpen(true)}>
-            Download for Canvas
+          <Button onClick={() => setExportModalOpen(true)}>
+            Export for Canvas
           </Button>
         </div>
       </div>
@@ -656,7 +653,9 @@ export const CourseGradebook = () => {
                     >
                       <div className={styles.gradeCellInner}>
                         <div className={styles.gradeCellDetails}>
-                          <span className={styles.gradeValue}>{grade.label}</span>
+                          <span className={styles.gradeValue}>
+                            {grade.label}
+                          </span>
                           <span className={styles.gradePercent}>
                             {grade.percent}
                           </span>
@@ -749,10 +748,14 @@ export const CourseGradebook = () => {
           title="Upload your Canvas gradebook"
           subtitle="Use the latest CSV export from Canvas so we can match students."
         >
+          <p>
+            Log in to Canvas and go to your gradebook. Click the "Export"
+            button, then select "Export Entire Gradebook".
+          </p>
           <div className={assignmentStyles.uploadBox}>
             <strong>Canvas CSV</strong>
             <p className={assignmentStyles.uploadHelper}>
-              We keep this file in your browser only. Nothing gets uploaded yet.
+              We keep this file in your browser only. Nothing gets uploaded.
             </p>
             <input
               id="canvasGradebookUpload"
@@ -800,19 +803,20 @@ export const CourseGradebook = () => {
             />
           </Section>
         )}
-        {canvasGradebookData.assignments.length > 0 && assignments.length > 0 && (
-          <Section
-            title="Match Canvas assignments"
-            subtitle="Pair Canvas grade columns with FeatureBench assignments."
-          >
-            <CanvasAssignmentMatcher
-              canvasAssignments={canvasGradebookData.assignments}
-              assignments={assignments}
-              matchMap={canvasAssignmentMatches}
-              onMatchesChange={setCanvasAssignmentMatches}
-            />
-          </Section>
-        )}
+        {canvasGradebookData.assignments.length > 0 &&
+          assignments.length > 0 && (
+            <Section
+              title="Match Canvas assignments"
+              subtitle="Pair Canvas grade columns with FeatureBench assignments."
+            >
+              <CanvasAssignmentMatcher
+                canvasAssignments={canvasGradebookData.assignments}
+                assignments={assignments}
+                matchMap={canvasAssignmentMatches}
+                onMatchesChange={setCanvasAssignmentMatches}
+              />
+            </Section>
+          )}
         <Section
           title="What happens next?"
           subtitle="We'll generate a gradebook file that Canvas can import."
@@ -820,12 +824,12 @@ export const CourseGradebook = () => {
         >
           <p className={styles.meta}>
             Uploading the Canvas CSV lets us align your roster before we build
-            the export. When you click Download for Canvas we'll hand you
-            a CSV that Canvas accepts without extra mapping.
+            the export. When you click Download for Canvas we'll hand you a CSV
+            that Canvas accepts without extra mapping.
           </p>
           <p className={styles.meta}>
-            Double-check that you're using the most recent Canvas export
-            so names and IDs line up exactly.
+            Double-check that you're using the most recent Canvas export so
+            names and IDs line up exactly.
           </p>
         </Section>
       </Modal>

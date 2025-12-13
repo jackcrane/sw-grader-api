@@ -23,6 +23,11 @@ export const Modal = ({
   headerActions = null,
 }) => {
   const modalRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -34,7 +39,7 @@ export const Modal = ({
     node?.focus?.();
 
     const onKeyDown = (e) => {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape") onCloseRef.current?.();
       if (e.key === "Tab") {
         const focusables = getFocusable(modalRef.current);
         if (!focusables.length) return;
@@ -55,7 +60,7 @@ export const Modal = ({
       document.body.style.overflow = prevOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose, initialFocusRef]);
+  }, [open, initialFocusRef]);
 
   if (!open) return null;
 
