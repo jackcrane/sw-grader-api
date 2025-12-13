@@ -19,7 +19,6 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 420px;
 }
 
 .table th,
