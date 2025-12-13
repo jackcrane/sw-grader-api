@@ -17,6 +17,8 @@ import { NotificationBell } from "./NotificationBell";
 import { ProfileMenu } from "./ProfileMenu";
 import { PaymentAuthorizationModal } from "./PaymentAuthorizationModal";
 
+const TREND_STORAGE_KEY = "featurebench:signatureTrendIntent";
+
 export const Header = () => {
   const navigate = useNavigate();
   const { user, logout, viewAsStudent, setViewAsStudent } = useAuthContext();
@@ -29,6 +31,7 @@ export const Header = () => {
     error: notificationsError,
     isLoading: notificationsLoading,
     refresh: refreshNotifications,
+    dismiss: dismissNotification,
     hasPending: hasPendingNotifications,
   } = useNotifications({ enabled: Boolean(user) });
 
@@ -82,6 +85,46 @@ export const Header = () => {
         return;
       }
 
+      if (notification?.type === "SIGNATURE_TREND") {
+        const data = notification?.data || {};
+        const intent = {
+          assignmentId: data.assignmentId ?? null,
+          courseId: data.courseId ?? null,
+          trendKey: data.trendKey ?? null,
+          occurrenceCount: data.occurrenceCount ?? null,
+          signatureSeed: data.signatureSeed ?? {},
+        };
+        try {
+          window.sessionStorage.setItem(
+            TREND_STORAGE_KEY,
+            JSON.stringify(intent)
+          );
+        } catch {
+          // ignore session storage failures
+        }
+
+        if (notification?.id) {
+          try {
+            await dismissNotification(notification.id);
+          } catch {
+            // non-blocking
+          }
+        }
+
+        if (intent.courseId && intent.assignmentId) {
+          navigate(
+            `/${intent.courseId}/assignments/${intent.assignmentId}`,
+            {
+              state: { signatureTrendIntent: intent },
+            }
+          );
+          closeNotifications();
+          return;
+        }
+        closeNotifications();
+        return;
+      }
+
       if (
         notification?.type === "PAYMENT_ISSUE" &&
         notification?.data?.paymentIntentId
@@ -104,6 +147,18 @@ export const Header = () => {
       }
     },
     [authorizePaymentNotification, closeNotifications, navigate]
+  );
+
+  const handleNotificationDismiss = useCallback(
+    async (notification) => {
+      if (!notification?.id) return;
+      try {
+        await dismissNotification(notification.id);
+      } catch {
+        // ignore dismiss errors in UI
+      }
+    },
+    [dismissNotification]
   );
 
   const handleAuthorizationSuccessInModal = useCallback(
@@ -140,6 +195,7 @@ export const Header = () => {
                   onRefresh={refreshNotifications}
                   onNotificationCta={handleNotificationCta}
                   actionState={notificationActions}
+                  onNotificationDismiss={handleNotificationDismiss}
                 />
                 <ProfileMenu
                   user={user}

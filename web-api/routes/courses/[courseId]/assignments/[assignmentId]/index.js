@@ -9,6 +9,11 @@ import {
   withSignedAssetUrls,
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
+import {
+  checkSignatureTrendsForAssignment,
+  enqueueSignatureTrendCheck,
+  rescoreSubmissionsAgainstSignatures,
+} from "../../../../../services/signatureTrends.js";
 
 const signaturesInclude = {
   signatures: {
@@ -434,6 +439,28 @@ export const patch = [
     }
 
     const updatedAssignment = await readAssignment(assignmentId);
+
+    Promise.resolve()
+      .then(() =>
+        rescoreSubmissionsAgainstSignatures({
+          assignmentId,
+          assignment: updatedAssignment,
+          courseId,
+        })
+      )
+      .then(() =>
+        enqueueSignatureTrendCheck({
+          assignmentId,
+          courseId,
+        })
+      )
+      .catch((error) => {
+        console.warn(
+          `Post-update rescore failed for assignment ${assignmentId}`,
+          error
+        );
+      });
+
     return res.json(updatedAssignment);
   },
 ];
