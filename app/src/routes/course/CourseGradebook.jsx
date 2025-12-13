@@ -1,10 +1,13 @@
 import classNames from "classnames";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router-dom";
 import { Prohibit, Hourglass, SignOut } from "@phosphor-icons/react";
 import { H2 } from "../../components/typography/Typography";
 import { Spacer } from "../../components/spacer/Spacer";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
+import { Modal } from "../../components/modal/Modal";
+import { Button } from "../../components/button/Button";
+import { Section } from "../../components/form/Section";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
@@ -14,6 +17,7 @@ import {
   parseGradeValue,
 } from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
+import assignmentStyles from "./AssignmentDetails.module.css";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -98,6 +102,9 @@ export const CourseGradebook = () => {
   const [previewModalState, setPreviewModalState] = useState(
     submissionPreviewInitialState
   );
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
+  const canvasFileInputRef = useRef(null);
 
   const students = useMemo(
     () =>
@@ -214,6 +221,16 @@ export const CourseGradebook = () => {
     }
   };
 
+  const handleCanvasUploadChange = (event) => {
+    const file = event?.target?.files?.[0] ?? null;
+    setCanvasGradebookFile(file);
+  };
+
+  const closeExportModal = () => {
+    setExportModalOpen(false);
+    setCanvasGradebookFile(null);
+  };
+
   return (
     <section className={styles.gradebook}>
       <div className={styles.header}>
@@ -224,7 +241,13 @@ export const CourseGradebook = () => {
             drill into a student&apos;s submissions.
           </p>
         </div>
-        <p className={styles.legend}>Scores shown as earned / possible.</p>
+        <div>
+          <p className={styles.legend}>Scores shown as earned / possible.</p>
+          <Spacer size={2} />
+          <Button variant="primary" onClick={() => setExportModalOpen(true)}>
+            Download for Canvas
+          </Button>
+        </div>
       </div>
 
       <Spacer />
@@ -279,16 +302,16 @@ export const CourseGradebook = () => {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.studentCell}>
-                      {row.enrollmentId ? (
-                        <Link
-                          to={`/${courseId}/roster/${row.enrollmentId}`}
-                          className={styles.studentLink}
-                        >
-                          <span className={styles.studentName}>{row.name}</span>
-                        </Link>
-                      ) : (
+                    {row.enrollmentId ? (
+                      <Link
+                        to={`/${courseId}/roster/${row.enrollmentId}`}
+                        className={styles.studentLink}
+                      >
                         <span className={styles.studentName}>{row.name}</span>
-                      )}
+                      </Link>
+                    ) : (
+                      <span className={styles.studentName}>{row.name}</span>
+                    )}
                     {/* <span className={styles.studentMeta}>
                       {row.email} • {row.role}
                     </span> */}
@@ -376,6 +399,66 @@ export const CourseGradebook = () => {
           </table>
         </div>
       )}
+      <Modal
+        open={exportModalOpen}
+        onClose={closeExportModal}
+        title="Download for Canvas"
+        initialFocusRef={canvasFileInputRef}
+        footer={
+          <>
+            <Button onClick={closeExportModal}>Close</Button>
+            <Button variant="primary" disabled={!canvasGradebookFile}>
+              Download for Canvas
+            </Button>
+          </>
+        }
+      >
+        <Section
+          title="Upload your Canvas gradebook"
+          subtitle="Use the latest CSV export from Canvas so we can match students."
+        >
+          <div className={assignmentStyles.uploadBox}>
+            <strong>Canvas CSV</strong>
+            <p className={assignmentStyles.uploadHelper}>
+              We keep this file in your browser only. Nothing gets uploaded yet.
+            </p>
+            <input
+              id="canvasGradebookUpload"
+              type="file"
+              accept=".csv"
+              ref={canvasFileInputRef}
+              className={assignmentStyles.fileInput}
+              onChange={handleCanvasUploadChange}
+            />
+            {canvasGradebookFile ? (
+              <p
+                className={`${assignmentStyles.status} ${assignmentStyles.statusSuccess}`}
+              >
+                Selected file: {canvasGradebookFile.name}
+              </p>
+            ) : (
+              <p className={assignmentStyles.status}>
+                Choose the CSV you just downloaded from Canvas.
+              </p>
+            )}
+          </div>
+        </Section>
+        <Section
+          title="What happens next?"
+          subtitle="We'll generate a gradebook file that Canvas can import."
+          last
+        >
+          <p className={styles.meta}>
+            Uploading the Canvas CSV lets us align your roster before we build
+            the export. When you click Download for Canvas we'll hand you
+            a CSV that Canvas accepts without extra mapping.
+          </p>
+          <p className={styles.meta}>
+            Double-check that you're using the most recent Canvas export
+            so names and IDs line up exactly.
+          </p>
+        </Section>
+      </Modal>
       <SubmissionPreviewModal
         open={previewModalOpen}
         status={previewModalState.status}
