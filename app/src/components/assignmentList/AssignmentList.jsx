@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { Link, NavLink, useParams } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import classNames from "classnames";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
 import styles from "./AssignmentList.module.css";
 import { H2 } from "../typography/Typography";
 import { CreateAssignmentModal } from "../createAssignmentModal/CreateAssignmentModal";
 import { useAssignments } from "../../hooks/useAssignments";
+
+const TREND_STORAGE_KEY = "featurebench:signatureTrendIntent";
 
 export const AssignmentList = ({
   courseId,
@@ -21,9 +23,13 @@ export const AssignmentList = ({
     deleteAssignment,
   } = useAssignments(courseId);
 
+  const location = useLocation();
+  const navigate = useNavigate();
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [assignmentBeingEdited, setAssignmentBeingEdited] = useState(null);
+  const [pendingTrendIntent, setPendingTrendIntent] = useState(null);
+  const [injectedSignature, setInjectedSignature] = useState(null);
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
   const { assignmentId: activeAssignmentId } = useParams();
   const isAssignmentSelected = Boolean(activeAssignmentId);
@@ -55,12 +61,68 @@ export const AssignmentList = ({
     setAssignmentModalOpen(false);
     setAssignmentBeingEdited(null);
     setModalMode("create");
+    setInjectedSignature(null);
+    setPendingTrendIntent(null);
   };
 
   const handleDeleteAssignment = async (assignmentId) => {
     await deleteAssignment(assignmentId);
     handleCloseModal();
   };
+
+  useEffect(() => {
+    let intent =
+      location.state?.signatureTrendIntent ??
+      (() => {
+        if (typeof window === "undefined") return null;
+        try {
+          const stored = window.sessionStorage.getItem(TREND_STORAGE_KEY);
+          return stored ? JSON.parse(stored) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+    if (intent?.courseId && intent.courseId !== courseId) {
+      intent = null;
+    }
+
+    if (intent) {
+      setPendingTrendIntent(intent);
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.removeItem(TREND_STORAGE_KEY);
+        } catch {
+          // ignore storage failures
+        }
+      }
+      if (location.state?.signatureTrendIntent) {
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [courseId, location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    if (!pendingTrendIntent || !assignments?.length) return;
+    const target = assignments.find(
+      (assignment) => assignment.id === pendingTrendIntent.assignmentId
+    );
+    if (!target) return;
+
+    setModalMode("edit");
+    setAssignmentBeingEdited(target);
+    setAssignmentModalOpen(true);
+    setInjectedSignature({
+      ...pendingTrendIntent.signatureSeed,
+      trendKey: pendingTrendIntent.trendKey,
+      occurrenceCount: pendingTrendIntent.occurrenceCount,
+    });
+    setPendingTrendIntent(null);
+  }, [assignments, pendingTrendIntent]);
+
+  const handleInjectedSignatureUsed = useCallback(() => {
+    setInjectedSignature(null);
+  }, []);
 
   return (
     <>
@@ -177,6 +239,8 @@ export const AssignmentList = ({
           mode={modalMode}
           assignment={assignmentBeingEdited}
           onDeleteAssignment={handleDeleteAssignment}
+          injectedSignature={injectedSignature}
+          onInjectedSignatureUsed={handleInjectedSignatureUsed}
         />
       )}
     </>

@@ -5,6 +5,7 @@ import {
   bufferFromBase64,
   evaluateSubmissionAgainstSignatures,
 } from "../../../../../services/submissionUtils.js";
+import { enqueueSignatureTrendCheck } from "../../../../../services/signatureTrends.js";
 
 const signaturesInclude = {
   include: {
@@ -171,6 +172,11 @@ export const post = [
           screenshotUrl,
           featureTree: featureTreePayload,
         },
+      });
+
+      enqueueSignatureTrendCheck({
+        assignmentId: submission.assignmentId,
+        courseId: submission.courseId ?? null,
       });
 
       return res.status(200).json({
