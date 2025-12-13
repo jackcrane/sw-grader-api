@@ -11,6 +11,7 @@ import {
   verifyPassword,
 } from "../../util/users.js";
 import { sendEmail } from "../../util/postmark.js";
+import { posthog } from "../../util/posthog.js";
 
 const sendLoginEmail = async (user) => {
   const name = user.firstName ? `Hi ${user.firstName},` : "Hi there,";
@@ -30,9 +31,7 @@ If this wasn't you, please reach out to the FeatureBench team immediately so we 
 };
 
 const invalidCredentials = (res) =>
-  res
-    .status(401)
-    .json({ authenticated: false, error: "invalid_credentials" });
+  res.status(401).json({ authenticated: false, error: "invalid_credentials" });
 
 export const post = async (req, res) => {
   if (!acceptsJson(req)) {
@@ -55,6 +54,17 @@ export const post = async (req, res) => {
 
   const isValidPassword = await verifyPassword(user, password);
   if (!isValidPassword) {
+    posthog.capture({
+      distinctId: user.id,
+      event: "user login fail: invalid password",
+      properties: {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+      },
+    });
     return invalidCredentials(res);
   }
 
@@ -62,6 +72,18 @@ export const post = async (req, res) => {
   res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
 
   sendLoginEmail(user).catch(() => {});
+
+  posthog.capture({
+    distinctId: user.id,
+    event: "user login",
+    properties: {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    },
+  });
 
   return res.json({
     authenticated: true,
