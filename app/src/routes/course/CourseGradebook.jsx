@@ -8,6 +8,7 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { Modal } from "../../components/modal/Modal";
 import { Button } from "../../components/button/Button";
 import { Section } from "../../components/form/Section";
+import { CanvasPersonMatcher } from "../../components/canvas/CanvasPersonMatcher";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
@@ -79,6 +80,98 @@ const deriveSubmissionFilename = (submission) => {
   );
 };
 
+const normalizeNameValue = (value) =>
+  value ? value.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+
+const parseCsvRows = (text = "") => {
+  const rows = [];
+  let current = "";
+  let row = [];
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      row.push(current);
+      current = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && text[i + 1] === "\n") {
+        i += 1;
+      }
+      row.push(current);
+      if (row.some((cell) => cell.trim() !== "")) {
+        rows.push(row);
+      }
+      row = [];
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  row.push(current);
+  if (row.some((cell) => cell.trim() !== "")) {
+    rows.push(row);
+  }
+
+  return rows;
+};
+
+const parseCanvasName = (raw) => {
+  const cleaned = raw?.trim();
+  if (!cleaned) {
+    return { displayName: "", firstName: "", lastName: "" };
+  }
+  const [last = "", first = ""] = cleaned.split(",").map((part) => part.trim());
+  return {
+    displayName: cleaned,
+    firstName: first,
+    lastName: last,
+  };
+};
+
+const parseCanvasGradebook = (text = "") => {
+  const rows = parseCsvRows(text);
+  if (!rows.length) return [];
+  const [, ...dataRows] = rows;
+
+  return dataRows
+    .map((row, index) => {
+      const rawStudent = row[0]?.trim();
+      if (!rawStudent) return null;
+      const normalizedStudent = rawStudent.replace(/^"+|"+$/g, "");
+      const normalizedLower = normalizedStudent.toLowerCase();
+      if (normalizedLower === "student") return null;
+      if (normalizedLower.includes("points possible")) return null;
+      const { displayName, firstName, lastName } = parseCanvasName(
+        normalizedStudent
+      );
+      if (!displayName) return null;
+      const normalizedFirst = normalizeNameValue(firstName);
+      const normalizedLast = normalizeNameValue(lastName);
+      return {
+        canvasId: String(row[1]?.trim() || `row-${index}`),
+        sisLoginId: row[2]?.trim() || "",
+        section: row[3]?.trim() || "",
+        displayName,
+        firstName,
+        lastName,
+        normalizedFirst,
+        normalizedLast,
+        normalizedFull: normalizeNameValue(`${firstName} ${lastName}`),
+        normalizedReverse: normalizeNameValue(`${lastName} ${firstName}`),
+      };
+    })
+    .filter(Boolean);
+};
+
 const submissionPreviewInitialState = {
   status: "idle",
   screenshotUrl: null,
@@ -104,6 +197,8 @@ export const CourseGradebook = () => {
   );
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
+  const [canvasGradebookEntries, setCanvasGradebookEntries] = useState([]);
+  const [canvasParseError, setCanvasParseError] = useState(null);
   const canvasFileInputRef = useRef(null);
 
   const students = useMemo(
@@ -121,6 +216,7 @@ export const CourseGradebook = () => {
         enrollmentId: student.id,
         userId: student.user?.id ?? null,
         name: formatName(student.user),
+        user: student.user ?? null,
         email: student.user?.email ?? "No email provided",
         role: roleLabels[student.type] ?? student.type,
         average: calculateAverageGrade([], student.submissions),
@@ -144,6 +240,7 @@ export const CourseGradebook = () => {
         enrollmentId: student.id,
         userId: student.user?.id ?? null,
         name: formatName(student.user),
+        user: student.user ?? null,
         email: student.user?.email ?? "No email provided",
         role: roleLabels[student.type] ?? student.type,
         average: calculateAverageGrade(assignments, student.submissions),
@@ -221,14 +318,40 @@ export const CourseGradebook = () => {
     }
   };
 
-  const handleCanvasUploadChange = (event) => {
+  const handleCanvasUploadChange = async (event) => {
     const file = event?.target?.files?.[0] ?? null;
     setCanvasGradebookFile(file);
+    setCanvasParseError(null);
+
+    if (!file) {
+      setCanvasGradebookEntries([]);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const entries = parseCanvasGradebook(text);
+      setCanvasGradebookEntries(entries);
+      if (!entries.length) {
+        setCanvasParseError(
+          "No student rows were detected in this Canvas CSV."
+        );
+      }
+    } catch (err) {
+      console.error("Failed to parse Canvas gradebook", err);
+      setCanvasGradebookEntries([]);
+      setCanvasParseError("Unable to parse the Canvas gradebook file.");
+    }
   };
 
   const closeExportModal = () => {
     setExportModalOpen(false);
     setCanvasGradebookFile(null);
+    setCanvasGradebookEntries([]);
+    setCanvasParseError(null);
+    if (canvasFileInputRef.current) {
+      canvasFileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -430,7 +553,19 @@ export const CourseGradebook = () => {
               className={assignmentStyles.fileInput}
               onChange={handleCanvasUploadChange}
             />
-            {canvasGradebookFile ? (
+            {canvasParseError ? (
+              <p
+                className={`${assignmentStyles.status} ${assignmentStyles.statusError}`}
+              >
+                {canvasParseError}
+              </p>
+            ) : canvasGradebookEntries.length > 0 ? (
+              <p
+                className={`${assignmentStyles.status} ${assignmentStyles.statusSuccess}`}
+              >
+                Found {canvasGradebookEntries.length} Canvas students.
+              </p>
+            ) : canvasGradebookFile ? (
               <p
                 className={`${assignmentStyles.status} ${assignmentStyles.statusSuccess}`}
               >
@@ -443,6 +578,17 @@ export const CourseGradebook = () => {
             )}
           </div>
         </Section>
+        {canvasGradebookEntries.length > 0 && (
+          <Section
+            title="Match Canvas students"
+            subtitle="Connect Canvas records to FeatureBench students."
+          >
+            <CanvasPersonMatcher
+              canvasPeople={canvasGradebookEntries}
+              students={students}
+            />
+          </Section>
+        )}
         <Section
           title="What happens next?"
           subtitle="We'll generate a gradebook file that Canvas can import."
