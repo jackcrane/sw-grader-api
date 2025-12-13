@@ -6,6 +6,7 @@ import {
   ClipboardTextIcon,
   CreditCardIcon,
   ChatsCircleIcon,
+  TrendUpIcon,
 } from "@phosphor-icons/react";
 import styles from "./Header.module.css";
 
@@ -13,6 +14,7 @@ const NOTIFICATION_TYPE_ICON = {
   ASSIGNMENT_GRADED: CheckCircleIcon,
   ASSIGNMENT_POSTED: ClipboardTextIcon,
   PAYMENT_ISSUE: CreditCardIcon,
+  SIGNATURE_TREND: TrendUpIcon,
   OTHER: ChatsCircleIcon,
 };
 
@@ -20,6 +22,7 @@ const NOTIFICATION_TYPE_LABEL = {
   ASSIGNMENT_GRADED: "Assignment graded",
   ASSIGNMENT_POSTED: "Assignment posted",
   PAYMENT_ISSUE: "Payment issue",
+  SIGNATURE_TREND: "Signature trend",
   OTHER: "Notification",
 };
 
@@ -33,6 +36,7 @@ export const NotificationList = ({
   notifications,
   actionState,
   onNotificationCta,
+  onNotificationDismiss,
 }) => {
   if (!notifications.length) {
     return (
@@ -54,13 +58,19 @@ export const NotificationList = ({
           notification={notification}
           actionState={actionState[notification.id] ?? {}}
           onNotificationCta={onNotificationCta}
+          onNotificationDismiss={onNotificationDismiss}
         />
       ))}
     </ul>
   );
 };
 
-const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
+const NotificationItem = ({
+  notification,
+  actionState,
+  onNotificationCta,
+  onNotificationDismiss,
+}) => {
   const Icon = getIconComponent(notification.type);
   const notificationData =
     notification && typeof notification.data === "object"
@@ -76,6 +86,8 @@ const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
     isPaymentAuthorization && actionState?.loading
       ? "Authorizing…"
       : baseLabel;
+  const dismissible =
+    notificationData?.dismissible || notification.type === "SIGNATURE_TREND";
 
   return (
     <li className={styles.notificationItem}>
@@ -109,6 +121,15 @@ const NotificationItem = ({ notification, actionState, onNotificationCta }) => {
               </p>
             )}
           </>
+        )}
+        {dismissible && (
+          <button
+            type="button"
+            className={styles.notificationDismiss}
+            onClick={() => onNotificationDismiss?.(notification)}
+          >
+            Dismiss
+          </button>
         )}
       </div>
     </li>

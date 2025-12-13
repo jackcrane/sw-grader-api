@@ -16,6 +16,7 @@ import { registerRoutes } from "./util/router.js";
 import { startGraderHealthMonitor } from "./services/graderHealth.js";
 import { startPendingSubmissionWorker } from "./services/pendingSubmissionWorker.js";
 import { startBillingFollowUpWorker } from "./services/billingFollowUpWorker.js";
+import { startSignatureTrendWorker } from "./services/signatureTrendWorker.js";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use(cookieParser());
 startGraderHealthMonitor();
 startPendingSubmissionWorker();
 startBillingFollowUpWorker();
+startSignatureTrendWorker();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

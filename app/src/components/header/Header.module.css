@@ -268,6 +268,21 @@
   opacity: 0.9;
 }
 
+.notificationDismiss {
+  margin-top: 18px;
+  border: none;
+  background: transparent;
+  color: #b45309;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 8px;
+}
+
+.notificationDismiss:hover {
+  text-decoration: underline;
+}
+
 .notificationEmpty {
   padding: 24px 24px 32px;
   text-align: center;
