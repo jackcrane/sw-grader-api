@@ -14,6 +14,7 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
+  max-height: 400px;
 }
 
 .table {
@@ -31,6 +32,10 @@
 
 .table tbody tr:nth-child(even) td {
   background: color-mix(in srgb, var(--surface) 92%, white);
+}
+
+.rowUnmatched td {
+  background: color-mix(in srgb, var(--grade-cell-bg-waiting) 65%, white);
 }
 
 .select {

@@ -61,8 +61,14 @@ const buildStudentRecord = (student) => {
   };
 };
 
+const getPersonKey = (person, index) =>
+  `${normalizeNameValue(person.displayName)}-${index}`;
+
+const sanitizeCanvasPeople = (people = []) =>
+  people.filter((person) => person.displayName !== "Student, Test");
+
 const buildCanvasRecord = (person, index) => ({
-  key: `${normalizeNameValue(person.displayName)}-${index}`,
+  key: getPersonKey(person, index),
   displayName: person.displayName,
   section: person.section,
   normalizedFirst: person.normalizedFirst ?? "",
@@ -70,8 +76,8 @@ const buildCanvasRecord = (person, index) => ({
 });
 
 const buildInitialMatches = (canvasPeople = [], students = []) => {
-  console.log({ canvasPeople, students });
-  if (!canvasPeople.length || !students.length) {
+  const filteredCanvasPeople = sanitizeCanvasPeople(canvasPeople);
+  if (!filteredCanvasPeople.length || !students.length) {
     return {};
   }
 
@@ -79,7 +85,7 @@ const buildInitialMatches = (canvasPeople = [], students = []) => {
   const available = new Set(studentRecords.map((record) => record.id));
   const matches = {};
 
-  canvasPeople.forEach((person, index) => {
+  filteredCanvasPeople.forEach((person, index) => {
     const canvasRecord = buildCanvasRecord(person, index);
     const candidates = studentRecords.filter((candidate) =>
       available.has(candidate.id)
@@ -105,11 +111,15 @@ const buildInitialMatches = (canvasPeople = [], students = []) => {
 };
 
 export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
+  const sanitizedCanvasPeople = useMemo(
+    () => sanitizeCanvasPeople(canvasPeople),
+    [canvasPeople]
+  );
   const [matchMap, setMatchMap] = useState({});
 
   useEffect(() => {
-    setMatchMap(buildInitialMatches(canvasPeople, students));
-  }, [canvasPeople, students]);
+    setMatchMap(buildInitialMatches(sanitizedCanvasPeople, students));
+  }, [sanitizedCanvasPeople, students]);
 
   const assignedStudentIds = useMemo(() => {
     const selected = Object.values(matchMap).filter(Boolean);
@@ -117,14 +127,42 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
   }, [matchMap]);
 
   const unmatchedCount = useMemo(() => {
-    if (!canvasPeople.length) return 0;
+    if (!sanitizedCanvasPeople.length) return 0;
     let count = 0;
-    canvasPeople.forEach((person, index) => {
-      const key = `${normalizeNameValue(person.displayName)}-${index}`;
+    sanitizedCanvasPeople.forEach((person, index) => {
+      const key = getPersonKey(person, index);
       if (!matchMap[key]) count += 1;
     });
     return count;
-  }, [canvasPeople, matchMap]);
+  }, [sanitizedCanvasPeople, matchMap]);
+
+  const tableEntries = useMemo(() => {
+    return sanitizedCanvasPeople
+      .map((person, index) => {
+        const key = getPersonKey(person, index);
+        return {
+          person,
+          key,
+          isMatched: Boolean(matchMap[key]),
+        };
+      })
+      .sort((a, b) => Number(a.isMatched) - Number(b.isMatched));
+  }, [sanitizedCanvasPeople, matchMap]);
+
+  const unmatchedCanvasNames = useMemo(
+    () =>
+      tableEntries
+        .filter((entry) => !entry.isMatched)
+        .map((entry) => entry.person.displayName),
+    [tableEntries]
+  );
+
+  const unmatchedStudentNames = useMemo(() => {
+    const matchedIds = new Set(Object.values(matchMap).filter(Boolean));
+    return students
+      .filter((student) => !matchedIds.has(String(student.id)))
+      .map((student) => getStudentName(student));
+  }, [matchMap, students]);
 
   const getSelectableStudents = (personKey) => {
     const currentSelection = matchMap[personKey] ?? null;
@@ -149,7 +187,7 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
     }));
   };
 
-  if (!canvasPeople.length) {
+  if (!sanitizedCanvasPeople.length) {
     return (
       <p className={styles.helper}>
         Upload a Canvas CSV to start matching students.
@@ -170,7 +208,7 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
       <p className={styles.helper}>
         {unmatchedCount === 0
           ? "All Canvas students are matched. You're good to go!"
-          : `Need matches for ${unmatchedCount} of ${canvasPeople.length} Canvas students.`}
+          : `${unmatchedCount} name from canvas is not matched to a FeatureBench student.`}
       </p>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -181,13 +219,13 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
             </tr>
           </thead>
           <tbody>
-            {canvasPeople.map((person, index) => {
-              const personKey = `${normalizeNameValue(
-                person.displayName
-              )}-${index}`;
-              const availableStudents = getSelectableStudents(personKey);
+            {tableEntries.map(({ person, key, isMatched }) => {
+              const availableStudents = getSelectableStudents(key);
               return (
-                <tr key={personKey}>
+                <tr
+                  key={key}
+                  className={!isMatched ? styles.rowUnmatched : undefined}
+                >
                   <td>
                     <div className={styles.canvasDetails}>
                       <strong>{person.displayName}</strong>
@@ -201,8 +239,8 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
                   <td>
                     <select
                       className={styles.select}
-                      value={matchMap[personKey] ?? ""}
-                      onChange={(event) => handleSelectChange(personKey, event)}
+                      value={matchMap[key] ?? ""}
+                      onChange={(event) => handleSelectChange(key, event)}
                     >
                       <option value="">Select a student</option>
                       {availableStudents.map((student) => (
@@ -220,6 +258,21 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
             })}
           </tbody>
         </table>
+      </div>
+      <div>
+        <p className={styles.helper}>
+          These students from Canvas are not matched and thus will not transfer:{" "}
+          {unmatchedCanvasNames.length
+            ? unmatchedCanvasNames.join(", ")
+            : "None"}
+        </p>
+        <p className={styles.helper}>
+          These students from FeatureBench are not matched and thus will not
+          transfer:{" "}
+          {unmatchedStudentNames.length
+            ? unmatchedStudentNames.join(", ")
+            : "None"}
+        </p>
       </div>
     </div>
   );
