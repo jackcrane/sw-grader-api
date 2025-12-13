@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router-dom";
 import { Prohibit, Hourglass, SignOut } from "@phosphor-icons/react";
 import { H2 } from "../../components/typography/Typography";
@@ -8,8 +8,14 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { Modal } from "../../components/modal/Modal";
 import { Button } from "../../components/button/Button";
 import { Section } from "../../components/form/Section";
-import { CanvasPersonMatcher } from "../../components/canvas/CanvasPersonMatcher";
-import { CanvasAssignmentMatcher } from "../../components/canvas/CanvasAssignmentMatcher";
+import {
+  CanvasPersonMatcher,
+  buildCanvasPersonMatches,
+} from "../../components/canvas/CanvasPersonMatcher";
+import {
+  CanvasAssignmentMatcher,
+  buildCanvasAssignmentMatches,
+} from "../../components/canvas/CanvasAssignmentMatcher";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
@@ -163,9 +169,19 @@ const extractCanvasAssignments = (headerRow = [], pointsRow = []) => {
     .filter(Boolean);
 };
 
+const makeCanvasStudentKey = (displayName, rowIndex) =>
+  `${normalizeNameValue(displayName)}-${rowIndex + 2}`;
+
 const parseCanvasGradebook = (text = "") => {
   const rows = parseCsvRows(text);
-  if (!rows.length) return { students: [], assignments: [] };
+  if (!rows.length)
+    return {
+      students: [],
+      assignments: [],
+      headerRow: [],
+      pointsRow: [],
+      dataRows: [],
+    };
   const headerRow = rows[0] ?? [];
   const pointsRow = rows[1] ?? [];
   const dataRows = rows.slice(2);
@@ -184,9 +200,11 @@ const parseCanvasGradebook = (text = "") => {
         normalizedStudent
       );
       if (!displayName) return null;
+      const key = makeCanvasStudentKey(displayName, index);
       const normalizedFirst = normalizeNameValue(firstName);
       const normalizedLast = normalizeNameValue(lastName);
       return {
+        key,
         canvasId: String(row[1]?.trim() || `row-${index}`),
         sisLoginId: row[2]?.trim() || "",
         section: row[3]?.trim() || "",
@@ -195,14 +213,21 @@ const parseCanvasGradebook = (text = "") => {
         lastName,
         normalizedFirst,
         normalizedLast,
-        normalizedFull: normalizeNameValue(`${firstName} ${lastName}`),
-        normalizedReverse: normalizeNameValue(`${lastName} ${firstName}`),
+        rowIndex: index,
       };
     })
     .filter(Boolean);
 
-  return { students, assignments };
+  return { students, assignments, headerRow, pointsRow, dataRows };
 };
+
+const createEmptyCanvasData = () => ({
+  students: [],
+  assignments: [],
+  headerRow: [],
+  pointsRow: [],
+  dataRows: [],
+});
 
 const submissionPreviewInitialState = {
   status: "idle",
@@ -229,11 +254,12 @@ export const CourseGradebook = () => {
   );
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
-  const [canvasGradebookData, setCanvasGradebookData] = useState({
-    students: [],
-    assignments: [],
-  });
+  const [canvasGradebookData, setCanvasGradebookData] = useState(() =>
+    createEmptyCanvasData()
+  );
   const [canvasParseError, setCanvasParseError] = useState(null);
+  const [canvasPersonMatches, setCanvasPersonMatches] = useState({});
+  const [canvasAssignmentMatches, setCanvasAssignmentMatches] = useState({});
   const canvasFileInputRef = useRef(null);
 
   const students = useMemo(
@@ -283,6 +309,29 @@ export const CourseGradebook = () => {
       };
     });
   }, [assignments, students]);
+
+  useEffect(() => {
+    if (!canvasGradebookData.students.length || !students.length) {
+      setCanvasPersonMatches({});
+      return;
+    }
+    setCanvasPersonMatches(
+      buildCanvasPersonMatches(canvasGradebookData.students, students)
+    );
+  }, [canvasGradebookData.students, students]);
+
+  useEffect(() => {
+    if (!canvasGradebookData.assignments.length || !assignments.length) {
+      setCanvasAssignmentMatches({});
+      return;
+    }
+    setCanvasAssignmentMatches(
+      buildCanvasAssignmentMatches(
+        canvasGradebookData.assignments,
+        assignments
+      )
+    );
+  }, [canvasGradebookData.assignments, assignments]);
 
   if (!canViewGradebook) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -359,7 +408,7 @@ export const CourseGradebook = () => {
     setCanvasParseError(null);
 
     if (!file) {
-      setCanvasGradebookData({ students: [], assignments: [] });
+      setCanvasGradebookData(createEmptyCanvasData());
       return;
     }
 
@@ -374,7 +423,7 @@ export const CourseGradebook = () => {
       }
     } catch (err) {
       console.error("Failed to parse Canvas gradebook", err);
-      setCanvasGradebookData({ students: [], assignments: [] });
+      setCanvasGradebookData(createEmptyCanvasData());
       setCanvasParseError("Unable to parse the Canvas gradebook file.");
     }
   };
@@ -382,12 +431,133 @@ export const CourseGradebook = () => {
   const closeExportModal = () => {
     setExportModalOpen(false);
     setCanvasGradebookFile(null);
-    setCanvasGradebookData({ students: [], assignments: [] });
+    setCanvasGradebookData(createEmptyCanvasData());
     setCanvasParseError(null);
+    setCanvasPersonMatches({});
+    setCanvasAssignmentMatches({});
     if (canvasFileInputRef.current) {
       canvasFileInputRef.current.value = "";
     }
   };
+
+  const handleDownloadCanvasCsv = () => {
+    if (
+      !canvasGradebookFile ||
+      !canvasGradebookData.headerRow.length ||
+      !canvasGradebookData.dataRows.length
+    ) {
+      return;
+    }
+
+    const matchedStudentEntries = Object.entries(canvasPersonMatches).filter(
+      ([, studentId]) => Boolean(studentId)
+    );
+    const matchedAssignmentEntries = Object.entries(
+      canvasAssignmentMatches
+    ).filter(([, assignmentId]) => Boolean(assignmentId));
+    if (!matchedStudentEntries.length || !matchedAssignmentEntries.length) {
+      return;
+    }
+
+    const canvasStudentsByKey = new Map(
+      canvasGradebookData.students.map((student) => [student.key, student])
+    );
+    const canvasAssignmentsByKey = new Map(
+      canvasGradebookData.assignments.map((assignment) => [
+        assignment.key,
+        assignment,
+      ])
+    );
+    const rowsByStudentId = new Map(
+      rows.map((row) => [String(row.id), row])
+    );
+    const assignmentsById = new Map(
+      assignments.map((assignment) => [String(assignment.id), assignment])
+    );
+
+    const updatedDataRows = canvasGradebookData.dataRows.map((row) => [
+      ...row,
+    ]);
+
+    matchedStudentEntries.forEach(([canvasKey, studentId]) => {
+      const canvasStudent = canvasStudentsByKey.get(canvasKey);
+      const gradeRow = rowsByStudentId.get(String(studentId));
+      if (!canvasStudent || !gradeRow) return;
+      const rowData = updatedDataRows[canvasStudent.rowIndex];
+      if (!rowData) return;
+
+      matchedAssignmentEntries.forEach(([assignmentKey, featureAssignmentId]) => {
+        const canvasAssignment = canvasAssignmentsByKey.get(assignmentKey);
+        const fbAssignment = assignmentsById.get(String(featureAssignmentId));
+        if (!canvasAssignment || !fbAssignment) return;
+
+        const gradeEntry = gradeRow.grades.find(
+          (grade) => grade.assignmentId === fbAssignment.id
+        );
+        const gradeValue = parseGradeValue(gradeEntry?.submission?.grade);
+        const fbPoints = Number(fbAssignment.pointsPossible ?? 0);
+        if (
+          gradeValue == null ||
+          !Number.isFinite(fbPoints) ||
+          fbPoints <= 0 ||
+          canvasAssignment.pointsPossible <= 0
+        ) {
+          return;
+        }
+
+        const percent = Math.max(
+          0,
+          Math.min(1, gradeValue / fbPoints)
+        );
+        const scaled =
+          Math.round(percent * canvasAssignment.pointsPossible * 10) / 10;
+        if (canvasAssignment.columnIndex != null) {
+          rowData[canvasAssignment.columnIndex] = scaled.toFixed(1);
+        }
+      });
+    });
+
+    const updatedRows = [
+      [...canvasGradebookData.headerRow],
+      [...canvasGradebookData.pointsRow],
+      ...updatedDataRows,
+    ];
+
+    const csvContent = updatedRows
+      .map((row) =>
+        row
+          .map((cell = "") => {
+            const stringCell =
+              cell == null
+                ? ""
+                : typeof cell === "number"
+                ? String(cell)
+                : String(cell);
+            const escaped = stringCell.replace(/"/g, '""');
+            return /[",\n]/.test(stringCell) ? `"${escaped}"` : escaped;
+          })
+          .join(",")
+      )
+      .join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const baseName =
+      canvasGradebookFile.name?.replace(/\.csv$/i, "") ?? "canvas-gradebook";
+    link.download = `${baseName}-featurebench.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const canDownloadCanvasCsv =
+    Boolean(canvasGradebookFile) &&
+    canvasGradebookData.dataRows.length > 0 &&
+    Object.values(canvasPersonMatches).some(Boolean) &&
+    Object.values(canvasAssignmentMatches).some(Boolean);
 
   return (
     <section className={styles.gradebook}>
@@ -565,7 +735,11 @@ export const CourseGradebook = () => {
         footer={
           <>
             <Button onClick={closeExportModal}>Close</Button>
-            <Button variant="primary" disabled={!canvasGradebookFile}>
+            <Button
+              variant="primary"
+              disabled={!canDownloadCanvasCsv}
+              onClick={handleDownloadCanvasCsv}
+            >
               Download for Canvas
             </Button>
           </>
@@ -621,6 +795,8 @@ export const CourseGradebook = () => {
             <CanvasPersonMatcher
               canvasPeople={canvasGradebookData.students}
               students={students}
+              matchMap={canvasPersonMatches}
+              onMatchesChange={setCanvasPersonMatches}
             />
           </Section>
         )}
@@ -632,6 +808,8 @@ export const CourseGradebook = () => {
             <CanvasAssignmentMatcher
               canvasAssignments={canvasGradebookData.assignments}
               assignments={assignments}
+              matchMap={canvasAssignmentMatches}
+              onMatchesChange={setCanvasAssignmentMatches}
             />
           </Section>
         )}

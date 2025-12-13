@@ -1,12 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import styles from "./CanvasPersonMatcher.module.css";
 
 const normalizeNameValue = (value) =>
   value ? value.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
-
-const getAssignmentKey = (assignment, fallbackIndex = 0) =>
-  assignment?.key ??
-  `${normalizeNameValue(assignment?.displayName ?? "")}-${fallbackIndex}`;
 
 const buildAssignmentRecord = (assignment) => ({
   id: String(assignment.id),
@@ -15,14 +11,16 @@ const buildAssignmentRecord = (assignment) => ({
   pointsPossible: Number(assignment.pointsPossible ?? 0),
 });
 
-const buildInitialMatches = (canvasAssignments = [], assignments = []) => {
+export const buildCanvasAssignmentMatches = (
+  canvasAssignments = [],
+  assignments = []
+) => {
   if (!canvasAssignments.length || !assignments.length) return {};
   const assignmentRecords = assignments.map(buildAssignmentRecord);
   const available = new Set(assignmentRecords.map((record) => record.id));
   const matches = {};
 
-  canvasAssignments.forEach((canvasAssignment, index) => {
-    const key = getAssignmentKey(canvasAssignment, index);
+  canvasAssignments.forEach((canvasAssignment) => {
     const candidates = assignmentRecords.filter((candidate) =>
       available.has(candidate.id)
     );
@@ -32,10 +30,10 @@ const buildInitialMatches = (canvasAssignments = [], assignments = []) => {
         candidate.normalizedName === canvasAssignment.normalizedName
     );
     if (exactMatches.length === 1) {
-      matches[key] = exactMatches[0].id;
+      matches[canvasAssignment.key] = exactMatches[0].id;
       available.delete(exactMatches[0].id);
     } else {
-      matches[key] = null;
+      matches[canvasAssignment.key] = null;
     }
   });
 
@@ -45,18 +43,9 @@ const buildInitialMatches = (canvasAssignments = [], assignments = []) => {
 export const CanvasAssignmentMatcher = ({
   canvasAssignments = [],
   assignments = [],
+  matchMap = {},
+  onMatchesChange,
 }) => {
-  const [matchMap, setMatchMap] = useState({});
-
-  useEffect(() => {
-    setMatchMap(buildInitialMatches(canvasAssignments, assignments));
-  }, [canvasAssignments, assignments]);
-
-  const assignedIds = useMemo(() => {
-    const selected = Object.values(matchMap).filter(Boolean);
-    return new Set(selected);
-  }, [matchMap]);
-
   const assignmentOptions = useMemo(
     () =>
       assignments.map((assignment) => ({
@@ -69,8 +58,13 @@ export const CanvasAssignmentMatcher = ({
     [assignments]
   );
 
+  const assignedIds = useMemo(() => {
+    const selected = Object.values(matchMap).filter(Boolean);
+    return new Set(selected);
+  }, [matchMap]);
+
   const getSelectableAssignments = (canvasKey) => {
-    const currentSelection = matchMap[canvasKey] ?? null;
+    const currentSelection = matchMap?.[canvasKey] ?? null;
     return assignmentOptions.filter(
       (assignment) =>
         !assignedIds.has(assignment.internalId) ||
@@ -80,17 +74,16 @@ export const CanvasAssignmentMatcher = ({
 
   const handleSelectChange = (canvasKey, event) => {
     const value = event.target.value || null;
-    setMatchMap((prev) => ({
-      ...prev,
+    onMatchesChange?.({
+      ...matchMap,
       [canvasKey]: value,
-    }));
+    });
   };
 
   const pointsMismatchAssignments = useMemo(() => {
     const mismatched = [];
-    canvasAssignments.forEach((canvasAssignment, index) => {
-      const key = getAssignmentKey(canvasAssignment, index);
-      const selectedId = matchMap[key];
+    canvasAssignments.forEach((canvasAssignment) => {
+      const selectedId = matchMap?.[canvasAssignment.key];
       if (!selectedId) return;
       const fbAssignment = assignmentOptions.find(
         (assignment) => assignment.internalId === selectedId
@@ -105,6 +98,20 @@ export const CanvasAssignmentMatcher = ({
     });
     return mismatched;
   }, [assignmentOptions, canvasAssignments, matchMap]);
+
+  if (!canvasAssignments.length) {
+    return (
+      <p className={styles.helper}>
+        Upload a Canvas CSV to start matching assignments.
+      </p>
+    );
+  }
+
+  if (!assignments.length) {
+    return (
+      <p className={styles.helper}>No assignments found in this course yet.</p>
+    );
+  }
 
   return (
     <div className={styles.matcher}>
@@ -121,13 +128,13 @@ export const CanvasAssignmentMatcher = ({
             </tr>
           </thead>
           <tbody>
-            {canvasAssignments.map((canvasAssignment, index) => {
-              const key = getAssignmentKey(canvasAssignment, index);
-              const options = getSelectableAssignments(key);
+            {canvasAssignments.map((canvasAssignment) => {
+              const options = getSelectableAssignments(canvasAssignment.key);
+              const isMatched = Boolean(matchMap?.[canvasAssignment.key]);
               return (
                 <tr
-                  key={key}
-                  className={!matchMap[key] ? styles.rowUnmatched : undefined}
+                  key={canvasAssignment.key}
+                  className={!isMatched ? styles.rowUnmatched : undefined}
                 >
                   <td>
                     <div className={styles.canvasDetails}>
@@ -140,8 +147,10 @@ export const CanvasAssignmentMatcher = ({
                   <td>
                     <select
                       className={styles.select}
-                      value={matchMap[key] ?? ""}
-                      onChange={(event) => handleSelectChange(key, event)}
+                      value={matchMap?.[canvasAssignment.key] ?? ""}
+                      onChange={(event) =>
+                        handleSelectChange(canvasAssignment.key, event)
+                      }
                     >
                       <option value="">Select an assignment</option>
                       {options.map((option) => (

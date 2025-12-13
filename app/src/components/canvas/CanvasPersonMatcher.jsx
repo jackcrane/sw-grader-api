@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import styles from "./CanvasPersonMatcher.module.css";
 
 const normalizeNameValue = (value) =>
@@ -55,99 +55,69 @@ const buildStudentRecord = (student) => {
     displayName,
     normalizedFirst,
     normalizedLast,
-    normalizedFull: normalizeNameValue(`${first} ${last}`.trim()),
-    normalizedReverse: normalizeNameValue(`${last} ${first}`.trim()),
-    normalizedDisplay: normalizeNameValue(displayName),
   };
 };
 
-const getPersonKey = (person, index) =>
-  `${normalizeNameValue(person.displayName)}-${index}`;
+const filterCanvasPeople = (canvasPeople = []) =>
+  canvasPeople.filter((person) => person.displayName !== "Student, Test");
 
-const sanitizeCanvasPeople = (people = []) =>
-  people.filter((person) => person.displayName !== "Student, Test");
-
-const buildCanvasRecord = (person, index) => ({
-  key: getPersonKey(person, index),
-  displayName: person.displayName,
-  section: person.section,
-  normalizedFirst: person.normalizedFirst ?? "",
-  normalizedLast: person.normalizedLast ?? "",
-});
-
-const buildInitialMatches = (canvasPeople = [], students = []) => {
-  const filteredCanvasPeople = sanitizeCanvasPeople(canvasPeople);
-  if (!filteredCanvasPeople.length || !students.length) {
-    return {};
-  }
+export const buildCanvasPersonMatches = (canvasPeople = [], students = []) => {
+  const filteredCanvasPeople = filterCanvasPeople(canvasPeople);
+  if (!filteredCanvasPeople.length || !students.length) return {};
 
   const studentRecords = students.map(buildStudentRecord);
   const available = new Set(studentRecords.map((record) => record.id));
   const matches = {};
 
-  filteredCanvasPeople.forEach((person, index) => {
-    const canvasRecord = buildCanvasRecord(person, index);
+  filteredCanvasPeople.forEach((person) => {
     const candidates = studentRecords.filter((candidate) =>
       available.has(candidate.id)
     );
-
     const exactMatches = candidates.filter(
       (candidate) =>
         candidate.normalizedFirst &&
         candidate.normalizedLast &&
-        candidate.normalizedFirst === canvasRecord.normalizedFirst &&
-        candidate.normalizedLast === canvasRecord.normalizedLast
+        candidate.normalizedFirst === person.normalizedFirst &&
+        candidate.normalizedLast === person.normalizedLast
     );
-
     if (exactMatches.length === 1) {
-      matches[canvasRecord.key] = exactMatches[0].id;
+      matches[person.key] = exactMatches[0].id;
       available.delete(exactMatches[0].id);
     } else {
-      matches[canvasRecord.key] = null;
+      matches[person.key] = null;
     }
   });
 
   return matches;
 };
 
-export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
-  const sanitizedCanvasPeople = useMemo(
-    () => sanitizeCanvasPeople(canvasPeople),
+export const CanvasPersonMatcher = ({
+  canvasPeople = [],
+  students = [],
+  matchMap = {},
+  onMatchesChange,
+}) => {
+  const filteredCanvasPeople = useMemo(
+    () => filterCanvasPeople(canvasPeople),
     [canvasPeople]
   );
-  const [matchMap, setMatchMap] = useState({});
-
-  useEffect(() => {
-    setMatchMap(buildInitialMatches(sanitizedCanvasPeople, students));
-  }, [sanitizedCanvasPeople, students]);
 
   const assignedStudentIds = useMemo(() => {
     const selected = Object.values(matchMap).filter(Boolean);
     return new Set(selected);
   }, [matchMap]);
 
-  const unmatchedCount = useMemo(() => {
-    if (!sanitizedCanvasPeople.length) return 0;
-    let count = 0;
-    sanitizedCanvasPeople.forEach((person, index) => {
-      const key = getPersonKey(person, index);
-      if (!matchMap[key]) count += 1;
-    });
-    return count;
-  }, [sanitizedCanvasPeople, matchMap]);
-
-  const tableEntries = useMemo(() => {
-    return sanitizedCanvasPeople
-      .map((person, index) => {
-        const key = getPersonKey(person, index);
-        return {
+  const tableEntries = useMemo(
+    () =>
+      filteredCanvasPeople
+        .map((person) => ({
           person,
-          key,
-          isMatched: Boolean(matchMap[key]),
-        };
-      })
-      .sort((a, b) => Number(a.isMatched) - Number(b.isMatched));
-  }, [sanitizedCanvasPeople, matchMap]);
+          key: person.key,
+          isMatched: Boolean(matchMap?.[person.key]),
+        }))
+        .sort((a, b) => Number(a.isMatched) - Number(b.isMatched)),
+    [filteredCanvasPeople, matchMap]
+  );
 
   const unmatchedCanvasNames = useMemo(
     () =>
@@ -165,7 +135,7 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
   }, [matchMap, students]);
 
   const getSelectableStudents = (personKey) => {
-    const currentSelection = matchMap[personKey] ?? null;
+    const currentSelection = matchMap?.[personKey] ?? null;
     return students
       .map((student) => ({
         ...student,
@@ -181,13 +151,13 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
 
   const handleSelectChange = (personKey, event) => {
     const value = event.target.value || null;
-    setMatchMap((prev) => ({
-      ...prev,
+    onMatchesChange?.({
+      ...matchMap,
       [personKey]: value,
-    }));
+    });
   };
 
-  if (!sanitizedCanvasPeople.length) {
+  if (!filteredCanvasPeople.length) {
     return (
       <p className={styles.helper}>
         Upload a Canvas CSV to start matching students.
@@ -206,9 +176,9 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
   return (
     <div className={styles.matcher}>
       <p className={styles.helper}>
-        {unmatchedCount === 0
+        {unmatchedCanvasNames.length === 0
           ? "All Canvas students are matched. You're good to go!"
-          : `${unmatchedCount} name from canvas is not matched to a FeatureBench student.`}
+          : `Need matches for ${unmatchedCanvasNames.length} of ${filteredCanvasPeople.length} Canvas students.`}
       </p>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -239,7 +209,7 @@ export const CanvasPersonMatcher = ({ canvasPeople = [], students = [] }) => {
                   <td>
                     <select
                       className={styles.select}
-                      value={matchMap[key] ?? ""}
+                      value={matchMap?.[key] ?? ""}
                       onChange={(event) => handleSelectChange(key, event)}
                     >
                       <option value="">Select a student</option>
