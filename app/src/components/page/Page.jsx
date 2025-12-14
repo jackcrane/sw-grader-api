@@ -70,10 +70,26 @@ export const Page = ({
               </a>
               <p>© {footerYear} FeatureBench. All rights reserved.</p>
             </div>
-            <p className={styles.footerTagline}>
-              SolidWorks auto-grading for thoughtful instructors and students
-              who iterate faster.
-            </p>
+            <div>
+              <p className={styles.footerTagline}>
+                SolidWorks auto-grading for thoughtful instructors and students
+                who iterate faster.
+              </p>
+              <span>
+                <a
+                  href="https://docs.featurebench.com/l/privacy-policy"
+                  style={{ color: "var(--primary)!important", fontSize: 10 }}
+                >
+                  Privacy Policy
+                </a>{" "}
+                <a
+                  href="https://docs.featurebench.com/l/terms-of-service"
+                  style={{ color: "var(--primary)!important", fontSize: 10 }}
+                >
+                  Terms and Conditions
+                </a>
+              </span>
+            </div>
           </div>
         </WidthFix>
       </footer>

@@ -19,6 +19,8 @@ FeatureBench is a platform for grading and providing feedback on student work in
 ## Other
 
 [Security Posture](/l/security-posture)\
-[Lifecycle of a submission](/p/lifecycle-of-a-submission)
+[Lifecycle of a submission](/p/lifecycle-of-a-submission)\
+[Privacy Policy](/l/privacy-policy)\
+[Terms and Conditions](/l/terms-of-service)
 
 {.lead}

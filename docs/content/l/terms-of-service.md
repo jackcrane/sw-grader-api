@@ -1,20 +1,12 @@
 ---
-weight: 2
 title: "Terms & Conditions"
-description: "Privacy policy and terms of service."
-icon: "balance"
-draft: false
-toc: true
 ---
 
 
-**Last updated:** Dec 14, 2025
-
-**Company:** FeatureBench
-
-**Website:** https://featurebench.com
-
-**Contact:** support@featurebench.com
+**Last updated:** Dec 14, 2025\
+**Company:** FeatureBench\
+**Website:** https://featurebench.com\
+**Contact:** support@featurebench.com\
 
 ---
 
