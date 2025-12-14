@@ -4,6 +4,9 @@ title = "FeatureBench Docs"
 copyright = 'FeatureBench' # Used in the footer copyright mention.
 enableRobotsTXT = true # IMPORTANT: set to true if you want to use the theme's genAI/LLM web crawler blocking feature.
 
+[params]
+showGraph = false
+
 theme = "hugo-theme-til"
 
 [outputs]
