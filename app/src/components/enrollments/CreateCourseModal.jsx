@@ -7,12 +7,14 @@ import { Input } from "../input/Input";
 import { SegmentedControl } from "../segmentedControl/SegmentedControl";
 import { Spacer } from "../spacer/Spacer";
 import { SetupElement } from "../stripe/SetupElement";
+import { useDocs } from "../../context/DocsContext";
 
 export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
   const [courseName, setCourseName] = useState("");
   const [courseAbbr, setCourseAbbr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [billing, setBilling] = useState("pay-per-course");
+  const { setDocs, unstackDoc } = useDocs();
 
   useEffect(() => {
     if (!open) {
@@ -20,6 +22,10 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
       setCourseAbbr("");
       setSubmitting(false);
       setBilling("pay-per-course");
+      unstackDoc("https://docs.featurebench.com/p/creating-a-course");
+    }
+    if (open) {
+      setDocs("https://docs.featurebench.com/p/creating-a-course");
     }
   }, [open]);
 
@@ -97,9 +103,7 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
               Pick whether you want your course or students to find your class
               on FeatureBench.
             </p>
-            <p>
-              Once selected, the billing scheme is locked for this course.
-            </p>
+            <p>Once selected, the billing scheme is locked for this course.</p>
           </>
         }
       >
