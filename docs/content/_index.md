@@ -14,7 +14,8 @@ FeatureBench is a platform for grading and providing feedback on student work in
 [Creating a course](/p/creating-a-course)\
 [Creating an assignment](/p/creating-an-assignment)\
 [How FeatureBench prevents plagarism](/p/preventing-plagarism)\
-[Migrating grades to Canvas](/p/migrating-to-canvas)
+[Migrating grades to Canvas](/p/migrating-to-canvas)\
+[Signature Trends](/p/signature-trends)
 
 ## Other
 
