@@ -2,3 +2,4 @@ node_modules
 uploads
 /SwExtractor/.vs
 web-api/.env
+docs/public
