@@ -10,7 +10,7 @@ showGraph = false
 # theme = "hugo-theme-til"
 [module]
   [[module.imports]]
-    path = "github.com/michenriksen/hugo-theme-til"
+    path = "hugo-theme-til"
 
 [outputs]
   home = ['html']
