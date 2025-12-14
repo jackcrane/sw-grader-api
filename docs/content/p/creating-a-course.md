@@ -26,4 +26,4 @@ The billing schemes have the exact same features and behaviors: they merely chan
 
 Once you've created your course, you'll be redirected to the course dashboard. Anytime in the future you want to access your course, you will be able to access it from your FeatureBench homepage.
 
-You will be given 2 access codes once your course is created: a **student code** and a **teacher code**. The student code should be shared with your students (placed in a syllabus, emailed to students, etc.). Anyone with the student code will be able to enroll in your course. The teacher code should be shared with your teaching team and affords access to the course dashboard, roster, assignments, and gradebook.
+You will be given 2 access codes once your course is created: a **student code** and a **teacher code**. Read more about these codes and how to enroll in a course [here](/p/enrolling-in-a-course)
