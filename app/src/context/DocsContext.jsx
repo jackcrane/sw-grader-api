@@ -24,7 +24,9 @@ export const DocsProvider = ({ children }) => {
 
   return (
     <DocsContext.Provider value={{ docs, setDocs, unstackDoc }}>
-      <div style={{ flex: 1 }}>{children}</div>
+      <div style={{ flex: 1 }} onClick={() => setOpen(false)}>
+        {children}
+      </div>
       {docs.length > 0 && (
         <div
           style={{
@@ -34,6 +36,7 @@ export const DocsProvider = ({ children }) => {
             padding: 8,
             background: "var(--surface)",
             borderRadius: 8,
+            border: "1px solid var(--border)",
             zIndex: 10000000000,
             cursor: "pointer",
           }}
@@ -46,7 +49,7 @@ export const DocsProvider = ({ children }) => {
         <div
           style={{
             height: "calc(100dvh - 64px)",
-            width: "80vw",
+            width: "calc(100vw - 16px)",
             maxWidth: 400,
             background: "white",
             color: "black",
