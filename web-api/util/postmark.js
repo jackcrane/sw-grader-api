@@ -1,4 +1,5 @@
 import { ServerClient } from "postmark";
+import { posthog } from "./posthog.js";
 
 const apiToken = process.env.POSTMARK_API_TOKEN;
 const fromAddress = process.env.POSTMARK_FROM_EMAIL;
@@ -22,6 +23,11 @@ const logMissingConfig = () => {
 export const sendEmail = async ({ to, subject, text }) => {
   if (to.includes("featurebench-test.com")) {
     console.log("[MOCK] Sending email to", to, "with subject", subject);
+    posthog.capture({
+      distinctId: to,
+      event: "email send mocked",
+      properties: { subject },
+    });
     return;
   } // Drop test emails
 
@@ -40,7 +46,20 @@ export const sendEmail = async ({ to, subject, text }) => {
       TextBody: text,
       MessageStream: messageStream,
     });
+    posthog.capture({
+      distinctId: to,
+      event: "email sent",
+      properties: { subject },
+    });
   } catch (error) {
     console.error("Failed to send Postmark email", error);
+    posthog.capture({
+      distinctId: to,
+      event: "email send failed",
+      properties: {
+        subject,
+        error: error?.message ?? "unknown_error",
+      },
+    });
   }
 };

@@ -14,6 +14,7 @@ import {
   enqueueSignatureTrendCheck,
   rescoreSubmissionsAgainstSignatures,
 } from "../../../../../services/signatureTrends.js";
+import { posthog } from "../../../../../util/posthog.js";
 
 const signaturesInclude = {
   signatures: {
@@ -397,6 +398,15 @@ export const patch = [
               })
             )
           );
+          posthog.capture({
+            distinctId: userId,
+            event: "signatures removed",
+            properties: {
+              courseId,
+              assignmentId,
+              signatureCount: removalTargets.length,
+            },
+          });
         }
 
         for (const [index, signature] of normalizedSignatures.entries()) {
@@ -438,6 +448,19 @@ export const patch = [
       throw error;
     }
 
+    posthog.capture({
+      distinctId: userId,
+      event: "signatures saved",
+      properties: {
+        courseId,
+        assignmentId,
+        totalSignatures: normalizedSignatures.length,
+        newSignatureCount: normalizedSignatures.filter(
+          (signature) => !signature.id
+        ).length,
+      },
+    });
+
     const updatedAssignment = await readAssignment(assignmentId);
 
     Promise.resolve()
@@ -460,6 +483,16 @@ export const patch = [
           error
         );
       });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "assignment updated",
+      properties: {
+        courseId,
+        assignmentId,
+        signatureCount: normalizedSignatures.length,
+      },
+    });
 
     return res.json(updatedAssignment);
   },
@@ -497,6 +530,15 @@ export const del = [
         where: { assignmentId },
         data: { deleted: true },
       });
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "assignment deleted",
+      properties: {
+        courseId,
+        assignmentId,
+      },
     });
 
     return res.json({ success: true });

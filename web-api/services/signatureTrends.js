@@ -3,6 +3,7 @@ import { evaluateSubmissionAgainstSignatures } from "./submissionUtils.js";
 import { withSignedAssetUrls } from "../util/submissionAssets.js";
 import { downloadObject } from "../util/s3.js";
 import { sendEmail } from "../util/postmark.js";
+import { posthog } from "../util/posthog.js";
 
 const SIGNATURE_TREND_TYPE = "SIGNATURE_TREND";
 
@@ -314,6 +315,17 @@ export const checkSignatureTrendsForAssignment = async ({
       assignment,
     });
 
+    posthog.capture({
+      distinctId: assignment?.id ?? "signature-trend",
+      event: "signature trend identified",
+      properties: {
+        assignmentId: assignment?.id ?? null,
+        courseId,
+        trendKey,
+        occurrenceCount: uniqueStudents,
+      },
+    });
+
     for (const teacherEnrollment of teachers) {
       const teacher = teacherEnrollment?.user ?? null;
       const notification = await upsertTrendNotification({
@@ -450,6 +462,10 @@ export const rescoreSubmissionsAgainstSignatures = async ({
       gradeChanged(submission.grade, nextData.grade) ||
       (submission.feedback ?? null) !== nextData.feedback ||
       (submission.matchingSignatureId ?? null) !== nextData.matchingSignatureId;
+    const gradeValueChanged = gradeChanged(
+      submission.grade,
+      nextData.grade
+    );
 
     if (!shouldUpdate) continue;
 
@@ -458,9 +474,21 @@ export const rescoreSubmissionsAgainstSignatures = async ({
       data: nextData,
     });
 
-    if (!gradeChanged(submission.grade, nextData.grade)) {
+    if (!gradeValueChanged) {
       continue;
     }
+
+    posthog.capture({
+      distinctId: submission.user?.id ?? submission.userId ?? "grader",
+      event: "submission regraded",
+      properties: {
+        submissionId: submission.id,
+        assignmentId: assignment.id,
+        courseId: courseLookupId,
+        previousGrade: submission.grade,
+        newGrade: nextData.grade,
+      },
+    });
 
     if (submission.user?.email) {
       const assignmentName = assignment?.name || "an assignment";

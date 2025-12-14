@@ -12,6 +12,7 @@ import {
 } from "../../util/users.js";
 import { sendEmail } from "../../util/postmark.js";
 import { ensureStripeCustomerForUser } from "../../services/stripeCustomers.js";
+import { posthog } from "../../util/posthog.js";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -65,6 +66,15 @@ export const post = async (req, res) => {
 
   const existingUser = await findUserByEmail(email);
   if (existingUser) {
+    posthog.capture({
+      distinctId: existingUser.id ?? email,
+      event: "user registration fail: email in use",
+      properties: {
+        email,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+      },
+    });
     return res
       .status(409)
       .json({ authenticated: false, error: "email_in_use" });
@@ -82,6 +92,18 @@ export const post = async (req, res) => {
   res.cookie(SESSION_COOKIE_NAME, sealedSession, sessionCookieOptions);
 
   sendWelcomeEmail(user).catch(() => {});
+
+  posthog.capture({
+    distinctId: user.id,
+    event: "user registration",
+    properties: {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    },
+  });
 
   return res.status(201).json({
     authenticated: true,

@@ -1,5 +1,6 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
+import { posthog } from "../../../../util/posthog.js";
 
 export const del = [
   withAuth,
@@ -30,6 +31,19 @@ export const del = [
         readAt: notification.readAt ?? new Date(),
       },
     });
+
+    if (notification.type === "SIGNATURE_TREND") {
+      posthog.capture({
+        distinctId: userId,
+        event: "signature trend dismissed",
+        properties: {
+          notificationId,
+          assignmentId: notification.data?.assignmentId ?? null,
+          courseId: notification.data?.courseId ?? null,
+          trendKey: notification.data?.trendKey ?? null,
+        },
+      });
+    }
 
     res.json({ ok: true });
   },

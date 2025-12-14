@@ -2,6 +2,7 @@ import { prisma } from "#prisma";
 import { getStripeClient } from "../../util/stripe.js";
 import { sendEmail } from "../../util/postmark.js";
 import { scheduleEnrollmentFollowUps } from "../../services/enrollmentFollowUps.js";
+import { posthog } from "../../util/posthog.js";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 const stripe = getStripeClient();
@@ -246,6 +247,22 @@ export const post = async (req, res) => {
           paymentIntent?.last_payment_error?.code === "authentication_required";
         await notifyTeacherOfFailedCharge(paymentIntent, {
           isAuthenticationFailure,
+        });
+        posthog.capture({
+          distinctId:
+            paymentIntent?.metadata?.teacherUserId ||
+            paymentIntent?.metadata?.studentUserId ||
+            paymentIntent?.customer ||
+            paymentIntent?.id,
+          event: "stripe enrollment payment issue",
+          properties: {
+            webhookEvent: event.type,
+            paymentIntentId: paymentIntent?.id ?? null,
+            courseId: paymentIntent?.metadata?.courseId ?? null,
+            studentId: paymentIntent?.metadata?.studentUserId ?? null,
+            teacherId: paymentIntent?.metadata?.teacherUserId ?? null,
+            authenticationFailure: isAuthenticationFailure,
+          },
         });
       }
     }

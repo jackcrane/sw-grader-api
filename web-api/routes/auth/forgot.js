@@ -11,6 +11,7 @@ import {
   RESET_TOKEN_TTL_MINUTES,
 } from "../../util/passwordReset.js";
 import { sendEmail } from "../../util/postmark.js";
+import { posthog } from "../../util/posthog.js";
 
 const successResponse = (res) => res.json({ success: true });
 
@@ -65,17 +66,36 @@ export const post = async (req, res) => {
 
   const email = normalizeEmail(req.body?.email);
   if (!email) {
+    posthog.capture({
+      distinctId: "unknown",
+      event: "password reset request failed",
+      properties: { reason: "missing_email" },
+    });
     return res.status(400).json({ success: false, error: "missing_email" });
   }
 
   const user = await findUserByEmail(email);
   if (!user || user.deleted) {
+    posthog.capture({
+      distinctId: email,
+      event: "password reset requested",
+      properties: { userFound: false },
+    });
     return successResponse(res);
   }
 
   const { token } = await createPasswordResetToken(user.id);
   const resetUrl = buildResetUrl(req, token);
   sendResetEmail(user, resetUrl).catch(() => {});
+
+  posthog.capture({
+    distinctId: user.id,
+    event: "password reset requested",
+    properties: {
+      userFound: true,
+      email: user.email,
+    },
+  });
 
   return successResponse(res);
 };

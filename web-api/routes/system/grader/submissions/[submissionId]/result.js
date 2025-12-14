@@ -6,6 +6,7 @@ import {
   evaluateSubmissionAgainstSignatures,
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSignatureTrendCheck } from "../../../../../services/signatureTrends.js";
+import { posthog } from "../../../../../util/posthog.js";
 
 const signaturesInclude = {
   include: {
@@ -94,6 +95,14 @@ export const post = [
       }
 
       if (submission.grade != null) {
+        posthog.capture({
+          distinctId: submission.userId ?? "grader",
+          event: "submission grading skipped",
+          properties: {
+            submissionId,
+            reason: "already_graded",
+          },
+        });
         return res.status(200).json({
           ok: true,
           submissionId,
@@ -116,6 +125,17 @@ export const post = [
             screenshotKey: null,
             screenshotUrl: null,
             featureTree: null,
+          },
+        });
+
+        posthog.capture({
+          distinctId: submission.userId ?? "grader",
+          event: "submission grading failed",
+          properties: {
+            submissionId,
+            assignmentId: submission.assignmentId,
+            courseId: submission.courseId ?? null,
+            reason: normalizedError || "grader_failure",
           },
         });
 
@@ -177,6 +197,18 @@ export const post = [
       enqueueSignatureTrendCheck({
         assignmentId: submission.assignmentId,
         courseId: submission.courseId ?? null,
+      });
+
+      posthog.capture({
+        distinctId: submission.userId ?? "grader",
+        event: "submission graded",
+        properties: {
+          submissionId,
+          assignmentId: submission.assignmentId,
+          courseId: submission.courseId ?? null,
+          grade: evaluation.grade,
+          matchingSignatureId: evaluation.matchingSignatureId ?? null,
+        },
       });
 
       return res.status(200).json({

@@ -5,6 +5,7 @@ import {
   ValidationError,
   normalizeSignaturesPayload,
 } from "./validation.js";
+import { posthog } from "../../../../util/posthog.js";
 const signatureInclude = {
   signatures: {
     where: {
@@ -156,11 +157,30 @@ export const post = [
           assignmentId: assignment.id,
         })),
       });
+      posthog.capture({
+        distinctId: userId,
+        event: "signatures created",
+        properties: {
+          courseId,
+          assignmentId: assignment.id,
+          signatureCount: normalizedSignatures.length,
+        },
+      });
     }
 
     const assignmentWithSignatures = await prisma.assignment.findUnique({
       where: { id: assignment.id },
       include: signatureInclude,
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "assignment created",
+      properties: {
+        courseId,
+        assignmentId: assignment.id,
+        signatureCount: normalizedSignatures.length,
+      },
     });
 
     return res.status(201).json(assignmentWithSignatures);
