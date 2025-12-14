@@ -1,6 +1,6 @@
 baseURL = 'https://docs.featurebench.com/'
 languageCode = 'en-us'
-title = "FeatureBench Docs"
+title = "FeatureBench User Guide"
 copyright = 'FeatureBench' # Used in the footer copyright mention.
 enableRobotsTXT = true # IMPORTANT: set to true if you want to use the theme's genAI/LLM web crawler blocking feature.
 

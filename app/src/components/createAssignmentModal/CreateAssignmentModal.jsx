@@ -11,6 +11,7 @@ import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
+import { useDocs } from "../../context/DocsContext";
 
 const getInitialPartDetails = () => ({
   volume: "",
@@ -622,10 +623,7 @@ export const CreateAssignmentModal = ({
       if (next[0].type !== "CORRECT") next[0] = { ...next[0], type: "CORRECT" };
       return next;
     });
-    if (
-      highlightSignatureIndex != null &&
-      highlightSignatureIndex >= index
-    ) {
+    if (highlightSignatureIndex != null && highlightSignatureIndex >= index) {
       setHighlightSignatureIndex(null);
     }
   };
@@ -714,6 +712,14 @@ export const CreateAssignmentModal = ({
       setDeleting(false);
     }
   };
+
+  const { setDocs, unstackDoc } = useDocs();
+
+  useEffect(() => {
+    if (open) setDocs("https://docs.featurebench.com/p/creating-a-assignment");
+    if (!open)
+      unstackDoc("https://docs.featurebench.com/p/creating-a-assignment");
+  }, [open]);
 
   const headerActions =
     isEditMode && onDeleteAssignment ? (
@@ -832,7 +838,7 @@ export const CreateAssignmentModal = ({
 
       <Section title="Grading" last={true}>
         <Input
-          label="Tolerance percent (recommended 0.1%-0.5%)"
+          label="Tolerance percent (recommended 0.1%-0.15%)"
           type="number"
           value={tolerancePercent}
           onChange={(e) => setTolerancePercent(e.target.value)}
@@ -850,7 +856,7 @@ export const CreateAssignmentModal = ({
           step={1}
           invalid={showInvalidTop("pointsPossible")}
         />
-        <Select
+        {/* <Select
           label="Grade Visibility"
           value={gradeVisibility}
           onChange={(e) => setGradeVisibility(e.target.value)}
@@ -861,7 +867,7 @@ export const CreateAssignmentModal = ({
               label: "Don't show grades until due date passes",
             },
           ]}
-        />
+        /> */}
       </Section>
     </Modal>
   );

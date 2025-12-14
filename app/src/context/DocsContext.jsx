@@ -35,10 +35,11 @@ export const DocsProvider = ({ children }) => {
             background: "var(--surface)",
             borderRadius: 8,
             zIndex: 10000000000,
+            cursor: "pointer",
           }}
           onClick={() => setOpen((open) => !open)}
         >
-          Help
+          {open ? "Close" : "Help"}
         </div>
       )}
       {open && docs.length > 0 && (
