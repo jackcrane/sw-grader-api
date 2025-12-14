@@ -14,6 +14,7 @@ import {
   parseGradeValue,
 } from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
+import { useDocs } from "../../context/DocsContext";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -279,16 +280,16 @@ export const CourseGradebook = () => {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.studentCell}>
-                      {row.enrollmentId ? (
-                        <Link
-                          to={`/${courseId}/roster/${row.enrollmentId}`}
-                          className={styles.studentLink}
-                        >
-                          <span className={styles.studentName}>{row.name}</span>
-                        </Link>
-                      ) : (
+                    {row.enrollmentId ? (
+                      <Link
+                        to={`/${courseId}/roster/${row.enrollmentId}`}
+                        className={styles.studentLink}
+                      >
                         <span className={styles.studentName}>{row.name}</span>
-                      )}
+                      </Link>
+                    ) : (
+                      <span className={styles.studentName}>{row.name}</span>
+                    )}
                     {/* <span className={styles.studentMeta}>
                       {row.email} • {row.role}
                     </span> */}
@@ -305,7 +306,9 @@ export const CourseGradebook = () => {
                     >
                       <div className={styles.gradeCellInner}>
                         <div className={styles.gradeCellDetails}>
-                          <span className={styles.gradeValue}>{grade.label}</span>
+                          <span className={styles.gradeValue}>
+                            {grade.label}
+                          </span>
                           <span className={styles.gradePercent}>
                             {grade.percent}
                           </span>

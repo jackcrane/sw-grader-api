@@ -18,6 +18,7 @@ import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/fetchJson";
 import ForgotPasswordPage from "./routes/ForgotPasswordPage";
 import ResetPasswordPage from "./routes/ResetPasswordPage";
+import { DocsProvider } from "./context/DocsContext";
 
 const AppRoutes = () => {
   const auth = useAuthContext();
@@ -35,44 +36,48 @@ const AppRoutes = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute>
-            <AppLander />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/:courseId/*"
-        element={
-          <ProtectedRoute>
-            <CourseLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="gradebook" element={<CourseGradebook />} />
-        <Route path="roster" element={<CourseRoster />} />
-        <Route path="roster/:enrollmentId" element={<CourseRoster />} />
-        <Route path="details" element={<CourseDetails />} />
-        <Route path="" element={<CourseOverview />}>
-          <Route index element={<AssignmentDetailsPlaceholder />} />
-          <Route
-            path="assignments/:assignmentId"
-            element={<AssignmentDetails />}
-          />
+    <DocsProvider>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <AppLander />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/:courseId/*"
+          element={
+            <ProtectedRoute>
+              <CourseLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="gradebook" element={<CourseGradebook />} />
+          <Route path="roster" element={<CourseRoster />} />
+          <Route path="roster/:enrollmentId" element={<CourseRoster />} />
+          <Route path="details" element={<CourseDetails />} />
+          <Route path="" element={<CourseOverview />}>
+            <Route index element={<AssignmentDetailsPlaceholder />} />
+            <Route
+              path="assignments/:assignmentId"
+              element={<AssignmentDetails />}
+            />
+          </Route>
         </Route>
-      </Route>
-      <Route
-        path="*"
-        element={<Navigate to={auth.isAuthenticated ? "/app" : "/"} replace />}
-      />
-    </Routes>
+        <Route
+          path="*"
+          element={
+            <Navigate to={auth.isAuthenticated ? "/app" : "/"} replace />
+          }
+        />
+      </Routes>
+    </DocsProvider>
   );
 };
 

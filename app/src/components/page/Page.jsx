@@ -3,6 +3,7 @@ import { Header } from "../header/Header";
 import { WidthFix } from "../widthfix/WidthFix";
 import featureBenchLogo from "../../../assets/featurebench-contrast.svg";
 import styles from "./Page.module.css";
+import { useDocs } from "../../context/DocsContext";
 
 const DEFAULT_TITLE = "FeatureBench";
 
@@ -11,6 +12,7 @@ export const Page = ({
   title = DEFAULT_TITLE,
   showHeader = true,
   subheaderItems,
+  docsUrl,
 }) => {
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -20,6 +22,9 @@ export const Page = ({
   }, [title]);
 
   const footerYear = new Date().getFullYear();
+  const { setDocs } = useDocs();
+
+  if (docsUrl) setDocs(docsUrl);
 
   return (
     <>
