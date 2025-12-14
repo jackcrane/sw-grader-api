@@ -7,10 +7,7 @@ enableRobotsTXT = true # IMPORTANT: set to true if you want to use the theme's g
 [params]
 showGraph = false
 
-# theme = "hugo-theme-til"
-[module]
-  [[module.imports]]
-    path = "hugo-theme-til"
+theme = "hugo-theme-til"
 
 [outputs]
   home = ['html']
