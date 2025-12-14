@@ -13,8 +13,8 @@ theme = "hugo-theme-til"
 
 [menus]
   [[menus.main]]
-    name = 'Pages'
-    pageRef = '/p'
+    name = 'Home'
+    pageRef = '#'
     weight = 20
 
 [markup]
