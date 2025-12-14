@@ -1,6 +1,6 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
-import { posthog } from "../../../../util/posthog.js";
+import { posthog } from "../../../util/posthog.js";
 
 export const del = [
   withAuth,
