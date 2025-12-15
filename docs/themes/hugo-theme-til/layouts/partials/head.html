@@ -1,0 +1,80 @@
+{{- $description := or .Description .Summary site.Params.description | plainify
+| htmlUnescape | chomp -}} {{- $author := or .Params.author site.Author -}}
+<meta charset="utf-8" />
+<meta name="language" content="{{ site.Language.LanguageName | default "en" }}"
+/>
+<meta name="viewport" content="width=device-width" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Stack+Sans+Text:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --font-body: "Stack Sans Text", system-ui, -apple-system, BlinkMacSystemFont;
+  }
+
+  * {
+    /*  */
+    color: black;
+    font-weight: 300;
+  }
+
+  h1,
+  h2 {
+    letter-spacing: -1px;
+    font-family: var(--font-body);
+  }
+
+  h3,
+  h4 {
+    font-family: var(--font-body);
+  }
+
+  html {
+    font-size: 13px;
+  }
+
+  footer a[data-theme-version] {
+    display: none
+  }
+
+  header nav a {
+    display: none
+  }
+
+  header * {
+    font-family: var(--font-body);
+  }
+
+  header .font-semibold {
+    font-weight: 200;
+  }
+</style>
+<title>
+  {{- if .IsHome }} {{ site.Title }} {{- else }} {{ printf "%s | %s" .Title
+  site.Title }} {{- end }}
+</title>
+{{- with $description }}
+<meta name="description" content="{{ $description }}" />
+{{- end }} {{- with $author }}
+<meta name="author" content="{{ $author }}" />
+{{- end }} {{ if eq "404" .Kind -}}
+<meta name="robots" content="noindex" />
+{{ end -}} {{ if fileExists "static/images/favicon.svg" -}}
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+{{ end -}} {{ if fileExists "static/images/favicon.png" -}}
+<link rel="icon" type="image/png" href="/images/favicon.png" />
+{{ end -}} {{ template "_internal/opengraph.html" . }} {{ template
+"_internal/schema.html" . }} {{ template "_internal/twitter_cards.html" . }}
+<link rel="canonical" href="{{ .Permalink }}" />
+{{- range .AlternativeOutputFormats -}}
+<link
+  rel="{{ .Rel }}"
+  type="{{ .MediaType.Type }}"
+  href="{{ .Permalink | safeURL }}"
+/>
+{{- end }} {{ partialCached "head/css" . }} {{ partialCached "head/js" . }} {{-
+if or .Params.math site.Params.math }} {{ partial "head/math" . }} {{- end }} {{
+partial "head/jsonld" . }}

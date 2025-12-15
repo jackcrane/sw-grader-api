@@ -9,6 +9,12 @@ import {
   withSignedAssetUrls,
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
+import {
+  checkSignatureTrendsForAssignment,
+  enqueueSignatureTrendCheck,
+  rescoreSubmissionsAgainstSignatures,
+} from "../../../../../services/signatureTrends.js";
+import { posthog } from "../../../../../util/posthog.js";
 
 const signaturesInclude = {
   signatures: {
@@ -392,6 +398,15 @@ export const patch = [
               })
             )
           );
+          posthog.capture({
+            distinctId: userId,
+            event: "signatures removed",
+            properties: {
+              courseId,
+              assignmentId,
+              signatureCount: removalTargets.length,
+            },
+          });
         }
 
         for (const [index, signature] of normalizedSignatures.entries()) {
@@ -433,7 +448,52 @@ export const patch = [
       throw error;
     }
 
+    posthog.capture({
+      distinctId: userId,
+      event: "signatures saved",
+      properties: {
+        courseId,
+        assignmentId,
+        totalSignatures: normalizedSignatures.length,
+        newSignatureCount: normalizedSignatures.filter(
+          (signature) => !signature.id
+        ).length,
+      },
+    });
+
     const updatedAssignment = await readAssignment(assignmentId);
+
+    Promise.resolve()
+      .then(() =>
+        rescoreSubmissionsAgainstSignatures({
+          assignmentId,
+          assignment: updatedAssignment,
+          courseId,
+        })
+      )
+      .then(() =>
+        enqueueSignatureTrendCheck({
+          assignmentId,
+          courseId,
+        })
+      )
+      .catch((error) => {
+        console.warn(
+          `Post-update rescore failed for assignment ${assignmentId}`,
+          error
+        );
+      });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "assignment updated",
+      properties: {
+        courseId,
+        assignmentId,
+        signatureCount: normalizedSignatures.length,
+      },
+    });
+
     return res.json(updatedAssignment);
   },
 ];
@@ -470,6 +530,15 @@ export const del = [
         where: { assignmentId },
         data: { deleted: true },
       });
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "assignment deleted",
+      properties: {
+        courseId,
+        assignmentId,
+      },
     });
 
     return res.json({ success: true });

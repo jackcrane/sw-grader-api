@@ -125,6 +125,7 @@ export const post = [
           fileName: file.originalname ?? null,
           assignmentId,
           userId,
+          courseId,
         },
       });
 

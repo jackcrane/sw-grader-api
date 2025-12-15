@@ -48,6 +48,7 @@ model Course {
   deleted     Boolean  @default(false)
 
   billingScheme BillingScheme
+  submissions Submission[]
 }
 
 enum BillingScheme {
@@ -115,6 +116,8 @@ model Submission {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignmentId String
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   volume Float?
   surfaceArea Float?
@@ -180,6 +183,7 @@ enum NotificationType {
   ASSIGNMENT_POSTED
   PAYMENT_ISSUE
   OTHER
+  SIGNATURE_TREND
 }
 
 model PasswordResetToken {

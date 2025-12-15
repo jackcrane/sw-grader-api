@@ -2,17 +2,36 @@ import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { getStripeClient, getStripePublishableKey } from "../../util/stripe.js";
 import { resolveEnrollmentFollowUps } from "../../services/enrollmentFollowUps.js";
+import { posthog } from "../../util/posthog.js";
 
 const getUserIdFromRequest = (req) => req.user?.localUserId ?? req.user?.id;
 
 const buildResponseForStatus = async ({ res, paymentIntent }) => {
   if (!paymentIntent) {
+    posthog.capture({
+      distinctId: "payment_intent_missing",
+      event: "payment authorization status",
+      properties: { status: "not_found" },
+    });
     return res
       .status(404)
       .json({ error: "payment_intent_not_found", status: "not_found" });
   }
 
   if (paymentIntent.status === "requires_action") {
+    posthog.capture({
+      distinctId:
+        paymentIntent?.metadata?.manualAuthorizationUserId ||
+        paymentIntent?.metadata?.teacherUserId ||
+        paymentIntent?.metadata?.studentUserId ||
+        paymentIntent?.customer ||
+        paymentIntent.id,
+      event: "payment authorization status",
+      properties: {
+        status: "requires_action",
+        paymentIntentId: paymentIntent.id,
+      },
+    });
     const publishableKey = getStripePublishableKey();
     return res.json({
       status: "requires_action",
@@ -22,6 +41,19 @@ const buildResponseForStatus = async ({ res, paymentIntent }) => {
   }
 
   if (paymentIntent.status === "requires_payment_method") {
+    posthog.capture({
+      distinctId:
+        paymentIntent?.metadata?.manualAuthorizationUserId ||
+        paymentIntent?.metadata?.teacherUserId ||
+        paymentIntent?.metadata?.studentUserId ||
+        paymentIntent?.customer ||
+        paymentIntent?.id,
+      event: "payment authorization status",
+      properties: {
+        status: "requires_payment_method",
+        paymentIntentId: paymentIntent.id,
+      },
+    });
     const publishableKey = getStripePublishableKey();
     return res.json({
       status: "requires_payment_method",
@@ -31,11 +63,38 @@ const buildResponseForStatus = async ({ res, paymentIntent }) => {
   }
 
   if (paymentIntent.status === "succeeded") {
+    posthog.capture({
+      distinctId:
+        paymentIntent?.metadata?.manualAuthorizationUserId ||
+        paymentIntent?.metadata?.teacherUserId ||
+        paymentIntent?.metadata?.studentUserId ||
+        paymentIntent?.customer ||
+        paymentIntent?.id,
+      event: "payment authorization status",
+      properties: {
+        status: "succeeded",
+        paymentIntentId: paymentIntent.id,
+      },
+    });
     return res.json({
       status: "succeeded",
       paymentIntentId: paymentIntent.id,
     });
   }
+
+  posthog.capture({
+    distinctId:
+      paymentIntent?.metadata?.manualAuthorizationUserId ||
+      paymentIntent?.metadata?.teacherUserId ||
+      paymentIntent?.metadata?.studentUserId ||
+      paymentIntent?.customer ||
+      paymentIntent?.id,
+    event: "payment authorization status",
+    properties: {
+      status: paymentIntent.status,
+      paymentIntentId: paymentIntent.id,
+    },
+  });
 
   return res.json({
     status: paymentIntent.status,
@@ -91,6 +150,22 @@ const handleSuccessfulAuthorization = async ({ notification, paymentIntent }) =>
   if (promises.length) {
     await Promise.all(promises);
   }
+
+  posthog.capture({
+    distinctId:
+      paymentIntent?.metadata?.manualAuthorizationUserId ||
+      paymentIntent?.metadata?.teacherUserId ||
+      paymentIntent?.metadata?.studentUserId ||
+      paymentIntent?.customer ||
+      paymentIntent?.id,
+    event: "payment authorization succeeded",
+    properties: {
+      paymentIntentId: paymentIntent?.id ?? null,
+      enrollmentId,
+      studentId,
+      courseId,
+    },
+  });
 };
 
 export const post = [
@@ -100,6 +175,11 @@ export const post = [
       req.body ?? {};
     const userId = getUserIdFromRequest(req);
     if (!notificationId || !userId) {
+      posthog.capture({
+        distinctId: userId ?? req.user?.id ?? "anonymous",
+        event: "payment authorization failed",
+        properties: { reason: "missing_parameters" },
+      });
       return res.status(400).json({ error: "missing_parameters" });
     }
 
@@ -108,6 +188,11 @@ export const post = [
       userId,
     });
     if (!notification) {
+      posthog.capture({
+        distinctId: userId,
+        event: "payment authorization failed",
+        properties: { reason: "notification_not_found" },
+      });
       return res.status(404).json({ error: "notification_not_found" });
     }
 
@@ -121,6 +206,11 @@ export const post = [
         : storedPaymentIntentId;
 
     if (!targetPaymentIntentId) {
+      posthog.capture({
+        distinctId: userId,
+        event: "payment authorization failed",
+        properties: { reason: "missing_payment_intent" },
+      });
       return res
         .status(400)
         .json({ error: "missing_payment_intent", status: "invalid_request" });
@@ -189,6 +279,11 @@ export const post = [
       paymentIntent?.metadata?.teacherUserId &&
       paymentIntent.metadata.teacherUserId !== userId
     ) {
+      posthog.capture({
+        distinctId: userId,
+        event: "payment authorization failed",
+        properties: { reason: "teacher_mismatch" },
+      });
       return res.status(403).json({ error: "forbidden" });
     }
 

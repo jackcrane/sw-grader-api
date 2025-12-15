@@ -1,6 +1,7 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { generateInviteCode } from "../../../../util/inviteCodes.js";
+import { posthog } from "../../../../util/posthog.js";
 
 const STAFF_TYPES = ["TEACHER", "TA"];
 
@@ -60,6 +61,15 @@ export const patch = [
         id: courseId,
       },
       data,
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "course invite regenerated",
+      properties: {
+        courseId,
+        inviteType: inviteType.toUpperCase(),
+      },
     });
 
     return res.json({ course });

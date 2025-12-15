@@ -32,6 +32,7 @@ const useProvideAuth = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isMountedRef = useRef(true);
   const refreshInFlight = useRef(0);
+  const identifiedUserIdRef = useRef(null);
   const [viewAsStudent, setViewAsStudent] = useState(
     () => readStoredViewPreference()
   );
@@ -55,11 +56,46 @@ const useProvideAuth = () => {
     }
   }, [viewAsStudent]);
 
-  const updateSessionFromPayload = useCallback((payload) => {
-    if (!isMountedRef.current) return;
-    setUser(payload?.user ?? null);
-    setIsAuthenticated(Boolean(payload?.authenticated));
+  const identifyUserWithPosthog = useCallback((nextUser) => {
+    if (typeof window === "undefined") return;
+    const client = window.posthog;
+    const distinctId = nextUser?.id;
+    if (!client?.identify || !distinctId) return;
+    if (identifiedUserIdRef.current === distinctId) return;
+    const name =
+      [nextUser.firstName, nextUser.lastName].filter(Boolean).join(" ").trim() ||
+      undefined;
+    client.identify(distinctId, {
+      name,
+      email: nextUser.email ?? undefined,
+    });
+    identifiedUserIdRef.current = distinctId;
   }, []);
+
+  const resetPosthogIdentity = useCallback(() => {
+    if (typeof window === "undefined") return;
+    identifiedUserIdRef.current = null;
+    const client = window.posthog;
+    if (typeof client?.reset === "function") {
+      client.reset();
+    }
+  }, []);
+
+  const updateSessionFromPayload = useCallback(
+    (payload) => {
+      if (!isMountedRef.current) return;
+      const nextAuthenticated = Boolean(payload?.authenticated);
+      const nextUser = payload?.user ?? null;
+      setUser(nextUser);
+      setIsAuthenticated(nextAuthenticated);
+      if (nextAuthenticated && nextUser) {
+        identifyUserWithPosthog(nextUser);
+      } else if (!nextAuthenticated) {
+        resetPosthogIdentity();
+      }
+    },
+    [identifyUserWithPosthog, resetPosthogIdentity]
+  );
 
   const isUnauthorizedError = useCallback((err) => {
     const status = err?.status ?? err?.info?.status;

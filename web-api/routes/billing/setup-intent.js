@@ -2,6 +2,7 @@ import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { createSetupIntentForUser } from "../../services/stripeCustomers.js";
 import { getStripePublishableKey } from "../../util/stripe.js";
+import { posthog } from "../../util/posthog.js";
 
 export const post = [
   withAuth,
@@ -21,10 +22,21 @@ export const post = [
     const setupIntent = await createSetupIntentForUser(user);
     const publishableKey = getStripePublishableKey();
 
-    return res.json({
+    const response = {
       clientSecret: setupIntent.client_secret,
       publishableKey,
       customerId: setupIntent.customer,
+    };
+
+    posthog.capture({
+      distinctId: userId,
+      event: "billing setup intent created",
+      properties: {
+        customerId: setupIntent.customer,
+        setupIntentId: setupIntent.id,
+      },
     });
+
+    return res.json(response);
   },
 ];

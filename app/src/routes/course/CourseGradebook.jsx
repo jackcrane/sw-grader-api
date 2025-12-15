@@ -26,6 +26,7 @@ import {
 } from "../../utils/gradeUtils";
 import styles from "./CourseGradebook.module.css";
 import assignmentStyles from "./AssignmentDetails.module.css";
+import { useDocs } from "../../context/DocsContext";
 
 const roleLabels = {
   STUDENT: "Student",

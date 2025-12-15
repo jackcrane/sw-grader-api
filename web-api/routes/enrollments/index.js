@@ -10,6 +10,7 @@ import {
   getStripeClient,
   getStripePublishableKey,
 } from "../../util/stripe.js";
+import { posthog } from "../../util/posthog.js";
 
 const normalizeBillingScheme = (value) => {
   if (typeof value !== "string" || !value) {
@@ -257,6 +258,11 @@ export const post = [
 
     const userId = req.user.localUserId;
     if (!userId) {
+      posthog.capture({
+        distinctId: req.user?.id ?? "anonymous",
+        event: "enrollment creation failed",
+        properties: { reason: "missing_local_user" },
+      });
       return res
         .status(400)
         .json({ message: "No local user found for enrollment creation" });
@@ -265,11 +271,21 @@ export const post = [
     if (inviteCode) {
       const normalizedCode = normalizeInviteCode(inviteCode);
       if (!normalizedCode) {
+        posthog.capture({
+          distinctId: userId,
+          event: "enrollment creation failed",
+          properties: { reason: "invalid_invite_code_format" },
+        });
         return res.status(400).json({ message: "Invite code is required" });
       }
 
       const courseAndType = await findCourseByInviteCode(normalizedCode);
       if (!courseAndType) {
+        posthog.capture({
+          distinctId: userId,
+          event: "enrollment creation failed",
+          properties: { reason: "invite_code_not_found" },
+        });
         return res.status(404).json({ message: "Invalid invite code" });
       }
 
@@ -285,6 +301,14 @@ export const post = [
       });
 
       if (existingEnrollment) {
+        posthog.capture({
+          distinctId: userId,
+          event: "enrollment already exists",
+          properties: {
+            courseId: courseAndType.course.id,
+            enrollmentType: existingEnrollment.type,
+          },
+        });
         return res.json(existingEnrollment);
       }
 
@@ -297,6 +321,13 @@ export const post = [
           name: courseAndType.course.name,
         };
         if (!confirmPayment) {
+          posthog.capture({
+            distinctId: userId,
+            event: "enrollment payment confirmation required",
+            properties: {
+              courseId: coursePayload.id,
+            },
+          });
           return res.status(402).json({
             error: "payment_confirmation_required",
             message:
@@ -313,6 +344,14 @@ export const post = [
               paymentIntentId
             );
           } catch (intentError) {
+            posthog.capture({
+              distinctId: userId,
+              event: "enrollment payment failed",
+              properties: {
+                courseId: coursePayload.id,
+                reason: "invalid_payment_intent_lookup",
+              },
+            });
             return res.status(400).json({
               error: "invalid_payment_intent",
               message: "Unable to verify the provided payment confirmation.",
@@ -324,6 +363,14 @@ export const post = [
             paymentMetadata?.studentUserId !== String(userId) ||
             paymentMetadata?.courseId !== String(coursePayload.id)
           ) {
+            posthog.capture({
+              distinctId: userId,
+              event: "enrollment payment failed",
+              properties: {
+                courseId: coursePayload.id,
+                reason: "payment_intent_mismatch",
+              },
+            });
             return res.status(403).json({
               error: "invalid_payment_intent",
               message: "This payment cannot be applied to this enrollment.",
@@ -331,8 +378,16 @@ export const post = [
           }
         }
 
-        const respondWithActionRequired = (intent) =>
-          res.status(402).json({
+        const respondWithActionRequired = (intent) => {
+          posthog.capture({
+            distinctId: userId,
+            event: "enrollment payment action required",
+            properties: {
+              courseId: coursePayload.id,
+              paymentIntentId: intent.id,
+            },
+          });
+          return res.status(402).json({
             error: "payment_action_required",
             message:
               "Additional authentication is required to complete this payment.",
@@ -341,6 +396,7 @@ export const post = [
             clientSecret: intent.client_secret,
             publishableKey: getStripePublishableKey(),
           });
+        };
 
         if (!paymentIntent) {
           try {
@@ -350,6 +406,14 @@ export const post = [
             );
           } catch (err) {
             if (err?.statusCode === 402) {
+              posthog.capture({
+                distinctId: userId,
+                event: "enrollment payment failed",
+                properties: {
+                  courseId: coursePayload.id,
+                  reason: err?.code ?? "billing_error",
+                },
+              });
               return res.status(402).json({
                 error: err?.code ?? "billing_error",
                 message:
@@ -370,6 +434,14 @@ export const post = [
         }
 
         if (paymentIntent?.status !== "succeeded") {
+          posthog.capture({
+            distinctId: userId,
+            event: "enrollment payment failed",
+            properties: {
+              courseId: coursePayload.id,
+              paymentIntentStatus: paymentIntent?.status ?? "unknown",
+            },
+          });
           return res.status(402).json({
             error: "payment_failed",
             message:
@@ -394,6 +466,14 @@ export const post = [
             studentId: userId,
             error: err?.message || err,
           });
+          posthog.capture({
+            distinctId: userId,
+            event: "teacher enrollment billing failed",
+            properties: {
+              courseId: courseAndType.course.id,
+              reason: err?.code ?? err?.message ?? "unknown",
+            },
+          });
           // Allow enrollment to continue; Stripe webhook will notify instructor.
         }
       }
@@ -406,6 +486,16 @@ export const post = [
         },
         include: {
           course: true,
+        },
+      });
+
+      posthog.capture({
+        distinctId: userId,
+        event: "enrollment created",
+        properties: {
+          courseId: enrollment.courseId,
+          enrollmentType: enrollment.type,
+          source: inviteCode ? "invite_code" : "manual",
         },
       });
 
@@ -449,6 +539,15 @@ export const post = [
       },
     });
 
+    posthog.capture({
+      distinctId: userId,
+      event: "course created",
+      properties: {
+        courseId: course.id,
+        billingScheme: normalizedBillingScheme,
+      },
+    });
+
     const enrollment = await prisma.enrollment.create({
       data: {
         userId,
@@ -457,6 +556,16 @@ export const post = [
       },
       include: {
         course: true,
+      },
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "enrollment created",
+      properties: {
+        courseId: enrollment.courseId,
+        enrollmentType: enrollment.type,
+        source: "course_creation",
       },
     });
 

@@ -2,6 +2,7 @@ import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { ensureStripeCustomerForUser } from "../../services/stripeCustomers.js";
 import { getStripeClient } from "../../util/stripe.js";
+import { posthog } from "../../util/posthog.js";
 
 const getUserFromRequest = async (req) => {
   const userId = req.user?.localUserId ?? req.user?.id;
@@ -47,6 +48,15 @@ export const get = [
       customer?.invoice_settings?.default_payment_method
     );
 
+    posthog.capture({
+      distinctId: user.id,
+      event: "payment method retrieved",
+      properties: {
+        paymentMethodId: paymentMethod?.id ?? null,
+        userEmail: user.email,
+      },
+    });
+
     return res.json({ paymentMethod });
   },
 ];
@@ -56,11 +66,21 @@ export const post = [
   async (req, res) => {
     const paymentMethodId = req.body?.paymentMethodId;
     if (!paymentMethodId) {
+      posthog.capture({
+        distinctId: req.user?.localUserId ?? req.user?.id ?? "anonymous",
+        event: "payment method update failed",
+        properties: { reason: "missing_payment_method" },
+      });
       return res.status(400).json({ error: "missing_payment_method" });
     }
 
     const user = await getUserFromRequest(req);
     if (!user) {
+      posthog.capture({
+        distinctId: req.user?.localUserId ?? req.user?.id ?? "anonymous",
+        event: "payment method update failed",
+        properties: { reason: "missing_user" },
+      });
       return res.status(400).json({ error: "missing_user" });
     }
 
@@ -71,6 +91,11 @@ export const post = [
       paymentMethodId
     );
     if (!paymentMethod || paymentMethod.object !== "payment_method") {
+      posthog.capture({
+        distinctId: user.id,
+        event: "payment method update failed",
+        properties: { reason: "payment_method_not_found" },
+      });
       return res.status(404).json({ error: "payment_method_not_found" });
     }
 
@@ -78,6 +103,11 @@ export const post = [
       paymentMethod.customer &&
       paymentMethod.customer !== customerId
     ) {
+      posthog.capture({
+        distinctId: user.id,
+        event: "payment method update failed",
+        properties: { reason: "payment_method_in_use" },
+      });
       return res.status(400).json({ error: "payment_method_in_use" });
     }
 
@@ -89,6 +119,16 @@ export const post = [
 
     await stripe.customers.update(customerId, {
       invoice_settings: { default_payment_method: paymentMethodId },
+    });
+
+    posthog.capture({
+      distinctId: user.id,
+      event: "payment method updated",
+      properties: {
+        paymentMethodId: paymentMethod.id,
+        brand: paymentMethod.card?.brand ?? null,
+        last4: paymentMethod.card?.last4 ?? null,
+      },
     });
 
     return res.json({

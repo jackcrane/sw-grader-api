@@ -1,5 +1,6 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
+import { posthog } from "../../../../../util/posthog.js";
 
 const ensureTeacherEnrollment = async (courseId, userId) => {
   if (!courseId || !userId) return null;
@@ -106,6 +107,18 @@ export const patch = [
       },
     });
 
+    posthog.capture({
+      distinctId: userId,
+      event: "enrollment role updated",
+      properties: {
+        courseId,
+        enrollmentId,
+        targetUserId: targetEnrollment.userId,
+        previousType: targetEnrollment.type,
+        nextType: type,
+      },
+    });
+
     return res.json({ enrollment: updatedEnrollment });
   },
 ];
@@ -145,6 +158,17 @@ export const del = [
     await clearPaymentNotificationsForEnrollment({
       courseId,
       studentId: targetEnrollment.userId,
+    });
+
+    posthog.capture({
+      distinctId: userId,
+      event: "enrollment removed",
+      properties: {
+        courseId,
+        enrollmentId,
+        targetUserId: targetEnrollment.userId,
+        reason: "manual",
+      },
     });
 
     return res.json({ success: true });

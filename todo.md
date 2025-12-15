@@ -1,0 +1,5 @@
+- [ ] Add a configuration to allow teachers to disallow late submissions and add a late penalty
+- [ ] Implement plagarism metadata extraction in the api
+- [ ] Extract and upload a 3d model from Solidworks (obj?) (gltf?) for optional rendering in web UI
+- [ ] Add under definition detection in grader worker
+- [ ] Add material data extraction in grader worker

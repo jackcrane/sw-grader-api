@@ -1,5 +1,6 @@
 import { prisma } from "#prisma";
 import { enqueueBillingJob } from "./billingQueue.js";
+import { posthog } from "../util/posthog.js";
 
 export const EnrollmentFollowUpType = {
   WARNING: "WARNING",
@@ -20,6 +21,18 @@ const enqueueFollowUpJob = async (payload, delayMs) => {
     },
     { delayMs }
   );
+  posthog.capture({
+    distinctId: payload.teacherId ?? payload.studentId ?? "billing",
+    event: "billing follow-up enqueued",
+    properties: {
+      action: payload.action,
+      enrollmentId: payload.enrollmentId ?? null,
+      teacherId: payload.teacherId ?? null,
+      studentId: payload.studentId ?? null,
+      courseId: payload.courseId ?? null,
+      runAt: payload.runAt,
+    },
+  });
 };
 
 const createJobPayload = ({
@@ -85,6 +98,19 @@ export const scheduleEnrollmentFollowUps = async ({
       dropDelay
     ),
   ]);
+
+  posthog.capture({
+    distinctId: teacherId,
+    event: "billing follow-up scheduled",
+    properties: {
+      enrollmentId,
+      teacherId,
+      studentId,
+      courseId,
+      warningRunAt: warningRunAt.toISOString(),
+      dropRunAt: dropRunAt.toISOString(),
+    },
+  });
 };
 
 export const resolveEnrollmentFollowUps = async ({
@@ -106,5 +132,15 @@ export const resolveEnrollmentFollowUps = async ({
   await prisma.enrollment.updateMany({
     where,
     data: { billingFollowUpResolvedAt: new Date() },
+  });
+
+  posthog.capture({
+    distinctId: studentId ?? courseId ?? "billing",
+    event: "billing follow-up resolved",
+    properties: {
+      enrollmentId: enrollmentId ?? null,
+      studentId: where.userId ?? studentId ?? null,
+      courseId: where.courseId ?? courseId ?? null,
+    },
   });
 };

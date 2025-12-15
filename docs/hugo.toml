@@ -1,0 +1,44 @@
+baseURL = 'https://docs.featurebench.com/'
+languageCode = 'en-us'
+title = "FeatureBench User Guide"
+copyright = 'FeatureBench' # Used in the footer copyright mention.
+enableRobotsTXT = true # IMPORTANT: set to true if you want to use the theme's genAI/LLM web crawler blocking feature.
+
+[params]
+showGraph = false
+
+theme = "hugo-theme-til"
+
+[module]
+  [[module.mounts]]
+    source = "themes/hugo-theme-til/layouts"
+    target = "layouts"
+
+  [[module.mounts]]
+    source = "themes/hugo-theme-til/assets"
+    target = "assets"
+
+  [[module.mounts]]
+    source = "themes/hugo-theme-til/static"
+    target = "static"
+
+[outputs]
+  home = ['html']
+  section = ['html', 'rss', 'json']
+  page = ['html']
+
+[menus]
+  [[menus.main]]
+    name = 'Home'
+    pageRef = '#'
+    weight = 20
+
+[markup]
+  [markup.highlight]
+    noClasses = false
+    style = 'tokyonight-night'
+
+  [markup.goldmark]
+    [markup.goldmark.parser]
+      [markup.goldmark.parser.attribute]
+        block = true

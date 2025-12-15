@@ -10,6 +10,7 @@ export const NotificationTray = ({
   onRefresh,
   onNotificationCta,
   actionState,
+  onNotificationDismiss,
 }) => {
   const renderBody = () => {
     if (loading) {
@@ -40,6 +41,7 @@ export const NotificationTray = ({
         notifications={notifications}
         actionState={actionState}
         onNotificationCta={onNotificationCta}
+        onNotificationDismiss={onNotificationDismiss}
       />
     );
   };

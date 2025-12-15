@@ -5,6 +5,7 @@ import {
   EnrollmentFollowUpType,
 } from "./enrollmentFollowUps.js";
 import { sendEmail } from "../util/postmark.js";
+import { posthog } from "../util/posthog.js";
 
 const formatName = (user) => {
   if (!user) return "";
@@ -44,6 +45,17 @@ const dropEnrollment = async ({ enrollment, teacher, student, course }) => {
   await prisma.enrollment.updateMany({
     where: { id: enrollment.id },
     data: { deleted: true },
+  });
+
+  posthog.capture({
+    distinctId: teacher?.id ?? "billing",
+    event: "enrollment auto dropped",
+    properties: {
+      enrollmentId: enrollment.id,
+      teacherId: teacher?.id ?? null,
+      studentId: student?.id ?? null,
+      courseId: course?.id ?? null,
+    },
   });
 
   if (teacher?.email) {
@@ -91,6 +103,17 @@ const handleJob = async (job = {}) => {
       course: null,
       testOverride: job.testEmailOverride,
     });
+    posthog.capture({
+      distinctId: "billing",
+      event: "billing warning sent",
+      properties: {
+        enrollmentId,
+        teacherId,
+        studentId,
+        courseId,
+        test: true,
+      },
+    });
     return;
   }
 
@@ -121,6 +144,16 @@ const handleJob = async (job = {}) => {
       student,
       course,
       testOverride: job.testEmailOverride,
+    });
+    posthog.capture({
+      distinctId: teacher.id,
+      event: "billing warning sent",
+      properties: {
+        enrollmentId,
+        teacherId,
+        studentId,
+        courseId,
+      },
     });
   } else if (action === EnrollmentFollowUpType.DROP) {
     await dropEnrollment({ enrollment, teacher, student, course });

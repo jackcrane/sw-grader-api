@@ -11,12 +11,14 @@ import { Button } from "../button/Button";
 import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
+import { useDocs } from "../../context/DocsContext";
 
 const getInitialPartDetails = () => ({
   volume: "",
   surfaceArea: "",
   centerOfMass: { x: "", y: "", z: "" },
   screenshotB64: "",
+  screenshotUrl: "",
   units: {},
 });
 
@@ -63,6 +65,14 @@ const offlineBannerStyle = {
   marginBottom: 12,
 };
 
+const highlightStyle = {
+  border: "2px solid #f97316",
+  borderRadius: 12,
+  padding: 8,
+  background: "#fff7ed",
+  boxShadow: "0 0 0 2px rgba(249, 115, 22, 0.1)",
+};
+
 const SignatureSection = ({
   index,
   isFirst,
@@ -85,6 +95,10 @@ const SignatureSection = ({
     pointsAwarded,
     feedback,
   } = signature;
+
+  const screenshotSrc = partDetails?.screenshotB64
+    ? `data:image/png;base64,${partDetails.screenshotB64}`
+    : partDetails?.screenshotUrl || null;
 
   useEffect(() => {
     if (!courseId || !file || !unitSystem) return;
@@ -204,9 +218,9 @@ const SignatureSection = ({
               Delete
             </Button>
           )}
-          {partDetails.screenshotB64 && (
+          {screenshotSrc && (
             <img
-              src={`data:image/png;base64,${partDetails.screenshotB64}`}
+              src={screenshotSrc}
               alt={`Part ${index + 1} preview`}
               style={{
                 width: "100%",
@@ -331,6 +345,8 @@ export const CreateAssignmentModal = ({
   courseId,
   mode = "create",
   assignment = null,
+  injectedSignature = null,
+  onInjectedSignatureUsed = null,
 }) => {
   const { online: graderOnline } = useGraderStatus();
   const [name, setName] = useState("");
@@ -345,6 +361,8 @@ export const CreateAssignmentModal = ({
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [highlightSignatureIndex, setHighlightSignatureIndex] = useState(null);
+  const signatureRefs = useRef([]);
 
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
@@ -361,6 +379,8 @@ export const CreateAssignmentModal = ({
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
     setDeleting(false);
+    setHighlightSignatureIndex(null);
+    signatureRefs.current = [];
   }, []);
 
   const hydrateFromAssignment = useCallback(() => {
@@ -380,6 +400,7 @@ export const CreateAssignmentModal = ({
               id: signature.id,
               unitSystem: signatureUnit,
               partDetails: {
+                ...getInitialPartDetails(),
                 volume:
                   signature.volume === null || signature.volume === undefined
                     ? ""
@@ -457,6 +478,60 @@ export const CreateAssignmentModal = ({
     }
     prevOpenRef.current = open;
   }, [open, isEditMode, hydrateFromAssignment, resetForm]);
+
+  useEffect(() => {
+    if (!open || !injectedSignature) return;
+
+    const unitSystem =
+      injectedSignature.unitSystem ||
+      signatures[0]?.unitSystem ||
+      assignment?.unitSystem ||
+      "SI";
+
+    const nextSignature = getInitialSignature(unitSystem, {
+      type: "INCORRECT",
+      pointsAwarded: "0",
+      prescanState:
+        injectedSignature.screenshotB64 || injectedSignature.screenshotUrl
+          ? "success"
+          : "idle",
+      prescanError: null,
+      partDetails: {
+        ...getInitialPartDetails(),
+        volume:
+          injectedSignature.volume === null ||
+          injectedSignature.volume === undefined
+            ? ""
+            : String(injectedSignature.volume),
+        surfaceArea:
+          injectedSignature.surfaceArea === null ||
+          injectedSignature.surfaceArea === undefined
+            ? ""
+            : String(injectedSignature.surfaceArea),
+        centerOfMass: { x: "", y: "", z: "" },
+        screenshotB64: injectedSignature.screenshotB64 || "",
+        screenshotUrl: injectedSignature.screenshotUrl || "",
+      },
+    });
+
+    setSignatures((prev) => {
+      const next = [...prev, nextSignature];
+      setHighlightSignatureIndex(next.length - 1);
+      return next;
+    });
+    setValidationAttempted(false);
+    onInjectedSignatureUsed?.();
+  }, [open, injectedSignature, assignment, onInjectedSignatureUsed]);
+
+  useEffect(() => {
+    if (highlightSignatureIndex == null) return;
+    const node = signatureRefs.current[highlightSignatureIndex];
+    if (node && typeof node.scrollIntoView === "function") {
+      setTimeout(() => {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    }
+  }, [highlightSignatureIndex, signatures.length]);
 
   const signaturesErrors = useMemo(() => {
     const ptsPossibleNum = Number(pointsPossible);
@@ -548,6 +623,9 @@ export const CreateAssignmentModal = ({
       if (next[0].type !== "CORRECT") next[0] = { ...next[0], type: "CORRECT" };
       return next;
     });
+    if (highlightSignatureIndex != null && highlightSignatureIndex >= index) {
+      setHighlightSignatureIndex(null);
+    }
   };
 
   const handleSubmitAssignment = async () => {
@@ -635,6 +713,14 @@ export const CreateAssignmentModal = ({
     }
   };
 
+  const { setDocs, unstackDoc } = useDocs();
+
+  useEffect(() => {
+    if (open) setDocs("https://docs.featurebench.com/p/creating-a-assignment");
+    if (!open)
+      unstackDoc("https://docs.featurebench.com/p/creating-a-assignment");
+  }, [open]);
+
   const headerActions =
     isEditMode && onDeleteAssignment ? (
       <Button
@@ -699,19 +785,26 @@ export const CreateAssignmentModal = ({
       </Section>
 
       {signatures.map((sig, idx) => (
-        <SignatureSection
+        <div
           key={idx}
-          index={idx}
-          isFirst={idx === 0}
-          signature={sig}
-          courseId={courseId}
-          validationAttempted={validationAttempted}
-          signatureErrors={signaturesErrors[idx]}
-          onChange={(partial) => updateSignature(idx, partial)}
-          onDelete={() => deleteSignature(idx)}
-          canDelete={canDeleteSignature(idx)}
-          graderOnline={graderOnline}
-        />
+          ref={(el) => {
+            signatureRefs.current[idx] = el;
+          }}
+          style={highlightSignatureIndex === idx ? highlightStyle : undefined}
+        >
+          <SignatureSection
+            index={idx}
+            isFirst={idx === 0}
+            signature={sig}
+            courseId={courseId}
+            validationAttempted={validationAttempted}
+            signatureErrors={signaturesErrors[idx]}
+            onChange={(partial) => updateSignature(idx, partial)}
+            onDelete={() => deleteSignature(idx)}
+            canDelete={canDeleteSignature(idx)}
+            graderOnline={graderOnline}
+          />
+        </div>
       ))}
 
       <Section
@@ -745,7 +838,7 @@ export const CreateAssignmentModal = ({
 
       <Section title="Grading" last={true}>
         <Input
-          label="Tolerance percent (recommended 0.1%-0.5%)"
+          label="Tolerance percent (recommended 0.1%-0.15%)"
           type="number"
           value={tolerancePercent}
           onChange={(e) => setTolerancePercent(e.target.value)}
@@ -763,7 +856,7 @@ export const CreateAssignmentModal = ({
           step={1}
           invalid={showInvalidTop("pointsPossible")}
         />
-        <Select
+        {/* <Select
           label="Grade Visibility"
           value={gradeVisibility}
           onChange={(e) => setGradeVisibility(e.target.value)}
@@ -774,7 +867,7 @@ export const CreateAssignmentModal = ({
               label: "Don't show grades until due date passes",
             },
           ]}
-        />
+        /> */}
       </Section>
     </Modal>
   );
