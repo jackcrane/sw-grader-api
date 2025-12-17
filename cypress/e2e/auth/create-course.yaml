@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jackcrane/cypress-yaml-plugin/main/schema.json
+
+# This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
+
+name: Create course
+seedFile: fixtures/account.sql
+steps:
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - createAndAffiliateStripeCustomer:
+      dbId: cmj9ffow70000qr6banbe3856
+      name: Test Account,
+      email: test@featurebench-test.com
+  - tapOn:
+      text: "Create a new course"
+  - typeText:
+      placeholder: "e.g., Intro to CAD"
+      text: E2E Test Course
+      allowScroll: true
+  - typeText:
+      placeholder: "e.g., ENGR 1701"
+      text: E2E 222
+      allowScroll: true
+  - tapOn:
+      text: "Students pay"
+  - tapOn:
+      text: "Create course"
+  - assertVisible:
+      text: "E2E Test Course"
+      allowScroll: true
+  - assertVisible:
+      dataCy: "enrollment-row-E2E Test Course-E2E 222"
+      allowScroll: true
+  - assertVisible:
+      dataCy: "enrollment-type-E2E Test Course-teacher"
+      allowScroll: true

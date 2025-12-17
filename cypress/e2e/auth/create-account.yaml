@@ -22,7 +22,7 @@ steps:
       text: Account
   - typeText:
       selector: 'input[type="email"]'
-      text: fail@featurebench-test.com
+      text: test@featurebench-test.com
   - typeText:
       selector: 'input[type="password"]'
       text: Password!

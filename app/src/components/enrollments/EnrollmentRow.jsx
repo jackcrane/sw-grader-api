@@ -12,7 +12,7 @@ export const EnrollmentRow = ({ enrollment }) => {
 
   const rowBody = (
     <Row justify="space-between" align="center">
-      <div>
+      <div data-cy={`enrollment-row-${courseName}-${courseAbbr}`}>
         <div style={{ fontWeight: 600 }}>{courseName}</div>
         {courseAbbr && (
           <div style={{ fontSize: 12, color: "#555" }}>{courseAbbr}</div>
@@ -25,6 +25,7 @@ export const EnrollmentRow = ({ enrollment }) => {
             textTransform: "capitalize",
             color: "#555",
           }}
+          data-cy={`enrollment-type-${courseName}-${typeLabel}`}
         >
           {typeLabel}
         </div>

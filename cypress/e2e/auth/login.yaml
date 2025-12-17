@@ -2,7 +2,7 @@
 
 # This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
 
-name: Incorrect Password error on Non Existent account
+name: Logs in successfully
 seedFile: fixtures/account.sql
 steps:
   - open: /
@@ -15,7 +15,7 @@ steps:
       allowScroll: true
   - typeText:
       selector: 'input[type="email"]'
-      text: fail@featurebench-test.com
+      text: test@featurebench-test.com
   - typeText:
       selector: 'input[type="password"]'
       text: Password!
@@ -23,8 +23,3 @@ steps:
       selector: 'button[type="submit"]'
   - assertVisible:
       text: "Hello, Test Account"
-  - createAndAffiliateStripeCustomer:
-      dbId: cmj9ffow70000qr6banbe3856
-      name: Test Account,
-      email: fail@featurebench-test.com
-  - DONE!

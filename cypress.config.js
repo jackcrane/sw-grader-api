@@ -32,8 +32,127 @@ registerCommand(
     }),
   }
 );
+
+registerCommand(
+  "authenticateUser",
+  (options) => {
+    const encodedOptions = JSON.stringify(options);
+    const usernameLabel = JSON.stringify(options.username);
+    return [
+      `cy.task('authenticateUser', ${encodedOptions}).then(({ cookieName, cookieValue, cookieOptions }) => {
+        if (!cookieName || typeof cookieValue === 'undefined') {
+          throw new Error('authenticateUser task returned invalid cookie data');
+        }
+        cy.clearCookies();
+        cy.setCookie(cookieName, cookieValue, cookieOptions || {});
+        cy.log('Authenticated as ' + ${usernameLabel});
+      });`,
+    ];
+  },
+  {
+    schema: z.object({
+      username: z.string().min(1, "username is required"),
+      password: z.string().min(1, "password is required"),
+    }),
+  }
+);
 generateJsonSchema();
 // console.log(listRegisteredCommands());
+
+const SESSION_COOKIE_NAME = "wos-session";
+const DEFAULT_BASE_URL =
+  process.env.CYPRESS_BASE_URL || "http://localhost:3000";
+
+const getSetCookieHeaders = (headers) => {
+  if (!headers) return [];
+  if (typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+  if (typeof headers.raw === "function") {
+    const raw = headers.raw();
+    if (raw && Array.isArray(raw["set-cookie"])) {
+      return raw["set-cookie"];
+    }
+  }
+  if (typeof headers.get === "function") {
+    const header = headers.get("set-cookie");
+    return header ? [header] : [];
+  }
+  return [];
+};
+
+const parseCookieHeader = (cookieHeader) => {
+  const segments = cookieHeader.split(";").map((segment) => segment.trim());
+  const [nameValue, ...attributes] = segments;
+  const [rawName, ...valueParts] = nameValue.split("=");
+  const cookieName = rawName?.trim();
+  const cookieValue = valueParts.join("=");
+  const cookieOptions = {
+    path: "/",
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+  };
+
+  attributes.forEach((attribute) => {
+    if (!attribute) return;
+    const [attrName, ...attrValueParts] = attribute.split("=");
+    const key = attrName?.toLowerCase();
+    const value = attrValueParts.join("=");
+    switch (key) {
+      case "path":
+        cookieOptions.path = value || "/";
+        break;
+      case "secure":
+        cookieOptions.secure = true;
+        break;
+      case "httponly":
+        cookieOptions.httpOnly = true;
+        break;
+      case "samesite": {
+        const normalized = value?.toLowerCase();
+        if (normalized === "lax" || normalized === "strict") {
+          cookieOptions.sameSite = normalized;
+        } else if (normalized === "none" || normalized === "no_restriction") {
+          cookieOptions.sameSite = "no_restriction";
+        }
+        break;
+      }
+      case "expires": {
+        const expiresDate = new Date(value);
+        if (!Number.isNaN(expiresDate.getTime())) {
+          cookieOptions.expiry = Math.floor(expiresDate.getTime() / 1000);
+        }
+        break;
+      }
+      case "max-age": {
+        const seconds = parseInt(value, 10);
+        if (!Number.isNaN(seconds)) {
+          cookieOptions.expiry =
+            Math.floor(Date.now() / 1000) + Math.max(seconds, 0);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  return { cookieName, cookieValue, cookieOptions };
+};
+
+const findSessionCookie = (setCookieHeaders) => {
+  for (const header of setCookieHeaders) {
+    if (!header) continue;
+    const trimmed = header.trim();
+    const [namePart] = trimmed.split(";");
+    const [name] = namePart.split("=");
+    if (name?.trim() === SESSION_COOKIE_NAME) {
+      return parseCookieHeader(trimmed);
+    }
+  }
+  return null;
+};
 
 function runPsql(dbUrl, args) {
   const result = spawnSync("psql", [dbUrl, ...args], {
@@ -100,8 +219,53 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       // implement node event listeners here
       yamlPreprocessor(on);
+      const resolvedBaseUrl = config?.baseUrl || DEFAULT_BASE_URL;
 
       on("task", {
+        authenticateUser: async ({ username, password }) => {
+          if (!username || !password) {
+            throw new Error(
+              "authenticateUser requires both username and password"
+            );
+          }
+
+          const loginUrl = new URL("/api/auth/login", resolvedBaseUrl);
+          const response = await fetch(loginUrl, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              accept: "application/json",
+            },
+            body: JSON.stringify({
+              email: username,
+              password,
+            }),
+          });
+
+          let body = null;
+          try {
+            body = await response.json();
+          } catch (error) {
+            // Ignore parsing error; handled below.
+          }
+
+          if (!response.ok || !body?.authenticated) {
+            const statusText = response.statusText || "";
+            throw new Error(
+              `Failed to authenticate user ${username}: ${response.status} ${statusText}`.trim()
+            );
+          }
+
+          const sessionCookie = findSessionCookie(
+            getSetCookieHeaders(response.headers)
+          );
+          if (!sessionCookie) {
+            throw new Error(
+              "authenticateUser task did not receive the session cookie"
+            );
+          }
+          return sessionCookie;
+        },
         "db:seed": (relativeSqlPath) => {
           const dbUrl = process.env.DATABASE_URL;
 
