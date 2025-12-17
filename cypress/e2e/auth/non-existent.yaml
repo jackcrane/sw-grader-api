@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jackcrane/cypress-yaml-plugin/main/schema.json
+
+# This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
+
+name: Incorrect Password error on Non Existent account
+steps:
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: "Login"
+      allowScroll: true
+  - typeText:
+      selector: 'input[type="email"]'
+      text: fail@featurebench-test.com
+  - typeText:
+      selector: 'input[type="password"]'
+      text: Password!
+  - tapOn:
+      selector: 'button[type="submit"]'
+  - assertVisible:
+      text: "Incorrect email or password"
