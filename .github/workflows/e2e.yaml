@@ -26,7 +26,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       minio:
-        image: minio/minio:RELEASE.2024-10-02T17-50-41Z
+        image: bitnami/minio:2024.10.2-debian-12-r0
         env:
           MINIO_ROOT_USER: minio
           MINIO_ROOT_PASSWORD: minio123
@@ -131,11 +131,16 @@ jobs:
           curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
           chmod +x /tmp/mc
           for i in {1..30}; do
-            if curl -sSf http://localhost:9000/minio/health/ready >/dev/null; then
+            if curl -sSf http://localhost:9000/minio/health/ready >/dev/null 2>&1 || \
+               curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
               break
             fi
             sleep 2
           done
+          if ! curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+            echo "MinIO failed to start within the timeout" >&2
+            exit 1
+          fi
           /tmp/mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
           /tmp/mc mb --ignore-existing "local/$AWS_BUCKET"
           /tmp/mc anonymous set public "local/$AWS_BUCKET"
