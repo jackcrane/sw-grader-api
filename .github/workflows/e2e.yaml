@@ -25,13 +25,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      minio:
-        image: minio/minio:RELEASE.2024-10-02T17-50-41Z
-        env:
-          MINIO_ROOT_USER: minio
-          MINIO_ROOT_PASSWORD: minio123
-        ports:
-          - 9000:9000
       rabbitmq:
         image: rabbitmq:3.13-management
         ports:
@@ -91,6 +84,26 @@ jobs:
             libxss1 libasound2t64 libxtst6 xauth xvfb libdrm2 libxcb-dri3-0 \
             libxdamage1 libxrandr2 postgresql-client
 
+      - name: Start MinIO
+        env:
+          MINIO_IMAGE: minio/minio:RELEASE.2024-10-02T17-50-41Z
+        run: |
+          docker run -d --name ci-minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
+            -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
+            "$MINIO_IMAGE" server /data --console-address ":9001"
+          for i in {1..30}; do
+            if curl -sSf http://localhost:9000/minio/health/ready >/dev/null 2>&1 || \
+               curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MinIO failed to become ready" >&2
+          docker logs ci-minio || true
+          exit 1
+
       - name: Install root dependencies
         run: yarn install --frozen-lockfile
 
@@ -130,17 +143,6 @@ jobs:
         run: |
           curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
           chmod +x /tmp/mc
-          for i in {1..30}; do
-            if curl -sSf http://localhost:9000/minio/health/ready >/dev/null 2>&1 || \
-               curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
-              break
-            fi
-            sleep 2
-          done
-          if ! curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
-            echo "MinIO failed to start within the timeout" >&2
-            exit 1
-          fi
           /tmp/mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
           /tmp/mc mb --ignore-existing "local/$AWS_BUCKET"
           /tmp/mc anonymous set public "local/$AWS_BUCKET"
@@ -193,6 +195,7 @@ jobs:
           if [ -f fake-grader.pid ]; then
             kill "$(cat fake-grader.pid)" || true
           fi
+          docker rm -f ci-minio || true
 
       - name: Upload Cypress artifacts
         if: always()
