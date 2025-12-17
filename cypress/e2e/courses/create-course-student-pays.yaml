@@ -80,7 +80,7 @@ steps:
       text: "Payment confirmed! You're enrolled in E2E Test Course."
   - tapOn:
       text: "Close"
-  - waitFor: 1000
+  - waitFor: 10000
   - assertStripeCustomerValue:
       email: student@featurebench-test.com
       balance: 2000

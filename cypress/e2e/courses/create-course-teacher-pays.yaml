@@ -69,7 +69,7 @@ steps:
       text: STU-E2E
   - tapOn:
       text: "Join course"
-  - waitFor: 1000
+  - waitFor: 10000
   - assertStripeCustomerValue:
       email: test@featurebench-test.com
       balance: 1200

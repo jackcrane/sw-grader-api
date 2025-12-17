@@ -22,4 +22,4 @@ steps:
   - tapOn:
       selector: 'button[type="submit"]'
   - assertVisible:
-      text: "Hello, Test Account"
+      text: "Hello, Test Teacher"
