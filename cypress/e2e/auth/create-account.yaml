@@ -3,6 +3,7 @@
 # This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
 
 name: Allows creating account
+seedFile: fixtures/blank.sql
 steps:
   - open: /
   - setViewport:
