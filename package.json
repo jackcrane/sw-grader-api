@@ -23,7 +23,7 @@
   "description": "",
   "devDependencies": {
     "cypress": "^15.8.0",
-    "cypress-yaml-plugin": "^0.1.9"
+    "cypress-yaml-plugin": "^0.1.10"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

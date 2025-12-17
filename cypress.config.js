@@ -16,7 +16,6 @@ import pg from "pg";
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
 });
-await client.connect();
 const stripe = getStripeClient();
 
 registerCommand(
@@ -56,6 +55,56 @@ registerCommand(
     }),
   }
 );
+
+registerCommand(
+  "fillStripeElementsInput",
+  ({ field, value }) => {
+    return [
+      `cy.get('iframe[name^="__privateStripeFrame"]')`,
+      `  .its("0.contentDocument.body")`,
+      `  .should("not.be.empty")`,
+      `  .then(cy.wrap)`,
+      `  .find(\`input[data-elements-stable-field-name="${field}"]\`)`,
+      `  .type(${value});`,
+    ];
+  },
+  {
+    schema: z.object({
+      field: z.string(),
+      value: z.string(),
+    }),
+  }
+);
+
+registerCommand(
+  "assertStripeCustomerValue",
+  ({ email, balance }) => {
+    return [
+      `cy.task('stripe:assertStripeCustomerValue', { email: '${email}' }).then((actualBalance) => {
+        expect(actualBalance).to.equal(${balance});
+      });`,
+    ];
+  },
+  {
+    schema: z.object({
+      email: z.string().email(),
+      balance: z.number(),
+    }),
+  }
+);
+
+registerCommand(
+  "forceSetJoinCode",
+  ({ code }) => {
+    return [`cy.task('forceSetJoinCode', { code: '${code}' })`];
+  },
+  {
+    schema: z.object({
+      code: z.string(),
+    }),
+  }
+);
+
 generateJsonSchema();
 // console.log(listRegisteredCommands());
 
@@ -216,7 +265,8 @@ export default defineConfig({
     requestTimeout: 8000,
     responseTimeout: 8000,
     supportFile: false,
-    setupNodeEvents(on, config) {
+    async setupNodeEvents(on, config) {
+      await client.connect();
       // implement node event listeners here
       yamlPreprocessor(on);
       const resolvedBaseUrl = config?.baseUrl || DEFAULT_BASE_URL;
@@ -319,6 +369,35 @@ export default defineConfig({
             customerId: customer.id,
             updatedRows: res.rowCount,
           };
+        },
+        "stripe:assertStripeCustomerValue": async ({ email }) => {
+          const customerId = await client.query(
+            `SELECT "stripeCustomerId" FROM "User" WHERE "email" = '${email}'`
+          );
+          if (customerId.rowCount !== 1) {
+            throw new Error(
+              `Expected to find 1 row, but found ${customerId.rowCount} rows`
+            );
+          }
+          if (!customerId.rows[0].stripeCustomerId) {
+            throw new Error(`No stripe customer id found for ${email}`);
+          }
+          const pis = await stripe.paymentIntents.list({
+            customer: customerId.rows[0].stripeCustomerId,
+            limit: 100,
+          });
+          const filtered = pis.data.filter((p) => p.status === "succeeded");
+          return filtered.reduce((acc, p) => acc + p.amount, 0);
+        },
+        forceSetJoinCode: async ({ code }) => {
+          const course = await client.query(`SELECT * FROM "Course" LIMIT 1`);
+          await client.query(
+            `UPDATE "Course" SET "studentInviteCode" = 'STU-${code}' WHERE "id" = '${course.rows[0].id}'`
+          );
+          await client.query(
+            `UPDATE "Course" SET "taInviteCode" = 'TA-${code}' WHERE "id" = '${course.rows[0].id}'`
+          );
+          return null;
         },
       });
 

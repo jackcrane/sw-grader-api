@@ -2,7 +2,7 @@
 
 # This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
 
-name: Create course
+name: Create course (per-course billing)
 seedFile: fixtures/account.sql
 steps:
   - authenticateUser:
@@ -27,8 +27,17 @@ steps:
       placeholder: "e.g., ENGR 1701"
       text: E2E 222
       allowScroll: true
+  - fillStripeElementsInput:
+      field: cardNumber
+      value: "4242424242424242"
+  - fillStripeElementsInput:
+      field: cardExpiry
+      value: "429" # 4/29
+  - fillStripeElementsInput:
+      field: cardCvc
+      value: "123"
   - tapOn:
-      text: "Students pay"
+      text: "Save payment method"
   - tapOn:
       text: "Create course"
   - assertVisible:
@@ -40,3 +49,27 @@ steps:
   - assertVisible:
       dataCy: "enrollment-type-E2E Test Course-teacher"
       allowScroll: true
+  - forceSetJoinCode:
+      code: E2E
+  ################################################################################
+  # Checking to see that a teacher is in fact charged for the course
+  - authenticateUser:
+      username: student@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - assertStripeCustomerValue:
+      email: test@featurebench-test.com
+      balance: 0
+  - typeText:
+      placeholder: "e.g., STU-1A2B3C"
+      text: STU-E2E
+  - tapOn:
+      text: "Join course"
+  - waitFor: 1000
+  - assertStripeCustomerValue:
+      email: test@featurebench-test.com
+      balance: 1200
