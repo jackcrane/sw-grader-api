@@ -203,8 +203,25 @@ const findSessionCookie = (setCookieHeaders) => {
   return null;
 };
 
+function sanitizeDbUrlForPsql(dbUrl) {
+  try {
+    const url = new URL(dbUrl);
+    let mutated = false;
+
+    if (url.searchParams.has("schema")) {
+      url.searchParams.delete("schema");
+      mutated = true;
+    }
+
+    return mutated ? url.toString() : dbUrl;
+  } catch (error) {
+    return dbUrl;
+  }
+}
+
 function runPsql(dbUrl, args) {
-  const result = spawnSync("psql", [dbUrl, ...args], {
+  const sanitizedDbUrl = sanitizeDbUrlForPsql(dbUrl);
+  const result = spawnSync("psql", [sanitizedDbUrl, ...args], {
     stdio: "inherit",
     env: process.env,
   });
