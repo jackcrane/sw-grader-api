@@ -3,3 +3,4 @@
 - [ ] Extract and upload a 3d model from Solidworks (obj?) (gltf?) for optional rendering in web UI
 - [ ] Add under definition detection in grader worker
 - [ ] Add material data extraction in grader worker
+- [ ] Teachers and TAs should not be charged
