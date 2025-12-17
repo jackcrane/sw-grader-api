@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jackcrane/cypress-yaml-plugin/main/schema.json
+name: Storefront smoke
+seedFile: cypress/fixtures/db/store.sql
+steps:
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - tapOn:
+      dataCy: primary-cta
+      allowScroll: true
+  - typeText:
+      selector: '[data-cy="email-field"]'
+      text: tester@example.com
+  - assertContains:
+      selector: '[data-cy="welcome"]'
+      text: Welcome
+  - takeScreenshot: dashboard
+  - "Reached dashboard"
