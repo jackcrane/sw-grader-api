@@ -33,8 +33,6 @@ jobs:
           MINIO_ROOT_PASSWORD: minio123
         ports:
           - 9000:9000
-          - 9001:9001
-        command: server /data --console-address :9001
       rabbitmq:
         image: rabbitmq:3.13-management
         ports:
