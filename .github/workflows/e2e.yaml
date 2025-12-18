@@ -149,7 +149,10 @@ jobs:
 
       - name: Install Stripe CLI
         run: |
-          curl -fsSL https://stripe.com/install.sh | bash
+          curl -L https://github.com/stripe/stripe-cli/releases/latest/download/stripe_linux_amd64.tar.gz \
+            | tar xz
+          sudo mv stripe /usr/local/bin/
+          stripe version
 
       - name: Start fake grader health endpoint
         run: |
@@ -190,13 +193,35 @@ jobs:
       - name: Start Stripe webhook forwarder
         env:
           STRIPE_API_KEY: ${{ secrets.STRIPE_SK }}
-          STRIPE_WEBHOOK_SECRET: ${{ env.STRIPE_WEBHOOK_SECRET }}
         run: |
+          set -e
+
           stripe listen \
             --api-key "$STRIPE_API_KEY" \
             --forward-to http://localhost:3000/api/stripe/webhook \
-            > stripe-webhooks.log 2>&1 &
+            --events payment_intent.succeeded,invoice.paid,customer.subscription.created \
+            --log-level error \
+            > stripe-listen.log 2>&1 &
+
           echo $! > stripe-webhooks.pid
+
+          # Wait for whsec to appear
+          for i in {1..20}; do
+            if grep -q "whsec_" stripe-listen.log; then
+              break
+            fi
+            sleep 1
+          done
+
+          WHSEC=$(grep -o 'whsec_[A-Za-z0-9]\+' stripe-listen.log | head -n 1)
+
+          if [ -z "$WHSEC" ]; then
+            echo "Failed to obtain Stripe webhook secret"
+            cat stripe-listen.log
+            exit 1
+          fi
+
+          echo "STRIPE_WEBHOOK_SECRET=$WHSEC" >> "$GITHUB_ENV"
 
       - name: Run Cypress tests
         run: npx cypress run --config-file cypress.config.js
