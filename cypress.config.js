@@ -77,6 +77,35 @@ registerCommand(
 );
 
 registerCommand(
+  "acceptStripe3dSecure",
+  ({ action }) => {
+    return [
+      `cy.get('iframe[name^="__privateStripeFrame"][role="presentation"]')`,
+      `  .filter((_, iframe) =>`,
+      `    iframe.contentDocument?.querySelector('iframe[name="stripe-challenge-frame"]')`,
+      `  )`,
+      `  .first()`,
+      `  .its("0.contentDocument.body")`,
+      `  .should("not.be.empty")`,
+      `  .then(cy.wrap)`,
+      `  .find('iframe[name^="stripe-challenge-frame"]')`,
+      `  .its("0.contentDocument.body")`,
+      `  .should("not.be.empty")`,
+      `  .then(cy.wrap)`,
+      action === "accept"
+        ? `  .find('#test-source-authorize-3ds')`
+        : `  .find('#test-source-fail-3ds')`,
+      `  .click();`,
+    ];
+  },
+  {
+    schema: z.object({
+      action: z.enum(["accept", "reject"]),
+    }),
+  }
+);
+
+registerCommand(
   "assertStripeCustomerValue",
   ({ dbId, balance }) => {
     return [
@@ -101,6 +130,20 @@ registerCommand(
   {
     schema: z.object({
       code: z.string(),
+    }),
+  }
+);
+
+registerCommand(
+  "assertEnrollmentFollowUpResolvedAt",
+  ({ userId }) => {
+    return [
+      `cy.task('assertEnrollmentFollowUpResolvedAt', { userId: '${userId}' })`,
+    ];
+  },
+  {
+    schema: z.object({
+      userId: z.string(),
     }),
   }
 );
@@ -414,6 +457,18 @@ export default defineConfig({
           await client.query(
             `UPDATE "Course" SET "taInviteCode" = 'TA-${code}' WHERE "id" = '${course.rows[0].id}'`
           );
+          return null;
+        },
+        assertEnrollmentFollowUpResolvedAt: async ({ userId }) => {
+          // Make sure the enrollment with userId has a billingFollowUpResolvedAt within the last 15 seconds
+          const enrollment = await client.query(
+            `SELECT * FROM "Enrollment" WHERE "userId" = '${userId}' AND "billingFollowUpResolvedAt" >= NOW() - INTERVAL '60 seconds' LIMIT 1`
+          );
+          if (enrollment.rowCount !== 1) {
+            throw new Error(
+              `Expected to find 1 enrollment with userId ${userId} and a billingFollowUpResolvedAt within the last 60 seconds, but found ${enrollment.rowCount}`
+            );
+          }
           return null;
         },
       });

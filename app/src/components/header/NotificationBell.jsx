@@ -42,7 +42,11 @@ export const NotificationBell = ({
   }, [isOpen, onClose]);
 
   return (
-    <div className={styles.notifications} ref={containerRef}>
+    <div
+      className={styles.notifications}
+      ref={containerRef}
+      data-cy="notifications"
+    >
       <button
         type="button"
         className={styles.notificationsButton}
@@ -52,10 +56,14 @@ export const NotificationBell = ({
         aria-label={
           hasPending ? "View unread notifications" : "View notifications"
         }
+        data-cy="notifications-button"
       >
         <BellSimpleIcon weight={isOpen ? "fill" : "regular"} />
         {hasPending && !loading && !error && (
-          <span className={styles.notificationDot} />
+          <span
+            className={styles.notificationDot}
+            data-cy="notifications-button-unread-dot"
+          />
         )}
       </button>
       {isOpen && (
