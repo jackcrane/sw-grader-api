@@ -78,16 +78,16 @@ registerCommand(
 
 registerCommand(
   "assertStripeCustomerValue",
-  ({ email, balance }) => {
+  ({ dbId, balance }) => {
     return [
-      `cy.task('stripe:assertStripeCustomerValue', { email: '${email}' }).then((actualBalance) => {
+      `cy.task('stripe:assertStripeCustomerValue', { dbId: '${dbId}' }).then((actualBalance) => {
         expect(actualBalance).to.equal(${balance});
       });`,
     ];
   },
   {
     schema: z.object({
-      email: z.string().email(),
+      dbId: z.string(),
       balance: z.number(),
     }),
   }
@@ -387,9 +387,9 @@ export default defineConfig({
             updatedRows: res.rowCount,
           };
         },
-        "stripe:assertStripeCustomerValue": async ({ email }) => {
+        "stripe:assertStripeCustomerValue": async ({ dbId }) => {
           const customerId = await client.query(
-            `SELECT "stripeCustomerId" FROM "User" WHERE "email" = '${email}'`
+            `SELECT "stripeCustomerId" FROM "User" WHERE "id" = '${dbId}'`
           );
           if (customerId.rowCount !== 1) {
             throw new Error(
@@ -397,7 +397,7 @@ export default defineConfig({
             );
           }
           if (!customerId.rows[0].stripeCustomerId) {
-            throw new Error(`No stripe customer id found for ${email}`);
+            throw new Error(`No stripe customer id found for ${dbId}`);
           }
           const pis = await stripe.paymentIntents.list({
             customer: customerId.rows[0].stripeCustomerId,

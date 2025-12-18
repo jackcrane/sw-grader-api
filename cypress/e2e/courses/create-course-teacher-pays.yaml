@@ -15,7 +15,7 @@ steps:
   - waitFor: 200
   - createAndAffiliateStripeCustomer:
       dbId: cmj9ffow70000qr6banbe3856
-      name: Test Account,
+      name: Test Teacher
       email: test@featurebench-test.com
   - tapOn:
       text: "Create a new course"
@@ -38,6 +38,9 @@ steps:
       value: "123"
   - tapOn:
       text: "Save payment method"
+  - waitFor: 1000
+  - assertVisible:
+      text: "Payment method saved"
   - tapOn:
       text: "Create course"
   - assertVisible:
@@ -62,7 +65,7 @@ steps:
       height: 720
   - waitFor: 200
   - assertStripeCustomerValue:
-      email: test@featurebench-test.com
+      dbId: cmj9ffow70000qr6banbe3856 # Teacher
       balance: 0
   - typeText:
       placeholder: "e.g., STU-1A2B3C"
@@ -71,5 +74,5 @@ steps:
       text: "Join course"
   - waitFor: 10000
   - assertStripeCustomerValue:
-      email: test@featurebench-test.com
+      dbId: cmj9ffow70000qr6banbe3856 # Teacher
       balance: 1200

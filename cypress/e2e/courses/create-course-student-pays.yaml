@@ -54,7 +54,7 @@ steps:
   - open: /
   - waitFor: 200
   - assertStripeCustomerValue:
-      email: student@featurebench-test.com
+      dbId: cmj9ffow70000qr6banbe3d56 # Student
       balance: 0
   - typeText:
       placeholder: "e.g., STU-1A2B3C"
@@ -82,7 +82,7 @@ steps:
       text: "Close"
   - waitFor: 10000
   - assertStripeCustomerValue:
-      email: student@featurebench-test.com
+      dbId: cmj9ffow70000qr6banbe3d56 # Student
       balance: 2000
   - assertVisible:
       dataCy: "enrollment-row-E2E Test Course-E2E 222"
@@ -90,3 +90,6 @@ steps:
   - assertVisible:
       dataCy: "enrollment-type-E2E Test Course-student"
       allowScroll: true
+  - assertStripeCustomerValue:
+      dbId: cmj9ffow70000qr6banbe3856 # Teacher
+      balance: 0
