@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jackcrane/cypress-yaml-plugin/main/schema.json
+
+# This test suite checks to see that if a TA joins a course, the teacher is not charged for their account.
+
+name: Create course (per-course billing) (TA Not Charged)
+seedFile: fixtures/account.sql
+steps:
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - createAndAffiliateStripeCustomer:
+      dbId: cmj9ffow70000qr6banbe3856
+      name: Test Teacher
+      email: test@featurebench-test.com
+  - tapOn:
+      text: "Create a new course"
+  - typeText:
+      placeholder: "e.g., Intro to CAD"
+      text: E2E Test Course
+      allowScroll: true
+  - typeText:
+      placeholder: "e.g., ENGR 1701"
+      text: E2E 222
+      allowScroll: true
+  - fillStripeElementsInput:
+      field: cardNumber
+      value: "4242424242424242"
+  - fillStripeElementsInput:
+      field: cardExpiry
+      value: "429" # 4/29
+  - fillStripeElementsInput:
+      field: cardCvc
+      value: "123"
+  - tapOn:
+      text: "Save payment method"
+  - waitFor: 1000
+  - assertVisible:
+      text: "Payment method saved"
+  - tapOn:
+      text: "Create course"
+  - assertVisible:
+      text: "E2E Test Course"
+      allowScroll: true
+  - assertVisible:
+      dataCy: "enrollment-row-E2E Test Course-E2E 222"
+      allowScroll: true
+  - assertVisible:
+      dataCy: "enrollment-type-E2E Test Course-teacher"
+      allowScroll: true
+  - forceSetJoinCode:
+      code: E2E
+  ################################################################################
+  # Checking to see that a teacher is in fact charged for the course
+  - authenticateUser:
+      username: ta@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - assertStripeCustomerValue:
+      dbId: cmj9ffow70000qr6banbe3856 # Teacher
+      balance: 0
+  - typeText:
+      placeholder: "e.g., STU-1A2B3C"
+      text: TA-E2E
+  - tapOn:
+      text: "Join course"
+  - waitFor: 10000
+  - assertStripeCustomerValue:
+      dbId: cmj9ffow70000qr6banbe3856 # Teacher
+      balance: 0
