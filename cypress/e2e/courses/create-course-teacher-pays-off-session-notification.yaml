@@ -81,6 +81,8 @@ steps:
       password: Password!
   - open: /
   - waitFor: 500
+  - assertVisible:
+      dataCy: "notifications-button-unread-dot"
   - tapOn:
       dataCy: "notifications-button"
   - assertVisible:

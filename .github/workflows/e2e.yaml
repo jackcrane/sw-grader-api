@@ -147,6 +147,10 @@ jobs:
           /tmp/mc mb --ignore-existing "local/$AWS_BUCKET"
           /tmp/mc anonymous set public "local/$AWS_BUCKET"
 
+      - name: Install Stripe CLI
+        run: |
+          curl -fsSL https://stripe.com/install.sh | bash
+
       - name: Start fake grader health endpoint
         run: |
           cat <<'EOF' > fake-grader.mjs
@@ -182,6 +186,17 @@ jobs:
           echo "API failed to start" >&2
           tail -n 200 web-api.log || true
           exit 1
+
+      - name: Start Stripe webhook forwarder
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_SK }}
+          STRIPE_WEBHOOK_SECRET: ${{ env.STRIPE_WEBHOOK_SECRET }}
+        run: |
+          stripe listen \
+            --api-key "$STRIPE_API_KEY" \
+            --forward-to http://localhost:3000/api/stripe/webhook \
+            > stripe-webhooks.log 2>&1 &
+          echo $! > stripe-webhooks.pid
 
       - name: Run Cypress tests
         run: npx cypress run --config-file cypress.config.js
