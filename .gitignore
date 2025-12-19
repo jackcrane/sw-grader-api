@@ -3,3 +3,4 @@ uploads
 /SwExtractor/.vs
 web-api/.env
 docs/public
+.env

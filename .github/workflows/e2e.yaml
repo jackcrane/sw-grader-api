@@ -1,0 +1,340 @@
+name: E2E Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cypress:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sw_grader
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3.13-management
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sw_grader?schema=public
+      AUTH_JWT_SECRET: ci-auth-secret
+      STRIPE_SK: ${{ secrets.STRIPE_SK }}
+      STRIPE_PK: ${{ secrets.STRIPE_PK }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || 'ci-webhook-secret' }}
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      AWS_BUCKET: sw-grader-ci
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT: http://localhost:9000
+      AWS_FORCE_PATH_STYLE: "true"
+      AWS_PUBLIC_BASE_URL: http://localhost:9000/sw-grader-ci
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      BILLING_FOLLOW_UP_QUEUE: billing.followups
+      POSTMARK_API_TOKEN: test-token
+      POSTMARK_FROM_EMAIL: noreply@example.com
+      POSTMARK_MESSAGE_STREAM: outbound
+      POSTHOG_API_KEY: test-key
+      PUBLIC_APP_URL: http://localhost:3000
+      APP_BASE_URL: http://localhost:3000
+      WEB_APP_BASE_URL: http://localhost:3000
+      GRADER_BASE_URL: http://localhost:3999
+      GRADER_SHARED_SECRET: local-grader
+      NODE_ENV: test
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+      CYPRESS_BASE_URL: http://localhost:3000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: |
+            yarn.lock
+            app/yarn.lock
+            web-api/yarn.lock
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libnss3 \
+            libxss1 libasound2t64 libxtst6 xauth xvfb libdrm2 libxcb-dri3-0 \
+            libxdamage1 libxrandr2 postgresql-client
+
+      - name: Start MinIO
+        env:
+          MINIO_IMAGE: minio/minio:RELEASE.2024-10-02T17-50-41Z
+        run: |
+          docker run -d --name ci-minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
+            -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
+            "$MINIO_IMAGE" server /data --console-address ":9001"
+          for i in {1..30}; do
+            if curl -sSf http://localhost:9000/minio/health/ready >/dev/null 2>&1 || \
+               curl -sSf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MinIO failed to become ready" >&2
+          docker logs ci-minio || true
+          exit 1
+
+      - name: Install root dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install frontend dependencies
+        run: yarn install --cwd app --frozen-lockfile
+
+      - name: Build frontend
+        run: yarn --cwd app build
+
+      - name: Install API dependencies
+        run: yarn install --cwd web-api --frozen-lockfile
+
+      - name: Wait for Postgres
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Apply Prisma schema
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          yarn --cwd web-api prisma generate
+          yarn --cwd web-api prisma migrate deploy
+
+      - name: Configure MinIO bucket
+        env:
+          AWS_BUCKET: ${{ env.AWS_BUCKET }}
+          MINIO_ROOT_USER: ${{ env.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ env.MINIO_ROOT_PASSWORD }}
+        run: |
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
+          chmod +x /tmp/mc
+          /tmp/mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+          /tmp/mc mb --ignore-existing "local/$AWS_BUCKET"
+          /tmp/mc anonymous set public "local/$AWS_BUCKET"
+
+      - name: Install Stripe CLI
+        run: |
+          curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/stripe.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/stripe.gpg] https://packages.stripe.dev/stripe-cli-debian-local stable main" \
+            | sudo tee /etc/apt/sources.list.d/stripe.list
+          sudo apt-get update
+          sudo apt-get install -y stripe
+
+      - name: Start fake grader health endpoint
+        run: |
+          cat <<'EOF' > fake-grader.mjs
+          import http from 'http';
+
+          const handler = (req, res) => {
+            res.statusCode = 200;
+            res.setHeader('content-type', 'application/json');
+            res.end(JSON.stringify({ ok: true }));
+          };
+
+          const server = http.createServer(handler);
+          server.listen(3999, () => {
+            console.log('Fake grader listening on 3999');
+          });
+          EOF
+          node fake-grader.mjs > fake-grader.log 2>&1 &
+          echo $! > fake-grader.pid
+
+      - name: Start Stripe webhook forwarder
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_SK }}
+        run: |
+          set -e
+
+          stripe listen \
+            --api-key "$STRIPE_API_KEY" \
+            --forward-to http://localhost:3000/api/stripe/webhook \
+            --log-level error \
+            > stripe-listen.log 2>&1 &
+
+          echo $! > stripe-webhooks.pid
+
+          # Wait for whsec to appear
+          for i in {1..20}; do
+            if grep -q "whsec_" stripe-listen.log; then
+              break
+            fi
+            sleep 1
+          done
+
+          WHSEC=$(grep -o 'whsec_[A-Za-z0-9]\+' stripe-listen.log | head -n 1)
+
+          if [ -z "$WHSEC" ]; then
+            echo "Failed to obtain Stripe webhook secret"
+            cat stripe-listen.log
+            exit 1
+          fi
+
+          echo "STRIPE_WEBHOOK_SECRET=$WHSEC" >> "$GITHUB_ENV"
+
+      - name: Start API server
+        run: |
+          yarn --cwd web-api start > web-api.log 2>&1 &
+          echo $! > web-api.pid
+
+      - name: Wait for API
+        run: |
+          for i in {1..90}; do
+            if curl -s http://localhost:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API failed to start" >&2
+          tail -n 200 web-api.log || true
+          exit 1
+
+      - name: Run Cypress tests
+        run: npx cypress run --config-file cypress.config.js
+
+      - name: Stop background services
+        if: always()
+        run: |
+          if [ -f web-api.pid ]; then
+            kill "$(cat web-api.pid)" || true
+          fi
+          if [ -f fake-grader.pid ]; then
+            kill "$(cat fake-grader.pid)" || true
+          fi
+          docker rm -f ci-minio || true
+
+      - name: Upload Cypress artifacts
+        if: always()
+        id: upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artifacts
+          path: |
+            cypress/screenshots
+            cypress/videos
+            cypress/downloads
+            web-api.log
+            fake-grader.log
+          if-no-files-found: ignore
+
+      - name: Comment with artifact link
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentTag = '<!-- e2e-tests-comment -->';
+            const artifactUrl = '${{ steps.upload-artifacts.outputs.artifact-url }}';
+            const status = '${{ job.status }}';
+            const bodyLines = [
+              `E2E tests ${status === 'success' ? 'passed ✅' : status === 'failure' ? 'failed ❌' : status}.`
+            ];
+            if (artifactUrl) {
+              bodyLines.push(`[Download the Cypress artifacts](${artifactUrl})`);
+            } else {
+              bodyLines.push('No Cypress artifacts were uploaded for this run.');
+            }
+            bodyLines.push(commentTag);
+            const body = bodyLines.join('\n\n');
+
+            async function deleteExistingComments() {
+              if (context.eventName === 'pull_request') {
+                const comments = await github.paginate(
+                  github.rest.issues.listComments,
+                  {
+                    ...context.repo,
+                    issue_number: context.issue.number,
+                    per_page: 100,
+                  }
+                );
+                await Promise.all(
+                  comments
+                    .filter(
+                      (comment) =>
+                        comment.user?.login === 'github-actions[bot]' &&
+                        comment.body?.includes(commentTag)
+                    )
+                    .map((comment) =>
+                      github.rest.issues.deleteComment({
+                        ...context.repo,
+                        comment_id: comment.id,
+                      })
+                    )
+                );
+              } else {
+                const comments = await github.paginate(
+                  github.rest.repos.listCommentsForCommit,
+                  {
+                    ...context.repo,
+                    commit_sha: context.sha,
+                    per_page: 100,
+                  }
+                );
+                await Promise.all(
+                  comments
+                    .filter(
+                      (comment) =>
+                        comment.user?.login === 'github-actions[bot]' &&
+                        comment.body?.includes(commentTag)
+                    )
+                    .map((comment) =>
+                      github.rest.repos.deleteCommitComment({
+                        ...context.repo,
+                        comment_id: comment.id,
+                      })
+                    )
+                );
+              }
+            }
+
+            await deleteExistingComments();
+
+            if (context.eventName === 'pull_request') {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            } else {
+              await github.rest.repos.createCommitComment({
+                ...context.repo,
+                commit_sha: context.sha,
+                body,
+              });
+            }

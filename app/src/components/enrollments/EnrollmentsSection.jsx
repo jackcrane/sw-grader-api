@@ -234,14 +234,21 @@ export const EnrollmentsSection = ({
         onClose={resetPaymentModalState}
         footer={
           paymentModalSuccess ? (
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
               <Button variant="primary" onClick={resetPaymentModalState}>
                 Close
               </Button>
             </div>
           ) : (
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <Button onClick={resetPaymentModalState} disabled={confirmingPayment}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
+              <Button
+                onClick={resetPaymentModalState}
+                disabled={confirmingPayment}
+              >
                 Cancel
               </Button>
               {!settingUpPaymentMethod && (
@@ -249,8 +256,11 @@ export const EnrollmentsSection = ({
                   variant="primary"
                   onClick={handleConfirmPayment}
                   disabled={
-                    confirmingPayment || !pendingInviteCode || paymentModalSuccess
+                    confirmingPayment ||
+                    !pendingInviteCode ||
+                    paymentModalSuccess
                   }
+                  data-cy="confirm-and-join-course"
                 >
                   {confirmingPayment ? "Charging..." : "Confirm and join"}
                 </Button>
