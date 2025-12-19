@@ -176,23 +176,6 @@ jobs:
           node fake-grader.mjs > fake-grader.log 2>&1 &
           echo $! > fake-grader.pid
 
-      - name: Start API server
-        run: |
-          yarn --cwd web-api start > web-api.log 2>&1 &
-          echo $! > web-api.pid
-
-      - name: Wait for API
-        run: |
-          for i in {1..90}; do
-            if curl -s http://localhost:3000 >/dev/null; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "API failed to start" >&2
-          tail -n 200 web-api.log || true
-          exit 1
-
       - name: Start Stripe webhook forwarder
         env:
           STRIPE_API_KEY: ${{ secrets.STRIPE_SK }}
@@ -224,6 +207,23 @@ jobs:
           fi
 
           echo "STRIPE_WEBHOOK_SECRET=$WHSEC" >> "$GITHUB_ENV"
+
+      - name: Start API server
+        run: |
+          yarn --cwd web-api start > web-api.log 2>&1 &
+          echo $! > web-api.pid
+
+      - name: Wait for API
+        run: |
+          for i in {1..90}; do
+            if curl -s http://localhost:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API failed to start" >&2
+          tail -n 200 web-api.log || true
+          exit 1
 
       - name: Run Cypress tests
         run: npx cypress run --config-file cypress.config.js
