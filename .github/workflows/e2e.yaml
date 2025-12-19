@@ -259,6 +259,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const commentTag = '<!-- e2e-tests-comment -->';
             const artifactUrl = '${{ steps.upload-artifacts.outputs.artifact-url }}';
             const status = '${{ job.status }}';
             const bodyLines = [
@@ -269,7 +270,61 @@ jobs:
             } else {
               bodyLines.push('No Cypress artifacts were uploaded for this run.');
             }
+            bodyLines.push(commentTag);
             const body = bodyLines.join('\n\n');
+
+            async function deleteExistingComments() {
+              if (context.eventName === 'pull_request') {
+                const comments = await github.paginate(
+                  github.rest.issues.listComments,
+                  {
+                    ...context.repo,
+                    issue_number: context.issue.number,
+                    per_page: 100,
+                  }
+                );
+                await Promise.all(
+                  comments
+                    .filter(
+                      (comment) =>
+                        comment.user?.login === 'github-actions[bot]' &&
+                        comment.body?.includes(commentTag)
+                    )
+                    .map((comment) =>
+                      github.rest.issues.deleteComment({
+                        ...context.repo,
+                        comment_id: comment.id,
+                      })
+                    )
+                );
+              } else {
+                const comments = await github.paginate(
+                  github.rest.repos.listCommentsForCommit,
+                  {
+                    ...context.repo,
+                    commit_sha: context.sha,
+                    per_page: 100,
+                  }
+                );
+                await Promise.all(
+                  comments
+                    .filter(
+                      (comment) =>
+                        comment.user?.login === 'github-actions[bot]' &&
+                        comment.body?.includes(commentTag)
+                    )
+                    .map((comment) =>
+                      github.rest.repos.deleteCommitComment({
+                        ...context.repo,
+                        comment_id: comment.id,
+                      })
+                    )
+                );
+              }
+            }
+
+            await deleteExistingComments();
+
             if (context.eventName === 'pull_request') {
               await github.rest.issues.createComment({
                 ...context.repo,
