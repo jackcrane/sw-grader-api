@@ -75,6 +75,7 @@ steps:
       text: STU-E2E
   - tapOn:
       text: "Join course"
+  - waitFor: 5000
   # Log in as teacher to see notification
   - authenticateUser:
       username: test@featurebench-test.com
