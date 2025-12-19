@@ -4,6 +4,10 @@ import { withSignedAssetUrls } from "../util/submissionAssets.js";
 import { downloadObject } from "../util/s3.js";
 import { sendEmail } from "../util/postmark.js";
 import { posthog } from "../util/posthog.js";
+import {
+  applyLatePolicyToGrade,
+  resolveLatePolicy,
+} from "./latePolicy.js";
 
 const SIGNATURE_TREND_TYPE = "SIGNATURE_TREND";
 
@@ -431,6 +435,7 @@ export const rescoreSubmissionsAgainstSignatures = async ({
           lastName: true,
         },
       },
+      course: true,
     },
   });
 
@@ -452,14 +457,27 @@ export const rescoreSubmissionsAgainstSignatures = async ({
       tolerance,
     });
 
+    const lateResult = applyLatePolicyToGrade({
+      policy: resolveLatePolicy({
+        course: submission.course ?? course,
+        assignment,
+      }),
+      submittedAt: submission.createdAt,
+      dueDate: assignment?.dueDate ?? null,
+      rawGrade: evaluation.grade,
+    });
+
     const nextData = {
-      grade: evaluation.grade,
+      grade: lateResult?.grade ?? evaluation.grade ?? null,
+      unpenalizedGrade:
+        lateResult?.unpenalizedGrade ?? evaluation.grade ?? null,
       feedback: evaluation.feedback ?? null,
       matchingSignatureId: evaluation.matchingSignatureId ?? null,
     };
 
     const shouldUpdate =
       gradeChanged(submission.grade, nextData.grade) ||
+      gradeChanged(submission.unpenalizedGrade, nextData.unpenalizedGrade) ||
       (submission.feedback ?? null) !== nextData.feedback ||
       (submission.matchingSignatureId ?? null) !== nextData.matchingSignatureId;
     const gradeValueChanged = gradeChanged(

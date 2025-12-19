@@ -1,6 +1,10 @@
-- [ ] Add a configuration to allow teachers to disallow late submissions and add a late penalty
+- [x] Add a configuration to allow teachers to disallow late submissions and add a late penalty
 - [ ] Implement plagarism metadata extraction in the api
 - [ ] Extract and upload a 3d model from Solidworks (obj?) (gltf?) for optional rendering in web UI
 - [ ] Add under definition detection in grader worker
 - [ ] Add material data extraction in grader worker
-- [ ] Teachers and TAs should not be charged
+- [x] Teachers and TAs should not be charged
+- [ ] Add an option for a teacher to disallow new students from joining
+- [ ] Add an option to configure what teacher/ta should be the "primary" account that FeatureBench will email. There should be 2 settings: one for billing issues and one for other system notifications (trends etc)
+- [ ] allow changing payment information for enrollments and course creation
+- [ ] Option to keep [best|most recent] submissions for each assignment

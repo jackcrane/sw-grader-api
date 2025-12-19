@@ -12,6 +12,10 @@ import {
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSubmissionJob } from "../../../../../services/graderQueue.js";
 import { computeSubmissionQueuePosition } from "../../../../../services/submissionQueuePosition.js";
+import {
+  computeLatenessInfo,
+  resolveLatePolicy,
+} from "../../../../../services/latePolicy.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -57,6 +61,16 @@ const readAssignment = async (assignmentId) => {
   });
 };
 
+const readCourse = async (courseId) => {
+  if (!courseId) return null;
+  return prisma.course.findFirst({
+    where: {
+      id: courseId,
+      deleted: false,
+    },
+  });
+};
+
 const buildQueueMessage = (queue) => {
   if (!queue) {
     return "Submission received. Auto-grading will run when resources are available.";
@@ -93,6 +107,37 @@ export const post = [
     const assignment = await readAssignment(assignmentId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
+    }
+
+    const course = await readCourse(courseId);
+    if (!course) {
+      return res.status(404).json({ error: "Course not found." });
+    }
+
+    const policy = resolveLatePolicy({ course, assignment });
+    const dueDateValue = assignment.dueDate ? new Date(assignment.dueDate) : null;
+    if (dueDateValue && Number.isFinite(dueDateValue.getTime())) {
+      const lateness = computeLatenessInfo({
+        submittedAt: new Date(),
+        dueDate: dueDateValue,
+      });
+      if (lateness.isLate) {
+        if (policy.allowLateSubmissions === false) {
+          return res.status(400).json({
+            error: "Late submissions are not allowed for this assignment.",
+          });
+        }
+        const maxMinutes = Number(policy.maxLatenessMinutes);
+        if (
+          Number.isFinite(maxMinutes) &&
+          maxMinutes >= 0 &&
+          lateness.minutesLate > maxMinutes
+        ) {
+          return res.status(400).json({
+            error: "The late submission window for this assignment has closed.",
+          });
+        }
+      }
     }
 
     if (!file) {

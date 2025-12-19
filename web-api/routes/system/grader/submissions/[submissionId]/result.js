@@ -7,6 +7,10 @@ import {
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSignatureTrendCheck } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
+import {
+  applyLatePolicyToGrade,
+  resolveLatePolicy,
+} from "../../../../../services/latePolicy.js";
 
 const signaturesInclude = {
   include: {
@@ -50,6 +54,7 @@ const readSubmission = async (submissionId) => {
     },
     include: {
       assignment: signaturesInclude,
+      course: true,
     },
   });
 };
@@ -116,15 +121,16 @@ export const post = [
           "The grader was unable to process this submission.";
         await prisma.submission.update({
           where: { id: submissionId },
-          data: {
-            volume: null,
-            surfaceArea: null,
-            grade: 0,
-            feedback: failureMessage,
-            matchingSignatureId: null,
-            screenshotKey: null,
-            screenshotUrl: null,
-            featureTree: null,
+        data: {
+          volume: null,
+          surfaceArea: null,
+          grade: 0,
+          unpenalizedGrade: null,
+          feedback: failureMessage,
+          matchingSignatureId: null,
+          screenshotKey: null,
+          screenshotUrl: null,
+          featureTree: null,
           },
         });
 
@@ -156,6 +162,20 @@ export const post = [
         tolerance,
       });
 
+      const lateResult = applyLatePolicyToGrade({
+        policy: resolveLatePolicy({
+          course: submission.course,
+          assignment: submission.assignment,
+        }),
+        submittedAt: submission.createdAt,
+        dueDate: submission.assignment?.dueDate ?? null,
+        rawGrade: evaluation.grade,
+      });
+      const finalGrade =
+        lateResult?.grade ?? evaluation.grade ?? null;
+      const unpenalizedGrade =
+        lateResult?.unpenalizedGrade ?? evaluation.grade ?? null;
+
       let screenshotKey = submission.screenshotKey ?? null;
       let screenshotUrl = submission.screenshotUrl ?? null;
       const screenshotBuffer = bufferFromBase64(screenshot ?? "");
@@ -185,7 +205,8 @@ export const post = [
         data: {
           volume: measuredVolume,
           surfaceArea: measuredSurfaceArea,
-          grade: evaluation.grade,
+          grade: finalGrade,
+          unpenalizedGrade,
           feedback: evaluation.feedback ?? null,
           matchingSignatureId: evaluation.matchingSignatureId ?? null,
           screenshotKey,
@@ -206,16 +227,20 @@ export const post = [
           submissionId,
           assignmentId: submission.assignmentId,
           courseId: submission.courseId ?? null,
-          grade: evaluation.grade,
+          grade: finalGrade,
+          unpenalizedGrade,
           matchingSignatureId: evaluation.matchingSignatureId ?? null,
+          latePenaltyReason: lateResult?.reason ?? null,
         },
       });
 
       return res.status(200).json({
         ok: true,
         submissionId,
-        grade: evaluation.grade,
+        grade: finalGrade,
         matchedSignatureId: evaluation.matchingSignatureId ?? null,
+        unpenalizedGrade,
+        latePenaltyReason: lateResult?.reason ?? null,
       });
     } catch (error) {
       console.error(

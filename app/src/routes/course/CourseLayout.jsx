@@ -336,6 +336,7 @@ export const CourseLayout = () => {
             hasStaffPrivileges,
             regenerateInviteCode: rotateInviteCode,
             viewerEnrollmentType: enrollment.type,
+            refetchEnrollments: refetch,
           }}
         />
       </Card>

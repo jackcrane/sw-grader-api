@@ -12,6 +12,12 @@ import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import { useDocs } from "../../context/DocsContext";
+import {
+  describeLatePolicy,
+  hoursToMinutesValue,
+  minutesToHoursValue,
+  normalizeLatePolicy,
+} from "../../utils/latePolicy";
 
 const getInitialPartDetails = () => ({
   volume: "",
@@ -343,6 +349,7 @@ export const CreateAssignmentModal = ({
   onUpdateAssignment,
   onDeleteAssignment,
   courseId,
+  course = null,
   mode = "create",
   assignment = null,
   injectedSignature = null,
@@ -355,6 +362,12 @@ export const CreateAssignmentModal = ({
   const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
   const [dueDate, setDueDate] = useState("");
   const [tolerancePercent, setTolerancePercent] = useState("0.1");
+  const [latePolicyMode, setLatePolicyMode] = useState("inherit");
+  const [lateAllowLateSubmissions, setLateAllowLateSubmissions] =
+    useState(true);
+  const [lateMaxLatenessHours, setLateMaxLatenessHours] = useState("");
+  const [latePenaltyPercent, setLatePenaltyPercent] = useState("");
+  const [latePenaltyType, setLatePenaltyType] = useState("FLAT");
 
   const [signatures, setSignatures] = useState([getInitialSignature("SI")]);
 
@@ -367,6 +380,17 @@ export const CreateAssignmentModal = ({
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
   const graderOffline = graderOnline === false;
+  const courseLatePolicy = useMemo(
+    () =>
+      normalizeLatePolicy({
+        allowLateSubmissions: course?.latePolicyAllowLateSubmissions,
+        maxLatenessMinutes: course?.latePolicyMaxLatenessMinutes,
+        penaltyPercent: course?.latePolicyPenaltyPercent,
+        penaltyType: course?.latePolicyPenaltyType,
+      }),
+    [course]
+  );
+  const courseLatePolicySummary = describeLatePolicy(courseLatePolicy);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -375,6 +399,11 @@ export const CreateAssignmentModal = ({
     setGradeVisibility("INSTANT");
     setDueDate("");
     setTolerancePercent("0.1");
+    setLatePolicyMode("inherit");
+    setLateAllowLateSubmissions(true);
+    setLateMaxLatenessHours("");
+    setLatePenaltyPercent("");
+    setLatePenaltyType("FLAT");
     setSubmitting(false);
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
@@ -461,6 +490,28 @@ export const CreateAssignmentModal = ({
         ? "0.1"
         : String(assignment.tolerancePercent)
     );
+    if (assignment.latePolicyInheritFromCourse === false) {
+      setLatePolicyMode("override");
+      setLateAllowLateSubmissions(
+        assignment.latePolicyAllowLateSubmissions === false ? false : true
+      );
+      setLateMaxLatenessHours(
+        minutesToHoursValue(assignment.latePolicyMaxLatenessMinutes)
+      );
+      setLatePenaltyPercent(
+        assignment.latePolicyPenaltyPercent === null ||
+          assignment.latePolicyPenaltyPercent === undefined
+          ? ""
+          : String(assignment.latePolicyPenaltyPercent)
+      );
+      setLatePenaltyType(assignment.latePolicyPenaltyType ?? "FLAT");
+    } else {
+      setLatePolicyMode("inherit");
+      setLateAllowLateSubmissions(true);
+      setLateMaxLatenessHours("");
+      setLatePenaltyPercent("");
+      setLatePenaltyType("FLAT");
+    }
     setSignatures(normalizedSignatures);
     setValidationAttempted(false);
     setSubmitting(false);
@@ -558,6 +609,39 @@ export const CreateAssignmentModal = ({
     });
   }, [signatures, pointsPossible]);
 
+  const latePolicyValidation = useMemo(() => {
+    if (latePolicyMode !== "override") {
+      return {
+        invalid: false,
+        maxLateness: false,
+        penaltyPercent: false,
+      };
+    }
+    const errors = {
+      maxLateness: false,
+      penaltyPercent: false,
+    };
+    if (
+      lateMaxLatenessHours !== "" &&
+      (!Number.isFinite(Number(lateMaxLatenessHours)) ||
+        Number(lateMaxLatenessHours) < 0)
+    ) {
+      errors.maxLateness = true;
+    }
+    if (
+      latePenaltyPercent !== "" &&
+      (!Number.isFinite(Number(latePenaltyPercent)) ||
+        Number(latePenaltyPercent) <= 0 ||
+        Number(latePenaltyPercent) > 100)
+    ) {
+      errors.penaltyPercent = true;
+    }
+    return {
+      ...errors,
+      invalid: errors.maxLateness || errors.penaltyPercent,
+    };
+  }, [latePolicyMode, lateMaxLatenessHours, latePenaltyPercent]);
+
   const overallErrors = useMemo(() => {
     const pts = Number(pointsPossible);
     const dueDateTime = new Date(dueDate);
@@ -578,6 +662,7 @@ export const CreateAssignmentModal = ({
       tolerancePercent: !Number.isFinite(tol) || tol <= 0,
       signatures: !perSignatureValid,
       atLeastOneCorrect: !hasAtLeastOneCorrect,
+      latePolicy: latePolicyValidation.invalid,
     };
   }, [
     name,
@@ -586,6 +671,7 @@ export const CreateAssignmentModal = ({
     tolerancePercent,
     signaturesErrors,
     signatures,
+    latePolicyValidation,
   ]);
 
   const isValid = useMemo(
@@ -652,6 +738,24 @@ export const CreateAssignmentModal = ({
         feedback: i > 0 && s.type === "INCORRECT" ? s.feedback || null : null,
       }));
 
+      const latePolicyPayload =
+        latePolicyMode === "override"
+          ? {
+              inheritFromCourse: false,
+              allowLateSubmissions: lateAllowLateSubmissions,
+              maxLatenessMinutes: hoursToMinutesValue(lateMaxLatenessHours),
+              penaltyPercent:
+                latePenaltyPercent === ""
+                  ? null
+                  : Number(latePenaltyPercent),
+              penaltyType:
+                latePenaltyPercent !== "" &&
+                Number(latePenaltyPercent) > 0
+                  ? latePenaltyType
+                  : null,
+            }
+          : { inheritFromCourse: true };
+
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
@@ -660,6 +764,7 @@ export const CreateAssignmentModal = ({
         gradeVisibility,
         tolerancePercent: Number(tolerancePercent),
         signatures: signaturePayloads,
+        latePolicy: latePolicyPayload,
       };
 
       if (isEditMode) {
@@ -782,6 +887,85 @@ export const CreateAssignmentModal = ({
           onChange={(e) => setDueDate(e.target.value)}
           invalid={showInvalidTop("dueDate")}
         />
+      </Section>
+
+      <Section title="Late submissions">
+        <Select
+          label="Policy"
+          value={latePolicyMode}
+          onChange={(e) => setLatePolicyMode(e.target.value)}
+          options={[
+            { value: "inherit", label: "Use course default" },
+            { value: "override", label: "Override for this assignment" },
+          ]}
+        />
+        {latePolicyMode === "inherit" ? (
+          <p style={{ color: "#555", marginTop: 8 }}>
+            {courseLatePolicySummary}
+          </p>
+        ) : (
+          <>
+            <Select
+              label="Allow late submissions?"
+              value={lateAllowLateSubmissions ? "yes" : "no"}
+              onChange={(event) =>
+                setLateAllowLateSubmissions(event.target.value === "yes")
+              }
+              options={[
+                { value: "yes", label: "Yes, accept late submissions" },
+                { value: "no", label: "No, close at the deadline" },
+              ]}
+            />
+            {lateAllowLateSubmissions && (
+              <>
+                <Input
+                  label="Max lateness (hours)"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Leave blank for unlimited"
+                  value={lateMaxLatenessHours}
+                  onChange={(event) =>
+                    setLateMaxLatenessHours(event.target.value)
+                  }
+                />
+                {validationAttempted && latePolicyValidation.maxLateness && (
+                  <p style={{ color: "#b00020", marginTop: -8 }}>
+                    Max lateness must be zero or more hours.
+                  </p>
+                )}
+              </>
+            )}
+            <Input
+              label="Penalty percent"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              placeholder="Leave blank for no penalty"
+              value={latePenaltyPercent}
+              onChange={(event) => setLatePenaltyPercent(event.target.value)}
+            />
+            {validationAttempted && latePolicyValidation.penaltyPercent && (
+              <p style={{ color: "#b00020", marginTop: -8 }}>
+                Enter a penalty between 1 and 100.
+              </p>
+            )}
+            <Select
+              label="Penalty type"
+              value={latePenaltyType}
+              onChange={(event) => setLatePenaltyType(event.target.value)}
+              disabled={
+                latePenaltyPercent === "" ||
+                Number(latePenaltyPercent) <= 0
+              }
+              options={[
+                { value: "FLAT", label: "Flat penalty" },
+                { value: "PER_DAY", label: "Penalty per day" },
+              ]}
+            />
+          </>
+        )}
       </Section>
 
       {signatures.map((sig, idx) => (

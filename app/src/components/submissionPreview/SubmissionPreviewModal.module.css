@@ -61,6 +61,12 @@
   margin: 0;
 }
 
+.penaltyNote {
+  font-size: 0.85rem;
+  color: #b45309;
+  margin: -4px 0 0;
+}
+
 .gradeSuccess {
   color: var(--positive);
 }

@@ -15,6 +15,7 @@ import {
   rescoreSubmissionsAgainstSignatures,
 } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
+import { buildAssignmentLatePolicyUpdate } from "../../../../../services/latePolicy.js";
 
 const signaturesInclude = {
   signatures: {
@@ -287,6 +288,7 @@ export const patch = [
       tolerancePercent,
       dueDate,
       signatures,
+      latePolicy,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -332,6 +334,16 @@ export const patch = [
       throw error;
     }
 
+    let latePolicyData = null;
+    try {
+      latePolicyData = buildAssignmentLatePolicyUpdate(latePolicy);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -355,6 +367,7 @@ export const patch = [
             surfaceArea: firstCorrectSignature.surfaceArea,
             tolerancePercent: numericTolerance,
             dueDate: dueDateValue,
+            ...latePolicyData,
           },
         });
 

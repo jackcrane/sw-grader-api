@@ -82,6 +82,7 @@ export const post = [
       tolerancePercent,
       dueDate,
       signatures,
+      latePolicy,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -127,6 +128,16 @@ export const post = [
       throw error;
     }
 
+    let latePolicyData = null;
+    try {
+      latePolicyData = buildAssignmentLatePolicyUpdate(latePolicy);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -147,6 +158,7 @@ export const post = [
         surfaceArea: firstCorrectSignature.surfaceArea,
         tolerancePercent: numericTolerance,
         dueDate: dueDateValue,
+        ...latePolicyData,
       },
     });
 

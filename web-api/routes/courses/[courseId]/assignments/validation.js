@@ -1,12 +1,7 @@
+import { ValidationError } from "../../../../util/errors.js";
+
 const ALLOWED_VISIBILITY = new Set(["INSTANT", "ON_DUE_DATE"]);
 const ALLOWED_UNIT_SYSTEMS = new Set(["SI", "MMGS", "CGS", "IPS"]);
-
-class ValidationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
 
 const parsePositiveNumber = (value) => {
   const numeric = Number(value);
