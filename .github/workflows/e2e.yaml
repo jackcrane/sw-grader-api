@@ -149,10 +149,13 @@ jobs:
 
       - name: Install Stripe CLI
         run: |
-          curl -L https://github.com/stripe/stripe-cli/releases/latest/download/stripe_linux_amd64.tar.gz \
-            | tar xz
-          sudo mv stripe /usr/local/bin/
-          stripe version
+          curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/stripe.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/stripe.gpg] https://packages.stripe.dev/stripe-cli-debian-local stable main" \
+            | sudo tee /etc/apt/sources.list.d/stripe.list
+          sudo apt-get update
+          sudo apt-get install -y stripe
 
       - name: Start fake grader health endpoint
         run: |
@@ -199,7 +202,6 @@ jobs:
           stripe listen \
             --api-key "$STRIPE_API_KEY" \
             --forward-to http://localhost:3000/api/stripe/webhook \
-            --events payment_intent.succeeded,invoice.paid,customer.subscription.created \
             --log-level error \
             > stripe-listen.log 2>&1 &
 
