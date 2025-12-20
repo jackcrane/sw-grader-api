@@ -157,24 +157,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y stripe
 
-      - name: Start fake grader health endpoint
+      - name: Start grader mock worker
         run: |
-          cat <<'EOF' > fake-grader.mjs
-          import http from 'http';
-
-          const handler = (req, res) => {
-            res.statusCode = 200;
-            res.setHeader('content-type', 'application/json');
-            res.end(JSON.stringify({ ok: true }));
-          };
-
-          const server = http.createServer(handler);
-          server.listen(3999, () => {
-            console.log('Fake grader listening on 3999');
-          });
-          EOF
-          node fake-grader.mjs > fake-grader.log 2>&1 &
-          echo $! > fake-grader.pid
+          node grader-mock/index.js > grader-mock.log 2>&1 &
+          echo $! > grader-mock.pid
 
       - name: Start Stripe webhook forwarder
         env:
@@ -234,8 +220,8 @@ jobs:
           if [ -f web-api.pid ]; then
             kill "$(cat web-api.pid)" || true
           fi
-          if [ -f fake-grader.pid ]; then
-            kill "$(cat fake-grader.pid)" || true
+          if [ -f grader-mock.pid ]; then
+            kill "$(cat grader-mock.pid)" || true
           fi
           docker rm -f ci-minio || true
 
@@ -250,7 +236,7 @@ jobs:
             cypress/videos
             cypress/downloads
             web-api.log
-            fake-grader.log
+            grader-mock.log
           if-no-files-found: ignore
 
       - name: Comment with artifact link

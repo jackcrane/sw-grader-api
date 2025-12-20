@@ -1,4 +1,7 @@
-const defaultBaseUrl = "http://worker.featurebench.com";
+import dotenv from "dotenv";
+dotenv.config();
+
+const defaultBaseUrl = process.env.WORKER_URL;
 
 const normalizeBaseUrl = (value) => {
   if (!value) return defaultBaseUrl;
