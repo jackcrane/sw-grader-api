@@ -184,17 +184,17 @@ const SignatureSection = ({
     prescanState === "uploading"
       ? "Uploading part for prescan..."
       : prescanState === "success"
-      ? "Prescan uploaded successfully."
-      : prescanState === "error"
-      ? prescanError
-      : null;
+        ? "Prescan uploaded successfully."
+        : prescanState === "error"
+          ? prescanError
+          : null;
 
   const prescanColor =
     prescanState === "success"
       ? "#0a7d29"
       : prescanState === "error"
-      ? "#b00020"
-      : "#555";
+        ? "#b00020"
+        : "#555";
 
   return (
     <Section
@@ -281,6 +281,7 @@ const SignatureSection = ({
             });
           }}
           style={{ marginBottom: 4 }}
+          data-cy="part-file"
         />
       )}
 
@@ -437,9 +438,9 @@ export const CreateAssignmentModal = ({
                 index === 0 || signature.type !== "INCORRECT"
                   ? ""
                   : signature.pointsAwarded === null ||
-                    signature.pointsAwarded === undefined
-                  ? ""
-                  : String(signature.pointsAwarded),
+                      signature.pointsAwarded === undefined
+                    ? ""
+                    : String(signature.pointsAwarded),
               feedback: signature.feedback ?? "",
             });
           })
@@ -693,8 +694,8 @@ export const CreateAssignmentModal = ({
       ? "Saving..."
       : "Creating..."
     : isEditMode
-    ? "Save changes"
-    : "Create assignment";
+      ? "Save changes"
+      : "Create assignment";
 
   const handleDeleteAssignment = async () => {
     if (!isEditMode || !assignment?.id || !onDeleteAssignment) return;
@@ -781,6 +782,7 @@ export const CreateAssignmentModal = ({
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
           invalid={showInvalidTop("dueDate")}
+          data-cy="due-date"
         />
       </Section>
 

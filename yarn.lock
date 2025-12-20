@@ -326,10 +326,10 @@ cross-spawn@^7.0.0:
     shebang-command "^2.0.0"
     which "^2.0.1"
 
-cypress-yaml-plugin@^0.1.10:
-  version "0.1.10"
-  resolved "https://registry.npmjs.org/cypress-yaml-plugin/-/cypress-yaml-plugin-0.1.10.tgz#a566ccf2f596ce39e9ae414bed4953b2f83ce176"
-  integrity sha512-ImACueKRKnjYxo3SfePD16t+3Vcfp3104t7G7/sHWT9tkKJDLfNZ4tDH7Bh1rREDsPvghy6VbJUACMkiBggzRw==
+cypress-yaml-plugin@^0.1.11:
+  version "0.1.11"
+  resolved "https://registry.npmjs.org/cypress-yaml-plugin/-/cypress-yaml-plugin-0.1.11.tgz#3d1d2e770fa7fc63398c0f8c6c6577d4a293ce62"
+  integrity sha512-kHWewZao/yv4gwf6wdoNAsf8Jd5ZRW5v6cV/B14FuZo16XjZVC7DRBRkNrQTyIoj6S9R9iJoYvAxGu3WaE1wIg==
   dependencies:
     chalk "^5.3.0"
     commander "^12.1.0"
