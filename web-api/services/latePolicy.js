@@ -26,6 +26,10 @@ const parseMinutesValue = (value) => {
       "Max lateness must be a non-negative number of minutes."
     );
   }
+  if (numeric === 0) return null;
+  if (numeric > 10000) {
+    throw new ValidationError("Max lateness cannot exceed 10,000 minutes.");
+  }
   return Math.round(numeric);
 };
 
@@ -35,7 +39,11 @@ const parsePenaltyPercent = (value) => {
   if (!Number.isFinite(numeric)) {
     throw new ValidationError("Penalty percent must be a valid number.");
   }
-  if (numeric <= 0) return null;
+  if (numeric < 0) {
+    throw new ValidationError(
+      "Penalty percent must be greater than or equal to 0%."
+    );
+  }
   if (numeric > 100) {
     throw new ValidationError("Penalty percent cannot exceed 100%.");
   }
@@ -60,14 +68,13 @@ const sanitizePositiveNumber = (value) => {
 
 const sanitizeMinutes = (value) => {
   const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric >= 0
-    ? Math.round(numeric)
-    : null;
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric > 10000 ? 10000 : Math.round(numeric);
 };
 
 const sanitizePenaltyPercent = (value) => {
   const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
 };
 
 export const normalizeLatePolicyInput = (input = {}) => {

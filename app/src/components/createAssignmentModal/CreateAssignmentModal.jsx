@@ -621,17 +621,18 @@ export const CreateAssignmentModal = ({
       maxLateness: false,
       penaltyPercent: false,
     };
-    if (
-      lateMaxLatenessHours !== "" &&
-      (!Number.isFinite(Number(lateMaxLatenessHours)) ||
-        Number(lateMaxLatenessHours) < 0)
-    ) {
-      errors.maxLateness = true;
+    if (lateMaxLatenessHours !== "") {
+      const hoursValue = Number(lateMaxLatenessHours);
+      if (!Number.isFinite(hoursValue) || hoursValue < 0) {
+        errors.maxLateness = true;
+      } else if (hoursValue * 60 > 10000) {
+        errors.maxLateness = true;
+      }
     }
     if (
       latePenaltyPercent !== "" &&
       (!Number.isFinite(Number(latePenaltyPercent)) ||
-        Number(latePenaltyPercent) <= 0 ||
+        Number(latePenaltyPercent) < 0 ||
         Number(latePenaltyPercent) > 100)
     ) {
       errors.penaltyPercent = true;
@@ -931,7 +932,7 @@ export const CreateAssignmentModal = ({
                 />
                 {validationAttempted && latePolicyValidation.maxLateness && (
                   <p style={{ color: "#b00020", marginTop: -8 }}>
-                    Max lateness must be zero or more hours.
+                    Max lateness must be between 0 and 10,000 minutes (about 0‑167 hours). Enter 0 for unlimited.
                   </p>
                 )}
               </>
@@ -948,7 +949,7 @@ export const CreateAssignmentModal = ({
             />
             {validationAttempted && latePolicyValidation.penaltyPercent && (
               <p style={{ color: "#b00020", marginTop: -8 }}>
-                Enter a penalty between 1 and 100.
+                Enter a penalty between 0 and 100.
               </p>
             )}
             <Select

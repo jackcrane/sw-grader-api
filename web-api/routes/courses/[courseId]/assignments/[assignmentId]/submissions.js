@@ -50,12 +50,13 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const readAssignment = async (assignmentId) => {
+const readAssignment = async (assignmentId, courseId = null) => {
   if (!assignmentId) return null;
   return prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
+      ...(courseId ? { courseId } : {}),
     },
     include: signaturesInclude,
   });
@@ -104,7 +105,7 @@ export const post = [
         .json({ error: "Only students can submit assignments." });
     }
 
-    const assignment = await readAssignment(assignmentId);
+    const assignment = await readAssignment(assignmentId, courseId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
@@ -127,8 +128,12 @@ export const post = [
             error: "Late submissions are not allowed for this assignment.",
           });
         }
-        const maxMinutes = Number(policy.maxLatenessMinutes);
+        const maxMinutes =
+          policy?.maxLatenessMinutes != null
+            ? Number(policy.maxLatenessMinutes)
+            : null;
         if (
+          maxMinutes != null &&
           Number.isFinite(maxMinutes) &&
           maxMinutes >= 0 &&
           lateness.minutesLate > maxMinutes

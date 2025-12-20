@@ -8,7 +8,7 @@ export const normalizeLatePolicy = (policy = {}) => {
     policy?.allowLateSubmissions === false ? false : true;
   const maxLatenessMinutes = (() => {
     const numeric = toNumber(policy?.maxLatenessMinutes);
-    return numeric != null && numeric >= 0 ? numeric : null;
+    return numeric != null && numeric > 0 ? numeric : null;
   })();
   const penaltyPercent = (() => {
     const numeric = toNumber(policy?.penaltyPercent);
@@ -59,6 +59,7 @@ export const hoursToMinutesValue = (hours) => {
   if (hours === null || hours === undefined || hours === "") return null;
   const numeric = Number(hours);
   if (!Number.isFinite(numeric) || numeric < 0) return null;
+  if (numeric === 0) return null;
   return Math.round(numeric * 60);
 };
 
@@ -77,6 +78,8 @@ export const describeLatePolicy = (policy) => {
         ? `${Math.round(days * 10) / 10} day${days >= 2 ? "s" : ""}`
         : `${Math.round(hours * 10) / 10} hour${hours === 1 ? "" : "s"}`;
     parts.push(`Limit: ${durationLabel} past the deadline.`);
+  } else if (normalized.allowLateSubmissions) {
+    parts.push("Limit: Unlimited late submissions.");
   }
 
   if (normalized.penaltyPercent != null) {

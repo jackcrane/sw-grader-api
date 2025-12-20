@@ -3,6 +3,7 @@ import { withAuth } from "#withAuth";
 import { normalizeLatePolicyInput } from "../../../services/latePolicy.js";
 import { ValidationError } from "../../../util/errors.js";
 import { posthog } from "../../../util/posthog.js";
+import { rescoreSubmissionsAgainstSignatures } from "../../../services/signatureTrends.js";
 
 const ensureTeacherEnrollment = async (courseId, userId) => {
   if (!courseId || !userId) return null;
@@ -65,6 +66,40 @@ export const patch = [
           : null,
       },
     });
+
+    const inheritingAssignments = await prisma.assignment.findMany({
+      where: {
+        deleted: false,
+        courseId,
+        latePolicyInheritFromCourse: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    Promise.resolve()
+      .then(() =>
+        Promise.allSettled(
+          inheritingAssignments.map(({ id }) =>
+            rescoreSubmissionsAgainstSignatures({
+              assignmentId: id,
+              courseId,
+            }).catch((err) => {
+              console.warn(
+                `Failed to rescore assignment ${id} after course policy update`,
+                err
+              );
+            })
+          )
+        )
+      )
+      .catch((error) => {
+        console.warn(
+          `Failed to schedule rescoring for course ${courseId}`,
+          error
+        );
+      });
 
     posthog.capture({
       distinctId: userId,

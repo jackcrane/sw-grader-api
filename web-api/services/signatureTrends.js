@@ -509,40 +509,31 @@ export const rescoreSubmissionsAgainstSignatures = async ({
     });
 
     if (submission.user?.email) {
-      const assignmentName = assignment?.name || "an assignment";
-      const pointsPossible = assignment?.pointsPossible ?? null;
-      const gradeLabel =
-        nextData.grade == null
-          ? "Not graded"
-          : pointsPossible && Number.isFinite(pointsPossible)
-          ? `${nextData.grade}/${pointsPossible}`
-          : `${nextData.grade}`;
-      const prevGradeLabel =
-        submission.grade == null
-          ? "Not previously graded"
-          : pointsPossible && Number.isFinite(pointsPossible)
-          ? `${submission.grade}/${pointsPossible}`
-          : `${submission.grade}`;
-      const lines = [
+      const assignmentName = assignment?.name || "your assignment";
+      const body = [
         `Hi ${formatPersonName(submission.user)},`,
         "",
-        `We regraded your submission for ${assignmentName}.`,
-        `New grade: ${gradeLabel}`,
-        `Previous grade: ${prevGradeLabel}`,
-        "",
+        `Your submission for ${assignmentName} was updated.`,
+        "Log into FeatureBench to review the latest results.",
         course?.name ? `Course: ${course.name}` : null,
-        "",
-        "Thanks,",
-        "The FeatureBench team",
       ]
         .filter(Boolean)
         .join("\n");
 
-      await sendEmail({
-        to: submission.user.email,
-        subject: `Updated grade for ${assignmentName}`,
-        text: lines,
-      });
+      Promise.resolve()
+        .then(() =>
+          sendEmail({
+            to: submission.user.email,
+            subject: `Submission updated for ${assignmentName}`,
+            text: body,
+          })
+        )
+        .catch((error) => {
+          console.warn(
+            `Failed to send submission update email for ${submission.id}`,
+            error
+          );
+        });
     }
   }
 };

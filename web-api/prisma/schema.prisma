@@ -49,6 +49,7 @@ model Course {
 
   billingScheme BillingScheme
   submissions Submission[]
+  assignments Assignment[]
   latePolicyAllowLateSubmissions Boolean @default(true)
   latePolicyMaxLatenessMinutes Int?
   latePolicyPenaltyPercent Float?
@@ -95,6 +96,8 @@ model Assignment {
   tolerancePercent Float
 
   dueDate DateTime?
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   submissions Submission[]
   signatures AssignmentSignature[]
