@@ -287,7 +287,7 @@ const SignatureSection = ({
             });
           }}
           style={{ marginBottom: 4 }}
-          data-cy="part-file"
+          data-cy={`part-file-${index}`}
         />
       )}
 

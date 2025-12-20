@@ -22,10 +22,32 @@ steps:
   - typeText:
       dataCy: due-date
       text: "2035-12-20T00:00:00"
-  - selectFile:
-      filePath: cypress/fixtures/SLDPRT/test/test.good.SLDPRT
-      dataCy: part-file
   - typeText:
       placeholder: e.g., 100
       text: "100"
+      allowScroll: true
+  ##############################################################################
+  # Upload the primary signature
+  - selectFile:
+      filePath: cypress/fixtures/SLDPRT/test/test.good.SLDPRT
+      dataCy: part-file-0
+      allowScroll: true
+  - assertVisible:
+      text: Prescan uploaded successfully.
+  ##############################################################################
+  # Upload a partially correct signature
+  # - tapOn:
+  #     text: Add Signature
+  # - selectFile:
+  #     filePath: cypress/fixtures/SLDPRT/test/test.no-chamfer.SLDPRT
+  #     dataCy: part-file-1
+  #     allowScroll: true
+  # -
+  ##############################################################################
+  # Save the assignment
+  - tapOn:
+      text: Create assignment
+  - waitFor: 1000
+  - assertVisible:
+      text: E2E Test Assignment
       allowScroll: true
