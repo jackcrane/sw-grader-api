@@ -199,6 +199,7 @@ const SignatureSection = ({
   return (
     <Section
       title={`Part Signature ${index + 1}`}
+      data-cy={`part-signature-${index}`}
       subtitle={
         <Col gap={8} align="flex-start">
           {isFirst ? (
@@ -245,6 +246,7 @@ const SignatureSection = ({
             { value: "CORRECT", label: "Correct" },
             { value: "INCORRECT", label: "Incorrect / Partial" },
           ]}
+          data-cy="signature-type"
         />
       )}
       <div />
@@ -281,7 +283,7 @@ const SignatureSection = ({
             });
           }}
           style={{ marginBottom: 4 }}
-          data-cy={`part-file-${index}`}
+          data-cy={`part-file`}
         />
       )}
 
@@ -323,13 +325,15 @@ const SignatureSection = ({
             min={0}
             step="1"
             invalid={showInvalid("pointsAwarded")}
+            data-cy="points-earned"
           />
           <Textarea
             label="Feedback / Hints"
-            placeholder="Explain what’s wrong and how to fix it (optional)"
+            placeholder="Explain what's wrong and how to fix it (optional)"
             value={feedback}
             onChange={(e) => onChange({ feedback: e.target.value })}
             rows={3}
+            data-cy="feedback"
           />
         </>
       )}

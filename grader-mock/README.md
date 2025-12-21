@@ -17,6 +17,10 @@ Environment variables:
 - `WEB_API_BASE_URL` / `GRADER_RESULT_BASE_URL` – base URL for callback API.
 - `GRADER_BASE_URL` – health endpoint the web API polls (defaults to `http://localhost:3999`).
 - `GRADER_SHARED_SECRET` – optional shared secret header for callbacks.
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_REGION`
+  (and optionally `AWS_ENDPOINT`, `AWS_FORCE_PATH_STYLE`, `AWS_PUBLIC_BASE_URL`)
+  – required if you want mock fixtures to upload screenshots to a MinIO/S3
+  bucket.
 
 The process also exposes a `/healthz` endpoint on `GRADER_BASE_URL` so the web
 API keeps reporting the grader as healthy.
@@ -42,4 +46,13 @@ processing time:
 ```
 
 For analyzer ("prescan") jobs the same fixture is returned via the queue RPC.
+
+### Screenshot uploads
+
+If a fixture includes `imageb64` (or `imageB64`) the mock uploads that image to
+S3 before responding. The base64 value can be either a raw string or a data URL
+(`data:image/png;base64,...`). When the upload succeeds, the mock still returns
+the base64 screenshot to the API, but it also includes `screenshotKey` and
+`screenshotUrl` fields in the payload so you can reference the uploaded asset
+in tests if needed.
 ```

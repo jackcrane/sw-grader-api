@@ -30,23 +30,41 @@ steps:
   # Upload the primary signature
   - selectFile:
       filePath: cypress/fixtures/SLDPRT/test/test.good.SLDPRT
-      dataCy: part-file-0
+      dataCy: part-file
+      parentCy: part-signature-0
       allowScroll: true
   - assertVisible:
       text: Prescan uploaded successfully.
+      parentCy: part-signature-0
   ##############################################################################
   # Upload a partially correct signature
-  # - tapOn:
-  #     text: Add Signature
-  # - selectFile:
-  #     filePath: cypress/fixtures/SLDPRT/test/test.no-chamfer.SLDPRT
-  #     dataCy: part-file-1
-  #     allowScroll: true
-  # -
+  - tapOn:
+      text: Add Signature
+  - selectFile:
+      filePath: cypress/fixtures/SLDPRT/test/test.no-chamfer.SLDPRT
+      dataCy: part-file
+      parentCy: part-signature-1
+      allowScroll: true
+  - selectOption:
+      dataCy: signature-type
+      option: INCORRECT
+      parentCy: part-signature-1
+  - assertVisible:
+      text: Prescan uploaded successfully.
+      parentCy: part-signature-1
+  - typeText:
+      dataCy: points-earned
+      text: "70"
+      parentCy: part-signature-1
+  - typeText:
+      dataCy: feedback
+      text: "This is a test feedback"
+      parentCy: part-signature-1
   ##############################################################################
   # Save the assignment
   - tapOn:
       text: Create assignment
+      allowScroll: true
   - waitFor: 1000
   - assertVisible:
       text: E2E Test Assignment
