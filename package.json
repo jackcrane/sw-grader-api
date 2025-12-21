@@ -23,9 +23,10 @@
   "description": "",
   "devDependencies": {
     "cypress": "^15.8.0",
-    "cypress-yaml-plugin": "^0.1.11"
+    "cypress-yaml-plugin": "^0.1.13"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
     "amqplib": "^0.10.9",
     "dotenv": "^17.2.3",
     "pg": "^8.16.3"
