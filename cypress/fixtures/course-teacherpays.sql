@@ -11,3 +11,6 @@ INSERT INTO "public"."Course" ("id", "name", "abbr", "studentInviteCode", "taInv
 INSERT INTO "public"."Enrollment" ("id", "userId", "courseId", "type", "createdAt", "updatedAt", "deleted", "billingFollowUpResolvedAt") VALUES
 ('cmjewhjhh0002qrye2pu2vmzr', 'cmj9ffow70000qr6banbe3856', 'cmjewhjh90000qryehjj4pkuh', 'TEACHER', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
 ('cmjewhldf0004qryeoauq050j', 'cmj9ffow70000qr6banbe3d56', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:29.524', '2025-12-20 22:59:29.524', 'f', NULL);
+
+-- The above code is depended on by the following fixtures.
+--   - course-tp-assignment.sql
