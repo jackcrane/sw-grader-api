@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 export const SUBMISSION_ASSET_PREFIX = "submissions";
+export const SIGNATURE_ASSET_PREFIX = "signatures";
 
 export const sanitizeKeySegment = (value, fallback = "item") => {
   if (!value) return fallback;
@@ -40,6 +41,27 @@ export const buildSubmissionAssetKey = ({
     sanitizeKeySegment(assignmentId, "assignment"),
     sanitizeKeySegment(userId, "user"),
     `${type}-${unique}${safeExtension}`,
+  ]
+    .filter(Boolean)
+    .join("/");
+};
+
+export const buildSignatureAssetKey = ({
+  assignmentId,
+  signatureId,
+  extension = ".png",
+}) => {
+  const safeExtension = extension?.startsWith(".")
+    ? extension.toLowerCase()
+    : extension
+    ? `.${extension.toLowerCase()}`
+    : "";
+  const unique = `${Date.now()}-${crypto.randomUUID()}`;
+  return [
+    SIGNATURE_ASSET_PREFIX,
+    sanitizeKeySegment(assignmentId, "assignment"),
+    signatureId ? sanitizeKeySegment(signatureId, "signature") : null,
+    `${unique}${safeExtension}`,
   ]
     .filter(Boolean)
     .join("/");
@@ -168,4 +190,3 @@ export const evaluateSubmissionAgainstSignatures = ({
     diffs: referenceDiffs,
   };
 };
-

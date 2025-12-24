@@ -24,6 +24,7 @@ const getInitialPartDetails = () => ({
   surfaceArea: "",
   centerOfMass: { x: "", y: "", z: "" },
   screenshotB64: "",
+  screenshotKey: "",
   screenshotUrl: "",
   units: {},
 });
@@ -102,9 +103,7 @@ const SignatureSection = ({
     feedback,
   } = signature;
 
-  const screenshotSrc = partDetails?.screenshotB64
-    ? `data:image/png;base64,${partDetails.screenshotB64}`
-    : partDetails?.screenshotUrl || null;
+  const screenshotSrc = partDetails?.screenshotUrl || null;
 
   useEffect(() => {
     if (!courseId || !file || !unitSystem) return;
@@ -153,6 +152,8 @@ const SignatureSection = ({
                   z: data?.centerOfMass?.z ?? "",
                 },
                 screenshotB64: data?.screenshotB64 ?? "",
+                screenshotKey: "",
+                screenshotUrl: data?.screenshotUrl || "",
                 units: data?.units ?? {},
               },
             });
@@ -462,9 +463,16 @@ export const CreateAssignmentModal = ({
                       : String(signature.centerOfMassZ),
                 },
                 screenshotB64: signature.screenshotB64 ?? "",
+                screenshotKey: signature.screenshotKey ?? "",
+                screenshotUrl: signature.screenshotUrl ?? "",
                 units: signature.units ?? {},
               },
-              prescanState: signature.screenshotB64 ? "success" : "idle",
+              prescanState:
+                signature.screenshotB64 ||
+                signature.screenshotUrl ||
+                signature.screenshotKey
+                  ? "success"
+                  : "idle",
               prescanError: null,
               type: index === 0 ? "CORRECT" : signature.type || "CORRECT",
               pointsAwarded:
@@ -548,7 +556,9 @@ export const CreateAssignmentModal = ({
       type: "INCORRECT",
       pointsAwarded: "0",
       prescanState:
-        injectedSignature.screenshotB64 || injectedSignature.screenshotUrl
+        injectedSignature.screenshotB64 ||
+        injectedSignature.screenshotUrl ||
+        injectedSignature.screenshotKey
           ? "success"
           : "idle",
       prescanError: null,
@@ -566,6 +576,7 @@ export const CreateAssignmentModal = ({
             : String(injectedSignature.surfaceArea),
         centerOfMass: { x: "", y: "", z: "" },
         screenshotB64: injectedSignature.screenshotB64 || "",
+        screenshotKey: injectedSignature.screenshotKey || "",
         screenshotUrl: injectedSignature.screenshotUrl || "",
       },
     });
@@ -737,6 +748,8 @@ export const CreateAssignmentModal = ({
         surfaceArea: Number(s.partDetails.surfaceArea),
         centerOfMass: s.partDetails.centerOfMass,
         screenshotB64: s.partDetails.screenshotB64 || null,
+        screenshotKey: s.partDetails.screenshotKey || null,
+        screenshotUrl: s.partDetails.screenshotUrl || null,
         pointsAwarded:
           i > 0 && s.type === "INCORRECT" && s.pointsAwarded !== ""
             ? Number(s.pointsAwarded)
@@ -751,12 +764,9 @@ export const CreateAssignmentModal = ({
               allowLateSubmissions: lateAllowLateSubmissions,
               maxLatenessMinutes: hoursToMinutesValue(lateMaxLatenessHours),
               penaltyPercent:
-                latePenaltyPercent === ""
-                  ? null
-                  : Number(latePenaltyPercent),
+                latePenaltyPercent === "" ? null : Number(latePenaltyPercent),
               penaltyType:
-                latePenaltyPercent !== "" &&
-                Number(latePenaltyPercent) > 0
+                latePenaltyPercent !== "" && Number(latePenaltyPercent) > 0
                   ? latePenaltyType
                   : null,
             }
@@ -938,7 +948,8 @@ export const CreateAssignmentModal = ({
                 />
                 {validationAttempted && latePolicyValidation.maxLateness && (
                   <p style={{ color: "#b00020", marginTop: -8 }}>
-                    Max lateness must be between 0 and 10,000 minutes (about 0‑167 hours). Enter 0 for unlimited.
+                    Max lateness must be between 0 and 10,000 minutes (about
+                    0‑167 hours). Enter 0 for unlimited.
                   </p>
                 )}
               </>
@@ -963,8 +974,7 @@ export const CreateAssignmentModal = ({
               value={latePenaltyType}
               onChange={(event) => setLatePenaltyType(event.target.value)}
               disabled={
-                latePenaltyPercent === "" ||
-                Number(latePenaltyPercent) <= 0
+                latePenaltyPercent === "" || Number(latePenaltyPercent) <= 0
               }
               options={[
                 { value: "FLAT", label: "Flat penalty" },

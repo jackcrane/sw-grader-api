@@ -10,6 +10,10 @@ import {
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
 import {
+  ensureSignatureScreenshotAssets,
+  withSignedSignatureScreenshots,
+} from "../../../../../util/signatureScreenshots.js";
+import {
   checkSignatureTrendsForAssignment,
   enqueueSignatureTrendCheck,
   rescoreSubmissionsAgainstSignatures,
@@ -45,7 +49,7 @@ const ensureEnrollment = async (userId, courseId) => {
 
 const readAssignment = async (assignmentId, courseId = null) => {
   if (!assignmentId) return null;
-  return prisma.assignment.findFirst({
+  const assignment = await prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
@@ -53,6 +57,7 @@ const readAssignment = async (assignmentId, courseId = null) => {
     },
     include: signaturesInclude,
   });
+  return withSignedSignatureScreenshots(assignment);
 };
 
 const getSubmissionStats = async (courseId, assignmentId, pointsPossible) => {
@@ -424,6 +429,12 @@ export const patch = [
           });
         }
 
+        await ensureSignatureScreenshotAssets({
+          assignmentId,
+          signatures: normalizedSignatures,
+          existingSignatures,
+        });
+
         for (const [index, signature] of normalizedSignatures.entries()) {
           const sortOrder = index + 1;
           const signatureData = {
@@ -435,7 +446,9 @@ export const patch = [
             centerOfMassX: signature.centerOfMassX,
             centerOfMassY: signature.centerOfMassY,
             centerOfMassZ: signature.centerOfMassZ,
-            screenshotB64: signature.screenshotB64,
+            screenshotB64: null,
+            screenshotKey: signature.screenshotKey,
+            screenshotUrl: signature.screenshotUrl,
             feedback: signature.feedback,
             pointsAwarded: signature.pointsAwarded,
             deleted: false,

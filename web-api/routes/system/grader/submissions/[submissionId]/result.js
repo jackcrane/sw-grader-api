@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import { prisma } from "#prisma";
-import { uploadObject } from "../../../../../util/s3.js";
+import { uploadObject, buildPublicUrl } from "../../../../../util/s3.js";
 import {
   bufferFromBase64,
   evaluateSubmissionAgainstSignatures,
+  buildSubmissionAssetKey,
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSignatureTrendCheck } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
@@ -33,6 +34,16 @@ const deriveScreenshotKey = (fileKey) => {
     parts.length - 1
   ] = `screenshot-${Date.now()}-${crypto.randomUUID()}.png`;
   return parts.join("/");
+};
+
+const buildFallbackScreenshotKey = (submission) => {
+  return buildSubmissionAssetKey({
+    courseId: submission.courseId ?? "course",
+    assignmentId: submission.assignmentId ?? "assignment",
+    userId: submission.userId ?? "user",
+    type: "screenshot",
+    extension: ".png",
+  });
 };
 
 const verifyGraderSecret = (req, res, next) => {
@@ -181,7 +192,9 @@ export const post = [
       const screenshotBuffer = bufferFromBase64(screenshot ?? "");
       if (screenshotBuffer) {
         const targetKey =
-          deriveScreenshotKey(submission.fileKey) ?? submission.screenshotKey;
+          deriveScreenshotKey(submission.fileKey) ??
+          submission.screenshotKey ??
+          buildFallbackScreenshotKey(submission);
         if (targetKey) {
           try {
             const upload = await uploadObject({
@@ -198,6 +211,9 @@ export const post = [
             );
           }
         }
+      }
+      if (screenshotKey && !screenshotUrl) {
+        screenshotUrl = buildPublicUrl(screenshotKey) ?? screenshotUrl;
       }
 
       await prisma.submission.update({

@@ -14,6 +14,12 @@ const parseOptionalNumber = (value) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
+const normalizeOptionalString = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
   if (!Array.isArray(rawSignatures) || rawSignatures.length === 0) {
     throw new ValidationError("At least one signature must be provided.");
@@ -62,11 +68,9 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
     }
 
     const centerOfMass = signature?.centerOfMass ?? {};
-    const screenshotB64 =
-      typeof signature?.screenshotB64 === "string" &&
-      signature.screenshotB64.trim()
-        ? signature.screenshotB64.trim()
-        : null;
+    const screenshotB64 = normalizeOptionalString(signature?.screenshotB64);
+    const screenshotKey = normalizeOptionalString(signature?.screenshotKey);
+    const screenshotUrl = normalizeOptionalString(signature?.screenshotUrl);
 
     const id =
       typeof signature?.id === "string" && signature.id.trim()
@@ -84,6 +88,8 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
       centerOfMassY: parseOptionalNumber(centerOfMass?.y),
       centerOfMassZ: parseOptionalNumber(centerOfMass?.z),
       screenshotB64,
+      screenshotKey,
+      screenshotUrl,
       feedback: signature?.feedback?.trim() || null,
       pointsAwarded: type === "INCORRECT" ? pointsAwarded ?? 0 : null,
     };

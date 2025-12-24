@@ -5,7 +5,6 @@ import http from "node:http";
 import process from "node:process";
 import amqplib from "amqplib";
 import { fileURLToPath } from "node:url";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -27,47 +26,6 @@ const GRADER_BASE_URL = process.env.GRADER_BASE_URL || "http://localhost:3999";
 const RESULT_SECRET =
   process.env.GRADER_SHARED_SECRET?.trim() || "featurebench-shared-secret";
 const RECONNECT_DELAY_MS = 5000;
-const AWS_BUCKET = process.env.AWS_BUCKET;
-const AWS_REGION = process.env.AWS_REGION || "us-east-1";
-const AWS_ENDPOINT = process.env.AWS_ENDPOINT;
-const AWS_ACL = process.env.AWS_ACL || undefined;
-const AWS_FORCE_PATH_STYLE =
-  String(process.env.AWS_FORCE_PATH_STYLE).toLowerCase() === "true";
-const s3Client =
-  AWS_BUCKET &&
-  process.env.AWS_ACCESS_KEY_ID &&
-  process.env.AWS_SECRET_ACCESS_KEY
-    ? new S3Client({
-        region: AWS_REGION,
-        endpoint: AWS_ENDPOINT || undefined,
-        forcePathStyle: AWS_FORCE_PATH_STYLE,
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      })
-    : null;
-const s3BaseUrl = (() => {
-  const override = process.env.AWS_PUBLIC_BASE_URL?.trim();
-  if (override) {
-    return override.replace(/\/$/, "");
-  }
-  if (AWS_ENDPOINT && AWS_BUCKET) {
-    try {
-      const endpointUrl = new URL(AWS_ENDPOINT);
-      return `${endpointUrl.protocol}//${AWS_BUCKET}.${endpointUrl.host}`;
-    } catch {
-      // ignore
-    }
-  }
-  if (AWS_BUCKET) {
-    return `https://${AWS_BUCKET}.s3.${AWS_REGION}.amazonaws.com`;
-  }
-  return null;
-})();
-
-console.log(`S3 bucket: ${s3BaseUrl}`);
-
 const describeJob = (job) => {
   if (!job) return "job";
   if (job.submissionId) return `submission ${job.submissionId}`;
@@ -86,40 +44,6 @@ const err = (...args) => console.error("[grader-mock]", ...args);
 
 const ensureFixturesDir = async () => {
   await fs.mkdir(FIXTURE_DIR, { recursive: true }).catch(() => {});
-};
-
-const buildPublicS3Url = (key) => {
-  if (!key || !s3BaseUrl) return null;
-  const encoded = key
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return `${s3BaseUrl}/${encoded}`;
-};
-
-const decodeImageBase64 = (value) => {
-  if (!value || typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  let payload = trimmed;
-  let meta = "";
-  if (trimmed.startsWith("data:")) {
-    const commaIndex = trimmed.indexOf(",");
-    if (commaIndex === -1) return null;
-    meta = trimmed.slice(5, commaIndex);
-    payload = trimmed.slice(commaIndex + 1);
-  }
-  const metaParts = meta.split(";");
-  const contentType =
-    metaParts.length > 0 && metaParts[0] ? metaParts[0] : "image/png";
-  try {
-    return {
-      buffer: Buffer.from(payload, "base64"),
-      contentType,
-    };
-  } catch {
-    return null;
-  }
 };
 
 const normalizeFixtureKey = (value) => {
@@ -160,75 +84,6 @@ const deriveFixtureCandidates = (job) => {
   candidates.add("default");
 
   return Array.from(candidates);
-};
-
-const buildScreenshotKey = (job, fixtureKey) => {
-  const jobSegment =
-    normalizeFixtureKey(
-      job?.submissionId || job?.jobId || job?.fileName || job?.fileKey
-    ) || "job";
-  const fixtureSegment = normalizeFixtureKey(fixtureKey) || "fixture";
-  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return [
-    "grader-mock",
-    "screenshots",
-    jobSegment,
-    fixtureSegment,
-    `${unique}.png`,
-  ]
-    .filter(Boolean)
-    .join("/");
-};
-
-const uploadFixtureScreenshot = async ({ job, fixtureKey, base64Value }) => {
-  if (!s3Client || !AWS_BUCKET) return null;
-  const decoded = decodeImageBase64(base64Value);
-  if (!decoded?.buffer) {
-    warn("Unable to parse fixture image for upload.");
-    return null;
-  }
-  const key = buildScreenshotKey(job, fixtureKey);
-  const command = new PutObjectCommand({
-    Bucket: AWS_BUCKET,
-    Key: key,
-    Body: decoded.buffer,
-    ContentType: decoded.contentType || "image/png",
-    ACL: AWS_ACL,
-  });
-  await s3Client.send(command);
-  return {
-    key,
-    url: buildPublicS3Url(key),
-  };
-};
-
-const maybeUploadFixtureScreenshot = async (job, fixture, outcome) => {
-  if (!outcome?.screenshotFromImageB64) return null;
-  if (!s3Client || !AWS_BUCKET) {
-    warn(
-      "Skipping fixture screenshot upload; S3 is not configured in this environment."
-    );
-    return null;
-  }
-  try {
-    const upload = await uploadFixtureScreenshot({
-      job,
-      fixtureKey: fixture?.key,
-      base64Value: outcome.screenshotFromImageB64,
-    });
-    if (upload?.key) {
-      log(
-        `Uploaded fixture screenshot for ${describeJob(job)} to ${upload.key}`
-      );
-    }
-    return upload;
-  } catch (error) {
-    warn(
-      `Failed to upload fixture screenshot for ${describeJob(job)}`,
-      error?.message || error
-    );
-    return null;
-  }
 };
 
 const loadFixture = async (job) => {
@@ -325,7 +180,7 @@ const parseFixturePayload = (job, fixture) => {
   };
 };
 
-const buildSubmissionPayload = (outcome, screenshotUpload) => {
+const buildSubmissionPayload = (outcome) => {
   if (outcome.error) {
     return { error: outcome.error };
   }
@@ -339,16 +194,10 @@ const buildSubmissionPayload = (outcome, screenshotUpload) => {
   if (outcome.measurements.featureTree !== undefined) {
     payload.featureTree = outcome.measurements.featureTree;
   }
-  if (screenshotUpload?.key) {
-    payload.screenshotKey = screenshotUpload.key;
-  }
-  if (screenshotUpload?.url) {
-    payload.screenshotUrl = screenshotUpload.url;
-  }
   return payload;
 };
 
-const buildAnalyzerResponse = (job, outcome, screenshotUpload) => {
+const buildAnalyzerResponse = (job, outcome) => {
   if (outcome.error) {
     return {
       ok: false,
@@ -364,8 +213,6 @@ const buildAnalyzerResponse = (job, outcome, screenshotUpload) => {
       surfaceArea: outcome.measurements.surfaceArea,
       screenshotB64: outcome.measurements.screenshot ?? null,
       featureTree: outcome.measurements.featureTree ?? null,
-      screenshotKey: screenshotUpload?.key ?? null,
-      screenshotUrl: screenshotUpload?.url ?? null,
     },
   };
 };
@@ -516,23 +363,8 @@ const handleQueueMessage = async (channel, msg) => {
   if (outcome.delayMs > 0) {
     await sleep(outcome.delayMs);
   }
-  let screenshotUpload = null;
-  if (!outcome.error) {
-    screenshotUpload = await maybeUploadFixtureScreenshot(
-      job,
-      fixture,
-      outcome
-    ).catch((uploadError) => {
-      warn(
-        `Screenshot upload failed for ${label}`,
-        uploadError?.message || uploadError
-      );
-      return null;
-    });
-  }
-
   if (isAnalyzerJob(job, msg)) {
-    const response = buildAnalyzerResponse(job, outcome, screenshotUpload);
+    const response = buildAnalyzerResponse(job, outcome);
     if (!msg.properties.replyTo) {
       warn(
         `Analyzer job ${label} is missing replyTo queue; dropping response.`
@@ -555,10 +387,7 @@ const handleQueueMessage = async (channel, msg) => {
   }
 
   try {
-    await sendSubmissionResult(
-      job.submissionId,
-      buildSubmissionPayload(outcome, screenshotUpload)
-    );
+    await sendSubmissionResult(job.submissionId, buildSubmissionPayload(outcome));
     channel.ack(msg);
     log(
       `Reported grading result for ${label} using fixture ${fixture.key || "<fallback>"}`

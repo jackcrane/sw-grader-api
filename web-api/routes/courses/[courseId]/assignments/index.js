@@ -6,6 +6,11 @@ import {
   normalizeSignaturesPayload,
 } from "./validation.js";
 import { posthog } from "../../../../util/posthog.js";
+import { buildAssignmentLatePolicyUpdate } from "../../../../services/latePolicy.js";
+import {
+  ensureSignatureScreenshotAssets,
+  withSignedSignatureScreenshots,
+} from "../../../../util/signatureScreenshots.js";
 const signatureInclude = {
   signatures: {
     where: {
@@ -13,6 +18,25 @@ const signatureInclude = {
     },
     orderBy: {
       sortOrder: "asc",
+    },
+    select: {
+      id: true,
+      assignmentId: true,
+      sortOrder: true,
+      type: true,
+      unitSystem: true,
+      volume: true,
+      surfaceArea: true,
+      centerOfMassX: true,
+      centerOfMassY: true,
+      centerOfMassZ: true,
+      screenshotKey: true,
+      screenshotUrl: true,
+      feedback: true,
+      pointsAwarded: true,
+      createdAt: true,
+      updatedAt: true,
+      deleted: true,
     },
   },
 };
@@ -54,7 +78,13 @@ export const get = [
       include: signatureInclude,
     });
 
-    return res.json(assignments);
+    const assignmentsWithSignedScreenshots = await Promise.all(
+      assignments.map((assignment) =>
+        withSignedSignatureScreenshots(assignment)
+      )
+    );
+
+    return res.json(assignmentsWithSignedScreenshots);
   },
 ];
 
@@ -164,6 +194,11 @@ export const post = [
       },
     });
 
+    await ensureSignatureScreenshotAssets({
+      assignmentId: assignment.id,
+      signatures: normalizedSignatures,
+    });
+
     if (normalizedSignatures.length > 0) {
       await prisma.assignmentSignature.createMany({
         data: normalizedSignatures.map(({ id: _id, ...signature }) => ({
@@ -186,6 +221,9 @@ export const post = [
       where: { id: assignment.id },
       include: signatureInclude,
     });
+    const responsePayload = await withSignedSignatureScreenshots(
+      assignmentWithSignatures
+    );
 
     posthog.capture({
       distinctId: userId,
@@ -197,6 +235,6 @@ export const post = [
       },
     });
 
-    return res.status(201).json(assignmentWithSignatures);
+    return res.status(201).json(responsePayload);
   },
 ];
