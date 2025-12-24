@@ -4,8 +4,12 @@ import {
   recordAnalyzerFailure,
   recordAnalyzerSuccess,
 } from "./graderHealth.js";
-import { uploadObject, deleteObject } from "../util/s3.js";
-import { getExtension, sanitizeKeySegment } from "./submissionUtils.js";
+import { uploadObject, deleteObject, getSignedDownloadUrl } from "../util/s3.js";
+import {
+  getExtension,
+  sanitizeKeySegment,
+  bufferFromBase64,
+} from "./submissionUtils.js";
 
 const RABBITMQ_URL =
   process.env.RABBITMQ_URL || "amqp://db.jackcrane.rocks";
@@ -15,6 +19,59 @@ const ANALYZER_TIMEOUT_MS = Number(
   process.env.ANALYZER_TIMEOUT_MS || 1000 * 60 * 2
 );
 const ANALYZER_ASSET_PREFIX = "analyzer/prescans";
+const SCREENSHOT_SUBDIR = "screenshots";
+
+const buildAnalyzerScreenshotKey = (filename = "screenshot.png") => {
+  const extension = getExtension(filename, ".png");
+  const baseName = sanitizeKeySegment(
+    filename?.replace(/\.[^.]+$/, "") || "prescan",
+    "prescan"
+  );
+  const unique = `${Date.now()}-${crypto.randomUUID()}`;
+  return `${ANALYZER_ASSET_PREFIX}/${SCREENSHOT_SUBDIR}/${baseName}-${unique}${extension}`;
+};
+
+const normalizeScreenshotString = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const ensureSignedScreenshotUrl = async (analysis, filename) => {
+  if (!analysis) return;
+  if (normalizeScreenshotString(analysis.screenshotUrl)) return;
+  const rawValue =
+    normalizeScreenshotString(analysis.screenshot) ??
+    normalizeScreenshotString(analysis.screenshotB64);
+  if (!rawValue) return;
+  const buffer = bufferFromBase64(rawValue);
+  if (!buffer) return;
+  try {
+    const targetKey = buildAnalyzerScreenshotKey(filename);
+    const upload = await uploadObject({
+      key: targetKey,
+      body: buffer,
+      contentType: "image/png",
+    });
+    const signedUrl =
+      (await getSignedDownloadUrl(upload.key, {
+        responseDisposition: "inline",
+      })) || upload.url;
+    if (signedUrl) {
+      analysis.screenshotUrl = signedUrl;
+    } else if (upload.url) {
+      analysis.screenshotUrl = upload.url;
+    }
+    analysis.screenshotKey = upload.key;
+    analysis.screenshot = null;
+    analysis.screenshotB64 = null;
+  } catch (error) {
+    console.warn(
+      "Failed to upload analyzer screenshot for prescan",
+      error?.message || error
+    );
+  }
+};
 
 let rpcConnectionPromise = null;
 let rpcChannelPromise = null;
@@ -220,6 +277,7 @@ export const analyzePart = async ({
     });
 
     recordAnalyzerSuccess();
+    await ensureSignedScreenshotUrl(result, filename);
     return result;
   } catch (error) {
     if (upload?.key && error?.analyzerDispatched === false) {

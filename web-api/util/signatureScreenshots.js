@@ -14,6 +14,10 @@ const ensureSingleSignatureScreenshot = async ({
   index,
 }) => {
   const screenshotB64 = signature?.screenshotB64?.trim() || null;
+  const screenshotUrl =
+    typeof signature?.screenshotUrl === "string" && signature.screenshotUrl.trim()
+      ? signature.screenshotUrl.trim()
+      : null;
   if (screenshotB64) {
     const buffer = bufferFromBase64(screenshotB64);
     if (!buffer) {
@@ -44,6 +48,13 @@ const ensureSingleSignatureScreenshot = async ({
     signature.screenshotUrl =
       existingSignature?.screenshotUrl ??
       buildPublicUrl(signature.screenshotKey);
+    signature.screenshotB64 = null;
+    return;
+  }
+
+  if (screenshotUrl) {
+    signature.screenshotKey = signature.screenshotKey ?? null;
+    signature.screenshotUrl = screenshotUrl;
     signature.screenshotB64 = null;
     return;
   }
