@@ -170,6 +170,8 @@ model AssignmentSignature {
   centerOfMassY Float?
   centerOfMassZ Float?
   screenshotB64 String?
+  screenshotKey String?
+  screenshotUrl String?
   feedback String?
   pointsAwarded Float?
 
