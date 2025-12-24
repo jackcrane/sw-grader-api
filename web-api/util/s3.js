@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import {
   S3Client,
   PutObjectCommand,
@@ -23,7 +25,8 @@ const bucket = process.env.AWS_BUCKET;
 const region = process.env.AWS_REGION || "us-east-1";
 const endpoint = process.env.AWS_ENDPOINT;
 const acl = process.env.AWS_ACL || undefined;
-const forcePathStyle = String(process.env.AWS_FORCE_PATH_STYLE).toLowerCase() === "true";
+const forcePathStyle =
+  String(process.env.AWS_FORCE_PATH_STYLE).toLowerCase() === "true";
 
 const hasCredentials =
   bucket && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;

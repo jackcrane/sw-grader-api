@@ -13,6 +13,7 @@ export const AssignmentList = ({
   courseId,
   enrollmentType,
   detailsPane = null,
+  course = null,
 }) => {
   const {
     assignments,
@@ -236,6 +237,7 @@ export const AssignmentList = ({
           onCreateAssignment={handleCreateAssignment}
           onUpdateAssignment={handleUpdateAssignment}
           courseId={courseId}
+          course={course}
           mode={modalMode}
           assignment={assignmentBeingEdited}
           onDeleteAssignment={handleDeleteAssignment}

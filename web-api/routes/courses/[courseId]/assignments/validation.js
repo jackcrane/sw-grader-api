@@ -1,12 +1,7 @@
+import { ValidationError } from "../../../../util/errors.js";
+
 const ALLOWED_VISIBILITY = new Set(["INSTANT", "ON_DUE_DATE"]);
 const ALLOWED_UNIT_SYSTEMS = new Set(["SI", "MMGS", "CGS", "IPS"]);
-
-class ValidationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
 
 const parsePositiveNumber = (value) => {
   const numeric = Number(value);
@@ -17,6 +12,12 @@ const parseOptionalNumber = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+};
+
+const normalizeOptionalString = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
@@ -67,11 +68,8 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
     }
 
     const centerOfMass = signature?.centerOfMass ?? {};
-    const screenshotB64 =
-      typeof signature?.screenshotB64 === "string" &&
-      signature.screenshotB64.trim()
-        ? signature.screenshotB64.trim()
-        : null;
+    const screenshotKey = normalizeOptionalString(signature?.screenshotKey);
+    const screenshotUrl = normalizeOptionalString(signature?.screenshotUrl);
 
     const id =
       typeof signature?.id === "string" && signature.id.trim()
@@ -88,7 +86,8 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
       centerOfMassX: parseOptionalNumber(centerOfMass?.x),
       centerOfMassY: parseOptionalNumber(centerOfMass?.y),
       centerOfMassZ: parseOptionalNumber(centerOfMass?.z),
-      screenshotB64,
+      screenshotKey,
+      screenshotUrl,
       feedback: signature?.feedback?.trim() || null,
       pointsAwarded: type === "INCORRECT" ? pointsAwarded ?? 0 : null,
     };

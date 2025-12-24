@@ -79,6 +79,12 @@
   margin: -4px 0 4px 0;
 }
 
+.latePolicyNote {
+  color: #555;
+  font-size: 0.85rem;
+  margin: -8px 0 8px 0;
+}
+
 .fileInput {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -208,6 +214,11 @@
   gap: 12px;
   font-size: 0.9rem;
   color: #333;
+}
+
+.penaltyNote {
+  color: #b45309;
+  font-size: 0.85rem;
 }
 
 .downloadButton {

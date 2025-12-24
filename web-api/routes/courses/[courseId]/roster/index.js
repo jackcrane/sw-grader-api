@@ -60,6 +60,7 @@ export const get = [
     const assignments = await prisma.assignment.findMany({
       where: {
         deleted: false,
+        courseId,
       },
       orderBy: {
         createdAt: "asc",

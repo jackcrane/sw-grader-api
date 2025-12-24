@@ -1,14 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useOutletContext } from "react-router-dom";
 import { Card } from "../../components/card/Card";
 import { Spacer } from "../../components/spacer/Spacer";
 import { H2 } from "../../components/typography/Typography";
 import { Button } from "../../components/button/Button";
+import { Input, Select } from "../../components/input/Input";
 import { Modal } from "../../components/modal/Modal";
 import { SetupElement } from "../../components/stripe/SetupElement";
 import setupStyles from "../../components/stripe/SetupElement.module.css";
 import { fetchJson } from "../../utils/fetchJson";
-import { Section } from "../../components/form/Section";
+import { MonoSection, Section } from "../../components/form/Section";
+import {
+  describeLatePolicy,
+  hoursToMinutesValue,
+  minutesToHoursValue,
+  normalizeLatePolicy,
+} from "../../utils/latePolicy";
 
 const maskCode = (value) => {
   if (!value) return "";
@@ -35,8 +42,13 @@ const billingSchemeCopy = {
 };
 
 export const CourseDetails = () => {
-  const { courseId, enrollment, regenerateInviteCode, hasStaffPrivileges } =
-    useOutletContext();
+  const {
+    courseId,
+    enrollment,
+    regenerateInviteCode,
+    hasStaffPrivileges,
+    refetchEnrollments,
+  } = useOutletContext();
   const course = enrollment?.course ?? {};
   const isStaff =
     typeof hasStaffPrivileges === "boolean"
@@ -53,6 +65,33 @@ export const CourseDetails = () => {
   const [paymentMethodError, setPaymentMethodError] = useState(null);
   const [paymentMethodRefreshIndex, setPaymentMethodRefreshIndex] = useState(0);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const normalizedLatePolicy = useMemo(
+    () =>
+      normalizeLatePolicy({
+        allowLateSubmissions: course?.latePolicyAllowLateSubmissions,
+        maxLatenessMinutes: course?.latePolicyMaxLatenessMinutes,
+        penaltyPercent: course?.latePolicyPenaltyPercent,
+        penaltyType: course?.latePolicyPenaltyType,
+      }),
+    [course]
+  );
+  const [lateAllowLateSubmissions, setLateAllowLateSubmissions] = useState(
+    normalizedLatePolicy.allowLateSubmissions
+  );
+  const [lateMaxLatenessHours, setLateMaxLatenessHours] = useState(
+    minutesToHoursValue(normalizedLatePolicy.maxLatenessMinutes)
+  );
+  const [latePenaltyPercent, setLatePenaltyPercent] = useState(
+    normalizedLatePolicy.penaltyPercent != null
+      ? String(normalizedLatePolicy.penaltyPercent)
+      : ""
+  );
+  const [latePenaltyType, setLatePenaltyType] = useState(
+    normalizedLatePolicy.penaltyType ?? "FLAT"
+  );
+  const [latePolicySaving, setLatePolicySaving] = useState(false);
+  const [latePolicyError, setLatePolicyError] = useState(null);
+  const [latePolicySuccess, setLatePolicySuccess] = useState(null);
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -65,6 +104,19 @@ export const CourseDetails = () => {
   useEffect(() => {
     setTaVisible(false);
   }, [course.taInviteCode]);
+
+  useEffect(() => {
+    setLateAllowLateSubmissions(normalizedLatePolicy.allowLateSubmissions);
+    setLateMaxLatenessHours(
+      minutesToHoursValue(normalizedLatePolicy.maxLatenessMinutes)
+    );
+    setLatePenaltyPercent(
+      normalizedLatePolicy.penaltyPercent != null
+        ? String(normalizedLatePolicy.penaltyPercent)
+        : ""
+    );
+    setLatePenaltyType(normalizedLatePolicy.penaltyType ?? "FLAT");
+  }, [normalizedLatePolicy]);
 
   useEffect(() => {
     if (!isTeacher || course.billingScheme !== "PER_COURSE") {
@@ -125,6 +177,72 @@ export const CourseDetails = () => {
     setPaymentMethodError(null);
     setBillingModalOpen(false);
     setPaymentMethodRefreshIndex((value) => value + 1);
+  };
+
+  const latePolicyValidation = useMemo(() => {
+    const errors = {
+      maxLateness: false,
+      penaltyPercent: false,
+    };
+    if (lateMaxLatenessHours !== "") {
+      const hoursValue = Number(lateMaxLatenessHours);
+      if (!Number.isFinite(hoursValue) || hoursValue < 0) {
+        errors.maxLateness = true;
+      } else if (hoursValue * 60 > 10000) {
+        errors.maxLateness = true;
+      }
+    }
+    if (
+      latePenaltyPercent !== "" &&
+      (!Number.isFinite(Number(latePenaltyPercent)) ||
+        Number(latePenaltyPercent) < 0 ||
+        Number(latePenaltyPercent) > 100)
+    ) {
+      errors.penaltyPercent = true;
+    }
+    return {
+      ...errors,
+      invalid: errors.maxLateness || errors.penaltyPercent,
+    };
+  }, [lateMaxLatenessHours, latePenaltyPercent]);
+
+  const handleSaveLatePolicy = async () => {
+    if (latePolicyValidation.invalid) {
+      setLatePolicyError("Fix the highlighted late policy fields.");
+      setLatePolicySuccess(null);
+      return;
+    }
+    setLatePolicySaving(true);
+    setLatePolicyError(null);
+    setLatePolicySuccess(null);
+    try {
+      await fetchJson(`/api/courses/${courseId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          latePolicy: {
+            allowLateSubmissions: lateAllowLateSubmissions,
+            maxLatenessMinutes: hoursToMinutesValue(lateMaxLatenessHours),
+            penaltyPercent:
+              latePenaltyPercent === "" ? null : Number(latePenaltyPercent),
+            penaltyType:
+              latePenaltyPercent !== "" && Number(latePenaltyPercent) > 0
+                ? latePenaltyType
+                : null,
+          },
+        }),
+      });
+      await refetchEnrollments?.();
+      setLatePolicySuccess("Late submission policy saved.");
+    } catch (err) {
+      setLatePolicyError(
+        err?.message || "Unable to save the late submission policy."
+      );
+    } finally {
+      setLatePolicySaving(false);
+    }
   };
 
   return (
@@ -338,6 +456,93 @@ export const CourseDetails = () => {
             </Card>
           </>
         ))}
+      <Spacer size={2} />
+      <Card>
+        <div>
+          {isTeacher ? (
+            <>
+              <strong>Late submission policy</strong>
+              <p style={{ color: "#555", marginTop: 8, marginBottom: 8 }}>
+                Current policy: {describeLatePolicy(normalizedLatePolicy)}
+              </p>
+              <Select
+                label="Allow late submissions?"
+                value={lateAllowLateSubmissions ? "yes" : "no"}
+                onChange={(event) =>
+                  setLateAllowLateSubmissions(event.target.value === "yes")
+                }
+                options={[
+                  { value: "yes", label: "Yes, accept late submissions" },
+                  { value: "no", label: "No, close at the deadline" },
+                ]}
+              />
+              {lateAllowLateSubmissions && (
+                <>
+                  <Input
+                    label="Max lateness (hours)"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Leave blank for unlimited"
+                    value={lateMaxLatenessHours}
+                    onChange={(event) =>
+                      setLateMaxLatenessHours(event.target.value)
+                    }
+                  />
+                  {latePolicyValidation.maxLateness && (
+                    <p style={{ color: "#b00020", marginTop: -8 }}>
+                      Max lateness must be between 0 and 10,000 minutes (about 0‑167 hours). Enter 0 for unlimited.
+                    </p>
+                  )}
+                </>
+              )}
+              <Input
+                label="Penalty percent"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                placeholder="Leave blank for no penalty"
+                value={latePenaltyPercent}
+                onChange={(event) => setLatePenaltyPercent(event.target.value)}
+              />
+              {latePolicyValidation.penaltyPercent && (
+                <p style={{ color: "#b00020", marginTop: -8 }}>
+                  Enter a penalty between 0 and 100.
+                </p>
+              )}
+              <Select
+                label="Penalty type"
+                value={latePenaltyType}
+                onChange={(event) => setLatePenaltyType(event.target.value)}
+                disabled={
+                  latePenaltyPercent === "" || Number(latePenaltyPercent) <= 0
+                }
+                options={[
+                  { value: "FLAT", label: "Flat penalty" },
+                  { value: "PER_DAY", label: "Penalty per day" },
+                ]}
+              />
+              {latePolicyError && (
+                <p style={{ color: "#b00020" }}>{latePolicyError}</p>
+              )}
+              {latePolicySuccess && (
+                <p style={{ color: "#0a7d29" }}>{latePolicySuccess}</p>
+              )}
+              <Button
+                onClick={handleSaveLatePolicy}
+                disabled={latePolicySaving}
+              >
+                {latePolicySaving ? "Saving..." : "Save late policy"}
+              </Button>
+            </>
+          ) : (
+            <p style={{ color: "#555", margin: 0 }}>
+              {describeLatePolicy(normalizedLatePolicy)}
+            </p>
+          )}
+        </div>
+      </Card>
       {error && (
         <>
           <Spacer />

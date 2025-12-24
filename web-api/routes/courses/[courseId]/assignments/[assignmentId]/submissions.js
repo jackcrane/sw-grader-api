@@ -12,6 +12,10 @@ import {
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSubmissionJob } from "../../../../../services/graderQueue.js";
 import { computeSubmissionQueuePosition } from "../../../../../services/submissionQueuePosition.js";
+import {
+  computeLatenessInfo,
+  resolveLatePolicy,
+} from "../../../../../services/latePolicy.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -46,14 +50,25 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const readAssignment = async (assignmentId) => {
+const readAssignment = async (assignmentId, courseId = null) => {
   if (!assignmentId) return null;
   return prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
+      ...(courseId ? { courseId } : {}),
     },
     include: signaturesInclude,
+  });
+};
+
+const readCourse = async (courseId) => {
+  if (!courseId) return null;
+  return prisma.course.findFirst({
+    where: {
+      id: courseId,
+      deleted: false,
+    },
   });
 };
 
@@ -90,9 +105,44 @@ export const post = [
         .json({ error: "Only students can submit assignments." });
     }
 
-    const assignment = await readAssignment(assignmentId);
+    const assignment = await readAssignment(assignmentId, courseId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
+    }
+
+    const course = await readCourse(courseId);
+    if (!course) {
+      return res.status(404).json({ error: "Course not found." });
+    }
+
+    const policy = resolveLatePolicy({ course, assignment });
+    const dueDateValue = assignment.dueDate ? new Date(assignment.dueDate) : null;
+    if (dueDateValue && Number.isFinite(dueDateValue.getTime())) {
+      const lateness = computeLatenessInfo({
+        submittedAt: new Date(),
+        dueDate: dueDateValue,
+      });
+      if (lateness.isLate) {
+        if (policy.allowLateSubmissions === false) {
+          return res.status(400).json({
+            error: "Late submissions are not allowed for this assignment.",
+          });
+        }
+        const maxMinutes =
+          policy?.maxLatenessMinutes != null
+            ? Number(policy.maxLatenessMinutes)
+            : null;
+        if (
+          maxMinutes != null &&
+          Number.isFinite(maxMinutes) &&
+          maxMinutes >= 0 &&
+          lateness.minutesLate > maxMinutes
+        ) {
+          return res.status(400).json({
+            error: "The late submission window for this assignment has closed.",
+          });
+        }
+      }
     }
 
     if (!file) {

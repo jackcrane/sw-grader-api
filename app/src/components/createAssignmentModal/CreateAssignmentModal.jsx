@@ -12,12 +12,18 @@ import { Section } from "../form/Section";
 import { Input, Select, Textarea } from "../input/Input";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import { useDocs } from "../../context/DocsContext";
+import {
+  describeLatePolicy,
+  hoursToMinutesValue,
+  minutesToHoursValue,
+  normalizeLatePolicy,
+} from "../../utils/latePolicy";
 
 const getInitialPartDetails = () => ({
   volume: "",
   surfaceArea: "",
   centerOfMass: { x: "", y: "", z: "" },
-  screenshotB64: "",
+  screenshotKey: "",
   screenshotUrl: "",
   units: {},
 });
@@ -96,9 +102,7 @@ const SignatureSection = ({
     feedback,
   } = signature;
 
-  const screenshotSrc = partDetails?.screenshotB64
-    ? `data:image/png;base64,${partDetails.screenshotB64}`
-    : partDetails?.screenshotUrl || null;
+  const screenshotSrc = partDetails?.screenshotUrl || null;
 
   useEffect(() => {
     if (!courseId || !file || !unitSystem) return;
@@ -146,7 +150,8 @@ const SignatureSection = ({
                   y: data?.centerOfMass?.y ?? "",
                   z: data?.centerOfMass?.z ?? "",
                 },
-                screenshotB64: data?.screenshotB64 ?? "",
+                screenshotKey: data?.screenshotKey || "",
+                screenshotUrl: data?.screenshotUrl || "",
                 units: data?.units ?? {},
               },
             });
@@ -184,21 +189,22 @@ const SignatureSection = ({
     prescanState === "uploading"
       ? "Uploading part for prescan..."
       : prescanState === "success"
-      ? "Prescan uploaded successfully."
-      : prescanState === "error"
-      ? prescanError
-      : null;
+        ? "Prescan uploaded successfully."
+        : prescanState === "error"
+          ? prescanError
+          : null;
 
   const prescanColor =
     prescanState === "success"
       ? "#0a7d29"
       : prescanState === "error"
-      ? "#b00020"
-      : "#555";
+        ? "#b00020"
+        : "#555";
 
   return (
     <Section
       title={`Part Signature ${index + 1}`}
+      data-cy={`part-signature-${index}`}
       subtitle={
         <Col gap={8} align="flex-start">
           {isFirst ? (
@@ -245,6 +251,7 @@ const SignatureSection = ({
             { value: "CORRECT", label: "Correct" },
             { value: "INCORRECT", label: "Incorrect / Partial" },
           ]}
+          data-cy="signature-type"
         />
       )}
       <div />
@@ -281,6 +288,7 @@ const SignatureSection = ({
             });
           }}
           style={{ marginBottom: 4 }}
+          data-cy={`part-file`}
         />
       )}
 
@@ -322,13 +330,15 @@ const SignatureSection = ({
             min={0}
             step="1"
             invalid={showInvalid("pointsAwarded")}
+            data-cy="points-earned"
           />
           <Textarea
             label="Feedback / Hints"
-            placeholder="Explain what’s wrong and how to fix it (optional)"
+            placeholder="Explain what's wrong and how to fix it (optional)"
             value={feedback}
             onChange={(e) => onChange({ feedback: e.target.value })}
             rows={3}
+            data-cy="feedback"
           />
         </>
       )}
@@ -343,6 +353,7 @@ export const CreateAssignmentModal = ({
   onUpdateAssignment,
   onDeleteAssignment,
   courseId,
+  course = null,
   mode = "create",
   assignment = null,
   injectedSignature = null,
@@ -355,6 +366,12 @@ export const CreateAssignmentModal = ({
   const [gradeVisibility, setGradeVisibility] = useState("INSTANT");
   const [dueDate, setDueDate] = useState("");
   const [tolerancePercent, setTolerancePercent] = useState("0.1");
+  const [latePolicyMode, setLatePolicyMode] = useState("inherit");
+  const [lateAllowLateSubmissions, setLateAllowLateSubmissions] =
+    useState(true);
+  const [lateMaxLatenessHours, setLateMaxLatenessHours] = useState("");
+  const [latePenaltyPercent, setLatePenaltyPercent] = useState("");
+  const [latePenaltyType, setLatePenaltyType] = useState("FLAT");
 
   const [signatures, setSignatures] = useState([getInitialSignature("SI")]);
 
@@ -367,6 +384,17 @@ export const CreateAssignmentModal = ({
   const isEditMode = mode === "edit" && Boolean(assignment);
   const prevOpenRef = useRef(false);
   const graderOffline = graderOnline === false;
+  const courseLatePolicy = useMemo(
+    () =>
+      normalizeLatePolicy({
+        allowLateSubmissions: course?.latePolicyAllowLateSubmissions,
+        maxLatenessMinutes: course?.latePolicyMaxLatenessMinutes,
+        penaltyPercent: course?.latePolicyPenaltyPercent,
+        penaltyType: course?.latePolicyPenaltyType,
+      }),
+    [course]
+  );
+  const courseLatePolicySummary = describeLatePolicy(courseLatePolicy);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -375,6 +403,11 @@ export const CreateAssignmentModal = ({
     setGradeVisibility("INSTANT");
     setDueDate("");
     setTolerancePercent("0.1");
+    setLatePolicyMode("inherit");
+    setLateAllowLateSubmissions(true);
+    setLateMaxLatenessHours("");
+    setLatePenaltyPercent("");
+    setLatePenaltyType("FLAT");
     setSubmitting(false);
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
@@ -427,19 +460,24 @@ export const CreateAssignmentModal = ({
                       ? ""
                       : String(signature.centerOfMassZ),
                 },
-                screenshotB64: signature.screenshotB64 ?? "",
+                screenshotKey: signature.screenshotKey ?? "",
+                screenshotUrl: signature.screenshotUrl ?? "",
                 units: signature.units ?? {},
               },
-              prescanState: signature.screenshotB64 ? "success" : "idle",
+              prescanState:
+                signature.screenshotUrl ||
+                signature.screenshotKey
+                  ? "success"
+                  : "idle",
               prescanError: null,
               type: index === 0 ? "CORRECT" : signature.type || "CORRECT",
               pointsAwarded:
                 index === 0 || signature.type !== "INCORRECT"
                   ? ""
                   : signature.pointsAwarded === null ||
-                    signature.pointsAwarded === undefined
-                  ? ""
-                  : String(signature.pointsAwarded),
+                      signature.pointsAwarded === undefined
+                    ? ""
+                    : String(signature.pointsAwarded),
               feedback: signature.feedback ?? "",
             });
           })
@@ -461,6 +499,28 @@ export const CreateAssignmentModal = ({
         ? "0.1"
         : String(assignment.tolerancePercent)
     );
+    if (assignment.latePolicyInheritFromCourse === false) {
+      setLatePolicyMode("override");
+      setLateAllowLateSubmissions(
+        assignment.latePolicyAllowLateSubmissions === false ? false : true
+      );
+      setLateMaxLatenessHours(
+        minutesToHoursValue(assignment.latePolicyMaxLatenessMinutes)
+      );
+      setLatePenaltyPercent(
+        assignment.latePolicyPenaltyPercent === null ||
+          assignment.latePolicyPenaltyPercent === undefined
+          ? ""
+          : String(assignment.latePolicyPenaltyPercent)
+      );
+      setLatePenaltyType(assignment.latePolicyPenaltyType ?? "FLAT");
+    } else {
+      setLatePolicyMode("inherit");
+      setLateAllowLateSubmissions(true);
+      setLateMaxLatenessHours("");
+      setLatePenaltyPercent("");
+      setLatePenaltyType("FLAT");
+    }
     setSignatures(normalizedSignatures);
     setValidationAttempted(false);
     setSubmitting(false);
@@ -492,7 +552,7 @@ export const CreateAssignmentModal = ({
       type: "INCORRECT",
       pointsAwarded: "0",
       prescanState:
-        injectedSignature.screenshotB64 || injectedSignature.screenshotUrl
+        injectedSignature.screenshotUrl || injectedSignature.screenshotKey
           ? "success"
           : "idle",
       prescanError: null,
@@ -509,7 +569,7 @@ export const CreateAssignmentModal = ({
             ? ""
             : String(injectedSignature.surfaceArea),
         centerOfMass: { x: "", y: "", z: "" },
-        screenshotB64: injectedSignature.screenshotB64 || "",
+        screenshotKey: injectedSignature.screenshotKey || "",
         screenshotUrl: injectedSignature.screenshotUrl || "",
       },
     });
@@ -558,6 +618,40 @@ export const CreateAssignmentModal = ({
     });
   }, [signatures, pointsPossible]);
 
+  const latePolicyValidation = useMemo(() => {
+    if (latePolicyMode !== "override") {
+      return {
+        invalid: false,
+        maxLateness: false,
+        penaltyPercent: false,
+      };
+    }
+    const errors = {
+      maxLateness: false,
+      penaltyPercent: false,
+    };
+    if (lateMaxLatenessHours !== "") {
+      const hoursValue = Number(lateMaxLatenessHours);
+      if (!Number.isFinite(hoursValue) || hoursValue < 0) {
+        errors.maxLateness = true;
+      } else if (hoursValue * 60 > 10000) {
+        errors.maxLateness = true;
+      }
+    }
+    if (
+      latePenaltyPercent !== "" &&
+      (!Number.isFinite(Number(latePenaltyPercent)) ||
+        Number(latePenaltyPercent) < 0 ||
+        Number(latePenaltyPercent) > 100)
+    ) {
+      errors.penaltyPercent = true;
+    }
+    return {
+      ...errors,
+      invalid: errors.maxLateness || errors.penaltyPercent,
+    };
+  }, [latePolicyMode, lateMaxLatenessHours, latePenaltyPercent]);
+
   const overallErrors = useMemo(() => {
     const pts = Number(pointsPossible);
     const dueDateTime = new Date(dueDate);
@@ -578,6 +672,7 @@ export const CreateAssignmentModal = ({
       tolerancePercent: !Number.isFinite(tol) || tol <= 0,
       signatures: !perSignatureValid,
       atLeastOneCorrect: !hasAtLeastOneCorrect,
+      latePolicy: latePolicyValidation.invalid,
     };
   }, [
     name,
@@ -586,6 +681,7 @@ export const CreateAssignmentModal = ({
     tolerancePercent,
     signaturesErrors,
     signatures,
+    latePolicyValidation,
   ]);
 
   const isValid = useMemo(
@@ -644,13 +740,29 @@ export const CreateAssignmentModal = ({
         volume: Number(s.partDetails.volume),
         surfaceArea: Number(s.partDetails.surfaceArea),
         centerOfMass: s.partDetails.centerOfMass,
-        screenshotB64: s.partDetails.screenshotB64 || null,
+        screenshotKey: s.partDetails.screenshotKey || null,
+        screenshotUrl: s.partDetails.screenshotUrl || null,
         pointsAwarded:
           i > 0 && s.type === "INCORRECT" && s.pointsAwarded !== ""
             ? Number(s.pointsAwarded)
             : null,
         feedback: i > 0 && s.type === "INCORRECT" ? s.feedback || null : null,
       }));
+
+      const latePolicyPayload =
+        latePolicyMode === "override"
+          ? {
+              inheritFromCourse: false,
+              allowLateSubmissions: lateAllowLateSubmissions,
+              maxLatenessMinutes: hoursToMinutesValue(lateMaxLatenessHours),
+              penaltyPercent:
+                latePenaltyPercent === "" ? null : Number(latePenaltyPercent),
+              penaltyType:
+                latePenaltyPercent !== "" && Number(latePenaltyPercent) > 0
+                  ? latePenaltyType
+                  : null,
+            }
+          : { inheritFromCourse: true };
 
       const payload = {
         name: name.trim(),
@@ -660,6 +772,7 @@ export const CreateAssignmentModal = ({
         gradeVisibility,
         tolerancePercent: Number(tolerancePercent),
         signatures: signaturePayloads,
+        latePolicy: latePolicyPayload,
       };
 
       if (isEditMode) {
@@ -693,8 +806,8 @@ export const CreateAssignmentModal = ({
       ? "Saving..."
       : "Creating..."
     : isEditMode
-    ? "Save changes"
-    : "Create assignment";
+      ? "Save changes"
+      : "Create assignment";
 
   const handleDeleteAssignment = async () => {
     if (!isEditMode || !assignment?.id || !onDeleteAssignment) return;
@@ -781,7 +894,87 @@ export const CreateAssignmentModal = ({
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
           invalid={showInvalidTop("dueDate")}
+          data-cy="due-date"
         />
+      </Section>
+
+      <Section title="Late submissions">
+        <Select
+          label="Policy"
+          value={latePolicyMode}
+          onChange={(e) => setLatePolicyMode(e.target.value)}
+          options={[
+            { value: "inherit", label: "Use course default" },
+            { value: "override", label: "Override for this assignment" },
+          ]}
+        />
+        {latePolicyMode === "inherit" ? (
+          <p style={{ color: "#555", marginTop: 8 }}>
+            {courseLatePolicySummary}
+          </p>
+        ) : (
+          <>
+            <Select
+              label="Allow late submissions?"
+              value={lateAllowLateSubmissions ? "yes" : "no"}
+              onChange={(event) =>
+                setLateAllowLateSubmissions(event.target.value === "yes")
+              }
+              options={[
+                { value: "yes", label: "Yes, accept late submissions" },
+                { value: "no", label: "No, close at the deadline" },
+              ]}
+            />
+            {lateAllowLateSubmissions && (
+              <>
+                <Input
+                  label="Max lateness (hours)"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Leave blank for unlimited"
+                  value={lateMaxLatenessHours}
+                  onChange={(event) =>
+                    setLateMaxLatenessHours(event.target.value)
+                  }
+                />
+                {validationAttempted && latePolicyValidation.maxLateness && (
+                  <p style={{ color: "#b00020", marginTop: -8 }}>
+                    Max lateness must be between 0 and 10,000 minutes (about
+                    0‑167 hours). Enter 0 for unlimited.
+                  </p>
+                )}
+              </>
+            )}
+            <Input
+              label="Penalty percent"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              placeholder="Leave blank for no penalty"
+              value={latePenaltyPercent}
+              onChange={(event) => setLatePenaltyPercent(event.target.value)}
+            />
+            {validationAttempted && latePolicyValidation.penaltyPercent && (
+              <p style={{ color: "#b00020", marginTop: -8 }}>
+                Enter a penalty between 0 and 100.
+              </p>
+            )}
+            <Select
+              label="Penalty type"
+              value={latePenaltyType}
+              onChange={(event) => setLatePenaltyType(event.target.value)}
+              disabled={
+                latePenaltyPercent === "" || Number(latePenaltyPercent) <= 0
+              }
+              options={[
+                { value: "FLAT", label: "Flat penalty" },
+                { value: "PER_DAY", label: "Penalty per day" },
+              ]}
+            />
+          </>
+        )}
       </Section>
 
       {signatures.map((sig, idx) => (

@@ -49,6 +49,11 @@ model Course {
 
   billingScheme BillingScheme
   submissions Submission[]
+  assignments Assignment[]
+  latePolicyAllowLateSubmissions Boolean @default(true)
+  latePolicyMaxLatenessMinutes Int?
+  latePolicyPenaltyPercent Float?
+  latePolicyPenaltyType LatePenaltyType?
 }
 
 enum BillingScheme {
@@ -91,6 +96,8 @@ model Assignment {
   tolerancePercent Float
 
   dueDate DateTime?
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   submissions Submission[]
   signatures AssignmentSignature[]
@@ -98,11 +105,21 @@ model Assignment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deleted   Boolean  @default(false)
+  latePolicyInheritFromCourse Boolean @default(true)
+  latePolicyAllowLateSubmissions Boolean?
+  latePolicyMaxLatenessMinutes Int?
+  latePolicyPenaltyPercent Float?
+  latePolicyPenaltyType LatePenaltyType?
 }
 
 enum GradeVisibility {
   INSTANT
   ON_DUE_DATE
+}
+
+enum LatePenaltyType {
+  FLAT
+  PER_DAY
 }
 
 enum AssignmentSignatureType {
@@ -132,6 +149,7 @@ model Submission {
   feedback String?
   matchingSignatureId String?
   matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id], onDelete: Cascade)
+  unpenalizedGrade Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -151,7 +169,8 @@ model AssignmentSignature {
   centerOfMassX Float?
   centerOfMassY Float?
   centerOfMassZ Float?
-  screenshotB64 String?
+  screenshotKey String?
+  screenshotUrl String?
   feedback String?
   pointsAwarded Float?
 

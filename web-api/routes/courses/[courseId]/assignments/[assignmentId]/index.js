@@ -10,11 +10,16 @@ import {
   withSignedAssetUrlsMany,
 } from "../../../../../util/submissionAssets.js";
 import {
+  ensureSignatureScreenshotAssets,
+  withSignedSignatureScreenshots,
+} from "../../../../../util/signatureScreenshots.js";
+import {
   checkSignatureTrendsForAssignment,
   enqueueSignatureTrendCheck,
   rescoreSubmissionsAgainstSignatures,
 } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
+import { buildAssignmentLatePolicyUpdate } from "../../../../../services/latePolicy.js";
 
 const signaturesInclude = {
   signatures: {
@@ -42,15 +47,17 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const readAssignment = async (assignmentId) => {
+const readAssignment = async (assignmentId, courseId = null) => {
   if (!assignmentId) return null;
-  return prisma.assignment.findFirst({
+  const assignment = await prisma.assignment.findFirst({
     where: {
       id: assignmentId,
       deleted: false,
+      ...(courseId ? { courseId } : {}),
     },
     include: signaturesInclude,
   });
+  return withSignedSignatureScreenshots(assignment);
 };
 
 const getSubmissionStats = async (courseId, assignmentId, pointsPossible) => {
@@ -141,7 +148,7 @@ export const get = [
       return res.status(404).json({ error: "Course enrollment not found." });
     }
 
-    const assignment = await readAssignment(assignmentId);
+    const assignment = await readAssignment(assignmentId, courseId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
@@ -274,7 +281,7 @@ export const patch = [
         .json({ error: "Only instructors can edit assignments." });
     }
 
-    const existingAssignment = await readAssignment(assignmentId);
+    const existingAssignment = await readAssignment(assignmentId, courseId);
     if (!existingAssignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }
@@ -287,6 +294,7 @@ export const patch = [
       tolerancePercent,
       dueDate,
       signatures,
+      latePolicy,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -332,6 +340,16 @@ export const patch = [
       throw error;
     }
 
+    let latePolicyData = null;
+    try {
+      latePolicyData = buildAssignmentLatePolicyUpdate(latePolicy);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -342,12 +360,13 @@ export const patch = [
     }
 
     try {
-      await prisma.$transaction(async (tx) => {
-        await tx.assignment.update({
-          where: { id: assignmentId },
-          data: {
-            name: trimmedName,
-            description: description?.trim() || null,
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.assignment.update({
+            where: { id: assignmentId },
+            data: {
+              name: trimmedName,
+              description: description?.trim() || null,
             unitSystem: firstCorrectSignature.unitSystem,
             pointsPossible: numericPoints,
             gradeVisibility,
@@ -355,6 +374,7 @@ export const patch = [
             surfaceArea: firstCorrectSignature.surfaceArea,
             tolerancePercent: numericTolerance,
             dueDate: dueDateValue,
+            ...latePolicyData,
           },
         });
 
@@ -409,6 +429,12 @@ export const patch = [
           });
         }
 
+        await ensureSignatureScreenshotAssets({
+          assignmentId,
+          signatures: normalizedSignatures,
+          existingSignatures,
+        });
+
         for (const [index, signature] of normalizedSignatures.entries()) {
           const sortOrder = index + 1;
           const signatureData = {
@@ -420,7 +446,8 @@ export const patch = [
             centerOfMassX: signature.centerOfMassX,
             centerOfMassY: signature.centerOfMassY,
             centerOfMassZ: signature.centerOfMassZ,
-            screenshotB64: signature.screenshotB64,
+            screenshotKey: signature.screenshotKey,
+            screenshotUrl: signature.screenshotUrl,
             feedback: signature.feedback,
             pointsAwarded: signature.pointsAwarded,
             deleted: false,
@@ -440,7 +467,11 @@ export const patch = [
             });
           }
         }
-      });
+      },
+      {
+        timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS || 15000),
+      }
+    );
     } catch (error) {
       if (error instanceof ValidationError) {
         return res.status(400).json({ error: error.message });
@@ -461,7 +492,7 @@ export const patch = [
       },
     });
 
-    const updatedAssignment = await readAssignment(assignmentId);
+    const updatedAssignment = await readAssignment(assignmentId, courseId);
 
     Promise.resolve()
       .then(() =>
@@ -515,7 +546,7 @@ export const del = [
         .json({ error: "Only instructors can delete assignments." });
     }
 
-    const existingAssignment = await readAssignment(assignmentId);
+    const existingAssignment = await readAssignment(assignmentId, courseId);
     if (!existingAssignment) {
       return res.status(404).json({ error: "Assignment not found." });
     }

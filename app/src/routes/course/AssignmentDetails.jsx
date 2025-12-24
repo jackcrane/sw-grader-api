@@ -9,6 +9,11 @@ import {
   getSubmissionGradeLabel,
   parseGradeValue,
 } from "../../utils/gradeUtils";
+import {
+  computeLateStatus,
+  describeLatePolicy,
+  resolveAssignmentLatePolicy,
+} from "../../utils/latePolicy";
 import styles from "./AssignmentDetails.module.css";
 
 const formatDateTime = (value) => {
@@ -62,7 +67,7 @@ const upsertSubmissionInList = (list, updated) => {
 };
 
 export const AssignmentDetails = () => {
-  const { courseId, enrollmentType } = useOutletContext();
+  const { courseId, enrollmentType, course } = useOutletContext();
   const { assignmentId } = useParams();
   const {
     assignment,
@@ -91,6 +96,8 @@ export const AssignmentDetails = () => {
     error: null,
     downloadUrl: null,
     downloadFilename: null,
+    unpenalizedGrade: null,
+    latePenaltyLabel: null,
   });
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
@@ -153,6 +160,22 @@ export const AssignmentDetails = () => {
 
   const dueDateLabel = formatDateTime(assignment?.dueDate);
   const graderOffline = graderOnline === false;
+  const resolvedLatePolicy = useMemo(
+    () => resolveAssignmentLatePolicy(assignment, course),
+    [assignment, course]
+  );
+  const latePolicySummary = useMemo(
+    () => describeLatePolicy(resolvedLatePolicy),
+    [resolvedLatePolicy]
+  );
+  const lateStatus = useMemo(
+    () =>
+      computeLateStatus({
+        dueDate: assignment?.dueDate ?? null,
+        policy: resolvedLatePolicy,
+      }),
+    [assignment?.dueDate, resolvedLatePolicy]
+  );
 
   const formatSubmissionGrade = useCallback(
     (submission) => {
@@ -165,6 +188,31 @@ export const AssignmentDetails = () => {
       });
     },
     [assignment]
+  );
+  const formatGradeWithPoints = useCallback(
+    (gradeValue) => {
+      const numeric = parseGradeValue(gradeValue);
+      if (numeric == null) return null;
+      const points = Number(assignment?.pointsPossible);
+      if (Number.isFinite(points)) {
+        return `${numeric}/${points}`;
+      }
+      return `${numeric}`;
+    },
+    [assignment]
+  );
+  const getLatePenaltyLabel = useCallback(
+    (submission) => {
+      const raw = parseGradeValue(submission?.unpenalizedGrade);
+      const graded = parseGradeValue(submission?.grade);
+      if (raw == null || graded == null) return null;
+      if (raw <= graded + 0.001) return null;
+      const original = formatGradeWithPoints(raw);
+      return original
+        ? `Late penalty applied (original score ${original}).`
+        : "Late penalty applied.";
+    },
+    [formatGradeWithPoints]
   );
 
   const stopQueueTracking = useCallback(() => {
@@ -202,6 +250,13 @@ export const AssignmentDetails = () => {
       return;
     }
 
+    if (lateStatus.locked) {
+      setUploadError(
+        "Late submissions are not accepted for this assignment."
+      );
+      return;
+    }
+
     setUploading(true);
     setAutoTrackEnabled(false);
     stopQueueTracking();
@@ -217,6 +272,8 @@ export const AssignmentDetails = () => {
       downloadUrl: null,
       downloadFilename: null,
       error: null,
+      unpenalizedGrade: null,
+      latePenaltyLabel: null,
     });
     setUploadError(null);
     setSuccessMessage(null);
@@ -273,6 +330,7 @@ export const AssignmentDetails = () => {
       }
       const successGradeValue = submissionPayload?.grade ?? null;
       if (!autoGradingPending) {
+        const penaltyLabel = getLatePenaltyLabel(submissionPayload);
         setPreviewModalState({
           status: "success",
           screenshotUrl: submissionPayload?.screenshotUrl ?? null,
@@ -284,6 +342,8 @@ export const AssignmentDetails = () => {
           downloadUrl: submissionPayload?.fileUrl ?? null,
           downloadFilename: submissionPayload?.fileName ?? null,
           error: null,
+          unpenalizedGrade: submissionPayload?.unpenalizedGrade ?? null,
+          latePenaltyLabel: penaltyLabel,
         });
       } else {
         setQueueStatus(() => {
@@ -315,6 +375,8 @@ export const AssignmentDetails = () => {
         downloadUrl: null,
         downloadFilename: null,
         error: err?.message || "Failed to upload submission.",
+        unpenalizedGrade: null,
+        latePenaltyLabel: null,
       });
     } finally {
       setUploading(false);
@@ -366,6 +428,7 @@ export const AssignmentDetails = () => {
       if (payload.state === "graded" && payload.submission) {
         const gradedSubmission = payload.submission;
         const gradeValue = parseGradeValue(gradedSubmission?.grade);
+        const penaltyLabel = getLatePenaltyLabel(gradedSubmission);
         setPreviewModalState({
           status: "success",
           screenshotUrl: gradedSubmission?.screenshotUrl ?? null,
@@ -378,6 +441,8 @@ export const AssignmentDetails = () => {
             gradedSubmission?.fileKey?.split?.("/")?.pop?.() ??
             null,
           error: null,
+          unpenalizedGrade: gradedSubmission?.unpenalizedGrade ?? null,
+          latePenaltyLabel: penaltyLabel,
         });
         setQueueStatus(null);
         setSuccessMessage("Submission graded.");
@@ -399,6 +464,8 @@ export const AssignmentDetails = () => {
           error:
             payload.error ||
             "Unable to monitor the grading request. Check your submissions list.",
+          unpenalizedGrade: null,
+          latePenaltyLabel: null,
         });
         setQueueStatus(payload);
         setAutoTrackEnabled(false);
@@ -418,6 +485,8 @@ export const AssignmentDetails = () => {
           error:
             payload.error ||
             "Grading is taking longer than expected. We'll keep working on it.",
+          unpenalizedGrade: null,
+          latePenaltyLabel: null,
         });
         setQueueStatus(payload);
         stopQueueTracking();
@@ -474,6 +543,8 @@ export const AssignmentDetails = () => {
         downloadUrl: null,
         downloadFilename: null,
         error: null,
+        unpenalizedGrade: null,
+        latePenaltyLabel: null,
       });
       if (submission?.id) {
         setAutoTrackEnabled(true);
@@ -483,6 +554,7 @@ export const AssignmentDetails = () => {
     }
 
     const previewGradeValue = parseGradeValue(submission?.grade);
+    const penaltyLabel = getLatePenaltyLabel(submission);
     setPreviewModalState({
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
@@ -497,6 +569,8 @@ export const AssignmentDetails = () => {
         submission?.fileKey?.split?.("/")?.pop?.() ||
         null,
       error: null,
+      unpenalizedGrade: submission?.unpenalizedGrade ?? null,
+      latePenaltyLabel: penaltyLabel,
     });
   };
 
@@ -629,11 +703,23 @@ export const AssignmentDetails = () => {
           <p className={styles.uploadHelper}>
             Submit a .sldprt file to get graded automatically.
           </p>
+          <p className={styles.latePolicyNote}>{latePolicySummary}</p>
           {graderOffline && (
             <p className={styles.statusWarning}>
               Auto-grading is temporarily offline. You can still submit, and
               we&rsquo;ll grade it automatically once the worker comes back
               online.
+            </p>
+          )}
+          {lateStatus.isLate && !lateStatus.locked && (
+            <p className={styles.statusWarning}>
+              This assignment is past due. A late penalty will be applied.
+            </p>
+          )}
+          {lateStatus.locked && (
+            <p className={styles.statusError}>
+              Submissions are closed. Late work is not accepted for this
+              assignment.
             </p>
           )}
           <input
@@ -642,8 +728,15 @@ export const AssignmentDetails = () => {
             onChange={handleFileChange}
             className={styles.fileInput}
           />
-          <Button onClick={handleSubmit} disabled={uploading}>
-            {uploading ? "Uploading..." : "Upload submission"}
+          <Button
+            onClick={handleSubmit}
+            disabled={uploading || lateStatus.locked}
+          >
+            {lateStatus.locked
+              ? "Submissions closed"
+              : uploading
+              ? "Uploading..."
+              : "Upload submission"}
           </Button>
           {uploadError && (
             <p className={`${styles.status} ${styles.statusError}`}>
@@ -695,6 +788,7 @@ export const AssignmentDetails = () => {
               const attemptNumber = sortedSubmissions.length - index;
               const timestamp =
                 submission?.updatedAt ?? submission?.createdAt ?? null;
+              const penaltyLabel = getLatePenaltyLabel(submission);
               const fileUrl = submission?.fileUrl;
               const fileName =
                 submission?.fileName ||
@@ -713,6 +807,11 @@ export const AssignmentDetails = () => {
                           <span>
                             Grade: {formatSubmissionGrade(submission)}
                           </span>
+                          {penaltyLabel && (
+                            <span className={styles.penaltyNote}>
+                              {penaltyLabel}
+                            </span>
+                          )}
                         </div>
                       </div>
                       {fileUrl && (
@@ -753,30 +852,40 @@ export const AssignmentDetails = () => {
             </p>
           </div>
           <div className={styles.teacherSubmissionList}>
-            {teacherSubmissions.map((submission, index) => (
-              <React.Fragment
-                key={submission?.id ?? `${submission?.userId}-${index}`}
-              >
-                <div className={styles.teacherSubmissionEntry}>
-                  <div className={styles.teacherSubmissionInfo}>
-                    <div className={styles.teacherSubmissionName}>
-                      {formatName(submission.user)}
+            {teacherSubmissions.map((submission, index) => {
+              const penaltyLabel = getLatePenaltyLabel(submission);
+              return (
+                <React.Fragment
+                  key={submission?.id ?? `${submission?.userId}-${index}`}
+                >
+                  <div className={styles.teacherSubmissionEntry}>
+                    <div className={styles.teacherSubmissionInfo}>
+                      <div className={styles.teacherSubmissionName}>
+                        {formatName(submission.user)}
+                      </div>
+                      <div className={styles.teacherSubmissionDetails}>
+                        <span>{formatDateTime(submission.updatedAt)}</span>
+                        <span>Grade: {formatSubmissionGrade(submission)}</span>
+                        <span>
+                          {formatAttemptCount(submission.attemptCount)}
+                        </span>
+                        {penaltyLabel && (
+                          <span className={styles.penaltyNote}>
+                            {penaltyLabel}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.teacherSubmissionDetails}>
-                      <span>{formatDateTime(submission.updatedAt)}</span>
-                      <span>Grade: {formatSubmissionGrade(submission)}</span>
-                      <span>{formatAttemptCount(submission.attemptCount)}</span>
-                    </div>
+                    <Button onClick={() => showSubmissionInModal(submission)}>
+                      View
+                    </Button>
                   </div>
-                  <Button onClick={() => showSubmissionInModal(submission)}>
-                    View
-                  </Button>
-                </div>
-                {index < teacherSubmissions.length - 1 && (
-                  <div className={styles.rowDivider} />
-                )}
-              </React.Fragment>
-            ))}
+                  {index < teacherSubmissions.length - 1 && (
+                    <div className={styles.rowDivider} />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         </>
       )}
@@ -798,6 +907,7 @@ export const AssignmentDetails = () => {
         error={previewModalState.error}
         queueStatus={queueStatus}
         onClose={closePreviewModal}
+        latePenaltyLabel={previewModalState.latePenaltyLabel}
       />
     </div>
   );

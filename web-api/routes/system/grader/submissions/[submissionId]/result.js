@@ -1,12 +1,17 @@
 import crypto from "node:crypto";
 import { prisma } from "#prisma";
-import { uploadObject } from "../../../../../util/s3.js";
+import { uploadObject, buildPublicUrl } from "../../../../../util/s3.js";
 import {
   bufferFromBase64,
   evaluateSubmissionAgainstSignatures,
+  buildSubmissionAssetKey,
 } from "../../../../../services/submissionUtils.js";
 import { enqueueSignatureTrendCheck } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
+import {
+  applyLatePolicyToGrade,
+  resolveLatePolicy,
+} from "../../../../../services/latePolicy.js";
 
 const signaturesInclude = {
   include: {
@@ -31,6 +36,16 @@ const deriveScreenshotKey = (fileKey) => {
   return parts.join("/");
 };
 
+const buildFallbackScreenshotKey = (submission) => {
+  return buildSubmissionAssetKey({
+    courseId: submission.courseId ?? "course",
+    assignmentId: submission.assignmentId ?? "assignment",
+    userId: submission.userId ?? "user",
+    type: "screenshot",
+    extension: ".png",
+  });
+};
+
 const verifyGraderSecret = (req, res, next) => {
   const secret = process.env.GRADER_SHARED_SECRET?.trim();
   if (!secret) return next();
@@ -50,6 +65,7 @@ const readSubmission = async (submissionId) => {
     },
     include: {
       assignment: signaturesInclude,
+      course: true,
     },
   });
 };
@@ -116,15 +132,16 @@ export const post = [
           "The grader was unable to process this submission.";
         await prisma.submission.update({
           where: { id: submissionId },
-          data: {
-            volume: null,
-            surfaceArea: null,
-            grade: 0,
-            feedback: failureMessage,
-            matchingSignatureId: null,
-            screenshotKey: null,
-            screenshotUrl: null,
-            featureTree: null,
+        data: {
+          volume: null,
+          surfaceArea: null,
+          grade: 0,
+          unpenalizedGrade: null,
+          feedback: failureMessage,
+          matchingSignatureId: null,
+          screenshotKey: null,
+          screenshotUrl: null,
+          featureTree: null,
           },
         });
 
@@ -156,12 +173,28 @@ export const post = [
         tolerance,
       });
 
+      const lateResult = applyLatePolicyToGrade({
+        policy: resolveLatePolicy({
+          course: submission.course,
+          assignment: submission.assignment,
+        }),
+        submittedAt: submission.createdAt,
+        dueDate: submission.assignment?.dueDate ?? null,
+        rawGrade: evaluation.grade,
+      });
+      const finalGrade =
+        lateResult?.grade ?? evaluation.grade ?? null;
+      const unpenalizedGrade =
+        lateResult?.unpenalizedGrade ?? evaluation.grade ?? null;
+
       let screenshotKey = submission.screenshotKey ?? null;
       let screenshotUrl = submission.screenshotUrl ?? null;
       const screenshotBuffer = bufferFromBase64(screenshot ?? "");
       if (screenshotBuffer) {
         const targetKey =
-          deriveScreenshotKey(submission.fileKey) ?? submission.screenshotKey;
+          deriveScreenshotKey(submission.fileKey) ??
+          submission.screenshotKey ??
+          buildFallbackScreenshotKey(submission);
         if (targetKey) {
           try {
             const upload = await uploadObject({
@@ -179,13 +212,17 @@ export const post = [
           }
         }
       }
+      if (screenshotKey && !screenshotUrl) {
+        screenshotUrl = buildPublicUrl(screenshotKey) ?? screenshotUrl;
+      }
 
       await prisma.submission.update({
         where: { id: submissionId },
         data: {
           volume: measuredVolume,
           surfaceArea: measuredSurfaceArea,
-          grade: evaluation.grade,
+          grade: finalGrade,
+          unpenalizedGrade,
           feedback: evaluation.feedback ?? null,
           matchingSignatureId: evaluation.matchingSignatureId ?? null,
           screenshotKey,
@@ -206,16 +243,20 @@ export const post = [
           submissionId,
           assignmentId: submission.assignmentId,
           courseId: submission.courseId ?? null,
-          grade: evaluation.grade,
+          grade: finalGrade,
+          unpenalizedGrade,
           matchingSignatureId: evaluation.matchingSignatureId ?? null,
+          latePenaltyReason: lateResult?.reason ?? null,
         },
       });
 
       return res.status(200).json({
         ok: true,
         submissionId,
-        grade: evaluation.grade,
+        grade: finalGrade,
         matchedSignatureId: evaluation.matchingSignatureId ?? null,
+        unpenalizedGrade,
+        latePenaltyReason: lateResult?.reason ?? null,
       });
     } catch (error) {
       console.error(

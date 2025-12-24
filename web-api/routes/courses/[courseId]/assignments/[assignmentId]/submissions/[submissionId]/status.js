@@ -25,18 +25,20 @@ const ensureEnrollment = async (userId, courseId) => {
   });
 };
 
-const fetchSubmission = async (submissionId, assignmentId) => {
+const fetchSubmission = async (submissionId, assignmentId, courseId = null) => {
   if (!submissionId || !assignmentId) return null;
   return prisma.submission.findFirst({
     where: {
       id: submissionId,
       assignmentId,
       deleted: false,
+      ...(courseId ? { courseId } : {}),
     },
     select: {
       id: true,
       userId: true,
       grade: true,
+      unpenalizedGrade: true,
       feedback: true,
       matchingSignatureId: true,
       fileKey: true,
@@ -123,7 +125,11 @@ export const get = [
 
     const start = Date.now();
     while (Date.now() - start < STREAM_TIMEOUT_MS) {
-      const submission = await fetchSubmission(submissionId, assignmentId);
+      const submission = await fetchSubmission(
+        submissionId,
+        assignmentId,
+        courseId
+      );
       if (!submission) {
         yield {
           event: "status",

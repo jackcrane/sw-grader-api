@@ -10,10 +10,12 @@ export const Section = ({
   children,
   className = "",
   last,
+  ...props
 }) => {
   return (
     <div
       className={classnames(styles.container, className, last && styles.last)}
+      {...props}
     >
       <div className={classnames(styles.section)}>
         <div className={classnames(styles.subsection, styles.title)}>

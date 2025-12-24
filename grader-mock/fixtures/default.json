@@ -1,0 +1,3 @@
+{
+  "error": "No grader fixture was found for this submission. Add a JSON file in grader-mock/fixtures named after the part file (without extension)."
+}

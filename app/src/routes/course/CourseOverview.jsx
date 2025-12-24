@@ -7,6 +7,7 @@ export const CourseOverview = () => {
   const outletContext = {
     courseId: enrollment.courseId,
     enrollmentType: enrollment.type,
+    course: enrollment.course,
   };
 
   return (
@@ -14,6 +15,7 @@ export const CourseOverview = () => {
       <AssignmentList
         courseId={enrollment.courseId}
         enrollmentType={enrollment.type}
+        course={enrollment.course}
         detailsPane={<Outlet context={outletContext} />}
       />
     </div>

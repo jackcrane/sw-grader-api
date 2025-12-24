@@ -6,6 +6,11 @@ import {
   normalizeSignaturesPayload,
 } from "./validation.js";
 import { posthog } from "../../../../util/posthog.js";
+import { buildAssignmentLatePolicyUpdate } from "../../../../services/latePolicy.js";
+import {
+  ensureSignatureScreenshotAssets,
+  withSignedSignatureScreenshots,
+} from "../../../../util/signatureScreenshots.js";
 const signatureInclude = {
   signatures: {
     where: {
@@ -13,6 +18,25 @@ const signatureInclude = {
     },
     orderBy: {
       sortOrder: "asc",
+    },
+    select: {
+      id: true,
+      assignmentId: true,
+      sortOrder: true,
+      type: true,
+      unitSystem: true,
+      volume: true,
+      surfaceArea: true,
+      centerOfMassX: true,
+      centerOfMassY: true,
+      centerOfMassZ: true,
+      screenshotKey: true,
+      screenshotUrl: true,
+      feedback: true,
+      pointsAwarded: true,
+      createdAt: true,
+      updatedAt: true,
+      deleted: true,
     },
   },
 };
@@ -46,6 +70,7 @@ export const get = [
     const assignments = await prisma.assignment.findMany({
       where: {
         deleted: false,
+        courseId,
       },
       orderBy: {
         createdAt: "desc",
@@ -53,7 +78,13 @@ export const get = [
       include: signatureInclude,
     });
 
-    return res.json(assignments);
+    const assignmentsWithSignedScreenshots = await Promise.all(
+      assignments.map((assignment) =>
+        withSignedSignatureScreenshots(assignment)
+      )
+    );
+
+    return res.json(assignmentsWithSignedScreenshots);
   },
 ];
 
@@ -82,6 +113,7 @@ export const post = [
       tolerancePercent,
       dueDate,
       signatures,
+      latePolicy,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -127,6 +159,16 @@ export const post = [
       throw error;
     }
 
+    let latePolicyData = null;
+    try {
+      latePolicyData = buildAssignmentLatePolicyUpdate(latePolicy);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -147,15 +189,24 @@ export const post = [
         surfaceArea: firstCorrectSignature.surfaceArea,
         tolerancePercent: numericTolerance,
         dueDate: dueDateValue,
+        courseId,
+        ...latePolicyData,
       },
+    });
+
+    await ensureSignatureScreenshotAssets({
+      assignmentId: assignment.id,
+      signatures: normalizedSignatures,
     });
 
     if (normalizedSignatures.length > 0) {
       await prisma.assignmentSignature.createMany({
-        data: normalizedSignatures.map(({ id: _id, ...signature }) => ({
-          ...signature,
-          assignmentId: assignment.id,
-        })),
+        data: normalizedSignatures.map(
+          ({ id: _id, screenshotB64: _b64, ...signature }) => ({
+            ...signature,
+            assignmentId: assignment.id,
+          })
+        ),
       });
       posthog.capture({
         distinctId: userId,
@@ -172,6 +223,9 @@ export const post = [
       where: { id: assignment.id },
       include: signatureInclude,
     });
+    const responsePayload = await withSignedSignatureScreenshots(
+      assignmentWithSignatures
+    );
 
     posthog.capture({
       distinctId: userId,
@@ -183,6 +237,6 @@ export const post = [
       },
     });
 
-    return res.status(201).json(assignmentWithSignatures);
+    return res.status(201).json(responsePayload);
   },
 ];

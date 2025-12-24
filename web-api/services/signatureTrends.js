@@ -1,9 +1,12 @@
 import { prisma } from "#prisma";
 import { evaluateSubmissionAgainstSignatures } from "./submissionUtils.js";
 import { withSignedAssetUrls } from "../util/submissionAssets.js";
-import { downloadObject } from "../util/s3.js";
 import { sendEmail } from "../util/postmark.js";
 import { posthog } from "../util/posthog.js";
+import {
+  applyLatePolicyToGrade,
+  resolveLatePolicy,
+} from "./latePolicy.js";
 
 const SIGNATURE_TREND_TYPE = "SIGNATURE_TREND";
 
@@ -41,26 +44,11 @@ const deriveThreshold = (studentCount) => {
   return studentCount < 20 ? 3 : 5;
 };
 
-const getScreenshotB64 = async (submission) => {
-  if (!submission?.screenshotKey) return null;
-  try {
-    const buffer = await downloadObject(submission.screenshotKey);
-    return buffer ? buffer.toString("base64") : null;
-  } catch (error) {
-    console.warn(
-      `Unable to download screenshot ${submission.screenshotKey}`,
-      error?.message || error
-    );
-    return null;
-  }
-};
-
 const buildSignatureSeed = async ({ submission, assignment }) => {
   const seed = {
     unitSystem: assignment?.unitSystem ?? null,
     volume: submission?.volume ?? null,
     surfaceArea: submission?.surfaceArea ?? null,
-    screenshotB64: null,
     screenshotUrl: submission?.screenshotUrl ?? null,
     trendKey: formatTrendKey(submission?.volume, submission?.surfaceArea),
   };
@@ -68,11 +56,6 @@ const buildSignatureSeed = async ({ submission, assignment }) => {
   const signed = await withSignedAssetUrls(submission);
   if (signed?.screenshotUrl) {
     seed.screenshotUrl = signed.screenshotUrl;
-  }
-
-  const b64 = await getScreenshotB64(submission);
-  if (b64) {
-    seed.screenshotB64 = b64;
   }
 
   return seed;
@@ -431,6 +414,7 @@ export const rescoreSubmissionsAgainstSignatures = async ({
           lastName: true,
         },
       },
+      course: true,
     },
   });
 
@@ -452,14 +436,27 @@ export const rescoreSubmissionsAgainstSignatures = async ({
       tolerance,
     });
 
+    const lateResult = applyLatePolicyToGrade({
+      policy: resolveLatePolicy({
+        course: submission.course ?? course,
+        assignment,
+      }),
+      submittedAt: submission.createdAt,
+      dueDate: assignment?.dueDate ?? null,
+      rawGrade: evaluation.grade,
+    });
+
     const nextData = {
-      grade: evaluation.grade,
+      grade: lateResult?.grade ?? evaluation.grade ?? null,
+      unpenalizedGrade:
+        lateResult?.unpenalizedGrade ?? evaluation.grade ?? null,
       feedback: evaluation.feedback ?? null,
       matchingSignatureId: evaluation.matchingSignatureId ?? null,
     };
 
     const shouldUpdate =
       gradeChanged(submission.grade, nextData.grade) ||
+      gradeChanged(submission.unpenalizedGrade, nextData.unpenalizedGrade) ||
       (submission.feedback ?? null) !== nextData.feedback ||
       (submission.matchingSignatureId ?? null) !== nextData.matchingSignatureId;
     const gradeValueChanged = gradeChanged(
@@ -491,40 +488,31 @@ export const rescoreSubmissionsAgainstSignatures = async ({
     });
 
     if (submission.user?.email) {
-      const assignmentName = assignment?.name || "an assignment";
-      const pointsPossible = assignment?.pointsPossible ?? null;
-      const gradeLabel =
-        nextData.grade == null
-          ? "Not graded"
-          : pointsPossible && Number.isFinite(pointsPossible)
-          ? `${nextData.grade}/${pointsPossible}`
-          : `${nextData.grade}`;
-      const prevGradeLabel =
-        submission.grade == null
-          ? "Not previously graded"
-          : pointsPossible && Number.isFinite(pointsPossible)
-          ? `${submission.grade}/${pointsPossible}`
-          : `${submission.grade}`;
-      const lines = [
+      const assignmentName = assignment?.name || "your assignment";
+      const body = [
         `Hi ${formatPersonName(submission.user)},`,
         "",
-        `We regraded your submission for ${assignmentName}.`,
-        `New grade: ${gradeLabel}`,
-        `Previous grade: ${prevGradeLabel}`,
-        "",
+        `Your submission for ${assignmentName} was updated.`,
+        "Log into FeatureBench to review the latest results.",
         course?.name ? `Course: ${course.name}` : null,
-        "",
-        "Thanks,",
-        "The FeatureBench team",
       ]
         .filter(Boolean)
         .join("\n");
 
-      await sendEmail({
-        to: submission.user.email,
-        subject: `Updated grade for ${assignmentName}`,
-        text: lines,
-      });
+      Promise.resolve()
+        .then(() =>
+          sendEmail({
+            to: submission.user.email,
+            subject: `Submission updated for ${assignmentName}`,
+            text: body,
+          })
+        )
+        .catch((error) => {
+          console.warn(
+            `Failed to send submission update email for ${submission.id}`,
+            error
+          );
+        });
     }
   }
 };

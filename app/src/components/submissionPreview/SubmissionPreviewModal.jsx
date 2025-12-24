@@ -34,6 +34,7 @@ export const SubmissionPreviewModal = ({
   error,
   queueStatus,
   onClose,
+  latePenaltyLabel,
 }) => {
   if (!open) return null;
 
@@ -126,6 +127,9 @@ export const SubmissionPreviewModal = ({
                 gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE
               )}
             </p>
+            {latePenaltyLabel && (
+              <p className={styles.penaltyNote}>{latePenaltyLabel}</p>
+            )}
             {feedback && (
               <div className={styles.feedback}>
                 <strong>Hint:</strong> {feedback}
