@@ -68,7 +68,6 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
     }
 
     const centerOfMass = signature?.centerOfMass ?? {};
-    const screenshotB64 = normalizeOptionalString(signature?.screenshotB64);
     const screenshotKey = normalizeOptionalString(signature?.screenshotKey);
     const screenshotUrl = normalizeOptionalString(signature?.screenshotUrl);
 
@@ -87,7 +86,6 @@ const normalizeSignaturesPayload = (rawSignatures, pointsPossible) => {
       centerOfMassX: parseOptionalNumber(centerOfMass?.x),
       centerOfMassY: parseOptionalNumber(centerOfMass?.y),
       centerOfMassZ: parseOptionalNumber(centerOfMass?.z),
-      screenshotB64,
       screenshotKey,
       screenshotUrl,
       feedback: signature?.feedback?.trim() || null,

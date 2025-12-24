@@ -201,10 +201,12 @@ export const post = [
 
     if (normalizedSignatures.length > 0) {
       await prisma.assignmentSignature.createMany({
-        data: normalizedSignatures.map(({ id: _id, ...signature }) => ({
-          ...signature,
-          assignmentId: assignment.id,
-        })),
+        data: normalizedSignatures.map(
+          ({ id: _id, screenshotB64: _b64, ...signature }) => ({
+            ...signature,
+            assignmentId: assignment.id,
+          })
+        ),
       });
       posthog.capture({
         distinctId: userId,

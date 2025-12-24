@@ -23,7 +23,6 @@ const getInitialPartDetails = () => ({
   volume: "",
   surfaceArea: "",
   centerOfMass: { x: "", y: "", z: "" },
-  screenshotB64: "",
   screenshotKey: "",
   screenshotUrl: "",
   units: {},
@@ -151,8 +150,7 @@ const SignatureSection = ({
                   y: data?.centerOfMass?.y ?? "",
                   z: data?.centerOfMass?.z ?? "",
                 },
-                screenshotB64: data?.screenshotB64 ?? "",
-                screenshotKey: "",
+                screenshotKey: data?.screenshotKey || "",
                 screenshotUrl: data?.screenshotUrl || "",
                 units: data?.units ?? {},
               },
@@ -462,13 +460,11 @@ export const CreateAssignmentModal = ({
                       ? ""
                       : String(signature.centerOfMassZ),
                 },
-                screenshotB64: signature.screenshotB64 ?? "",
                 screenshotKey: signature.screenshotKey ?? "",
                 screenshotUrl: signature.screenshotUrl ?? "",
                 units: signature.units ?? {},
               },
               prescanState:
-                signature.screenshotB64 ||
                 signature.screenshotUrl ||
                 signature.screenshotKey
                   ? "success"
@@ -556,9 +552,7 @@ export const CreateAssignmentModal = ({
       type: "INCORRECT",
       pointsAwarded: "0",
       prescanState:
-        injectedSignature.screenshotB64 ||
-        injectedSignature.screenshotUrl ||
-        injectedSignature.screenshotKey
+        injectedSignature.screenshotUrl || injectedSignature.screenshotKey
           ? "success"
           : "idle",
       prescanError: null,
@@ -575,7 +569,6 @@ export const CreateAssignmentModal = ({
             ? ""
             : String(injectedSignature.surfaceArea),
         centerOfMass: { x: "", y: "", z: "" },
-        screenshotB64: injectedSignature.screenshotB64 || "",
         screenshotKey: injectedSignature.screenshotKey || "",
         screenshotUrl: injectedSignature.screenshotUrl || "",
       },
@@ -747,7 +740,6 @@ export const CreateAssignmentModal = ({
         volume: Number(s.partDetails.volume),
         surfaceArea: Number(s.partDetails.surfaceArea),
         centerOfMass: s.partDetails.centerOfMass,
-        screenshotB64: s.partDetails.screenshotB64 || null,
         screenshotKey: s.partDetails.screenshotKey || null,
         screenshotUrl: s.partDetails.screenshotUrl || null,
         pointsAwarded:

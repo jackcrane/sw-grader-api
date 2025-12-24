@@ -446,7 +446,6 @@ export const patch = [
             centerOfMassX: signature.centerOfMassX,
             centerOfMassY: signature.centerOfMassY,
             centerOfMassZ: signature.centerOfMassZ,
-            screenshotB64: null,
             screenshotKey: signature.screenshotKey,
             screenshotUrl: signature.screenshotUrl,
             feedback: signature.feedback,

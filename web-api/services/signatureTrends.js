@@ -1,7 +1,6 @@
 import { prisma } from "#prisma";
 import { evaluateSubmissionAgainstSignatures } from "./submissionUtils.js";
 import { withSignedAssetUrls } from "../util/submissionAssets.js";
-import { downloadObject } from "../util/s3.js";
 import { sendEmail } from "../util/postmark.js";
 import { posthog } from "../util/posthog.js";
 import {
@@ -45,26 +44,11 @@ const deriveThreshold = (studentCount) => {
   return studentCount < 20 ? 3 : 5;
 };
 
-const getScreenshotB64 = async (submission) => {
-  if (!submission?.screenshotKey) return null;
-  try {
-    const buffer = await downloadObject(submission.screenshotKey);
-    return buffer ? buffer.toString("base64") : null;
-  } catch (error) {
-    console.warn(
-      `Unable to download screenshot ${submission.screenshotKey}`,
-      error?.message || error
-    );
-    return null;
-  }
-};
-
 const buildSignatureSeed = async ({ submission, assignment }) => {
   const seed = {
     unitSystem: assignment?.unitSystem ?? null,
     volume: submission?.volume ?? null,
     surfaceArea: submission?.surfaceArea ?? null,
-    screenshotB64: null,
     screenshotUrl: submission?.screenshotUrl ?? null,
     trendKey: formatTrendKey(submission?.volume, submission?.surfaceArea),
   };
@@ -72,11 +56,6 @@ const buildSignatureSeed = async ({ submission, assignment }) => {
   const signed = await withSignedAssetUrls(submission);
   if (signed?.screenshotUrl) {
     seed.screenshotUrl = signed.screenshotUrl;
-  }
-
-  const b64 = await getScreenshotB64(submission);
-  if (b64) {
-    seed.screenshotB64 = b64;
   }
 
   return seed;
