@@ -523,8 +523,8 @@ export const CourseGradebook = () => {
               cell == null
                 ? ""
                 : typeof cell === "number"
-                ? String(cell)
-                : String(cell);
+                  ? String(cell)
+                  : String(cell);
             const escaped = stringCell.replace(/"/g, '""');
             return /[",\n]/.test(stringCell) ? `"${escaped}"` : escaped;
           })
@@ -626,7 +626,7 @@ export const CourseGradebook = () => {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} data-cy={`gradebook-row-${row.name}`}>
                   <td className={styles.studentCell}>
                     {row.enrollmentId ? (
                       <Link
@@ -638,9 +638,6 @@ export const CourseGradebook = () => {
                     ) : (
                       <span className={styles.studentName}>{row.name}</span>
                     )}
-                    {/* <span className={styles.studentMeta}>
-                      {row.email} • {row.role}
-                    </span> */}
                   </td>
                   {row.grades.map((grade) => (
                     <td
@@ -651,6 +648,7 @@ export const CourseGradebook = () => {
                         [styles.gradeCellMissing]: grade.status === "missing",
                         [styles.gradeCellWaiting]: grade.status === "waiting",
                       })}
+                      data-cy={`gradebook-column-${grade.assignmentId}`}
                     >
                       <div className={styles.gradeCellInner}>
                         <div className={styles.gradeCellDetails}>
@@ -673,6 +671,7 @@ export const CourseGradebook = () => {
                                 className={styles.gradeCellIcon}
                                 disabled
                                 aria-label="Assignment missing"
+                                data-cy={`gradebook-missing-icon-${grade.assignmentId}`}
                               >
                                 <Prohibit size={16} />
                               </button>
@@ -686,6 +685,7 @@ export const CourseGradebook = () => {
                                 className={styles.gradeCellIcon}
                                 disabled
                                 aria-label="Awaiting grading"
+                                data-cy={`gradebook-waiting-icon-${grade.assignmentId}`}
                               >
                                 <Hourglass size={16} />
                               </button>
@@ -705,6 +705,7 @@ export const CourseGradebook = () => {
                                     grade.label
                                   )
                                 }
+                                data-cy={`gradebook-scored-button-${grade.assignmentId}`}
                               >
                                 <SignOut size={16} />
                               </button>

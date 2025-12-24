@@ -366,7 +366,11 @@ export const CourseRoster = () => {
             <div className={styles.sectionDivider} />
             <div className={styles.statsGrid}>
               {statsCards.map((card) => (
-                <div key={card.label} className={styles.statCard}>
+                <div
+                  key={card.label}
+                  className={styles.statCard}
+                  data-cy={`stat-${card.label}`}
+                >
                   <div className={styles.statLabel}>{card.label}</div>
                   <div className={styles.statValue}>{card.value}</div>
                   <div className={styles.statSubtext}>{card.subtext}</div>
@@ -447,7 +451,10 @@ export const CourseRoster = () => {
                         : "—";
                     return (
                       <React.Fragment key={assignment.id}>
-                        <div className={styles.gradeRow}>
+                        <div
+                          className={styles.gradeRow}
+                          data-cy={`grade-row-${assignment.name}`}
+                        >
                           <div style={{ flex: 1 }}>
                             <div className={styles.assignmentName}>
                               {assignment.name}

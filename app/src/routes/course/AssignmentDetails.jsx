@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
@@ -153,7 +159,9 @@ export const AssignmentDetails = () => {
   const latestSubmission = hasSubmission ? sortedSubmissions[0] : null;
   const pendingSubmission = useMemo(() => {
     if (!hasSubmission) return null;
-    return sortedSubmissions.find((submission) => submission?.grade == null) ?? null;
+    return (
+      sortedSubmissions.find((submission) => submission?.grade == null) ?? null
+    );
   }, [hasSubmission, sortedSubmissions]);
   const submissionTimestamp =
     latestSubmission?.updatedAt ?? latestSubmission?.createdAt;
@@ -251,9 +259,7 @@ export const AssignmentDetails = () => {
     }
 
     if (lateStatus.locked) {
-      setUploadError(
-        "Late submissions are not accepted for this assignment."
-      );
+      setUploadError("Late submissions are not accepted for this assignment.");
       return;
     }
 
@@ -501,7 +507,10 @@ export const AssignmentDetails = () => {
       setQueueStatus((prev) =>
         prev
           ? { ...prev, error: "Connection lost. Attempting to reconnect…" }
-          : { state: "queued", error: "Connection lost. Attempting to reconnect…" }
+          : {
+              state: "queued",
+              error: "Connection lost. Attempting to reconnect…",
+            }
       );
     };
 
@@ -688,7 +697,11 @@ export const AssignmentDetails = () => {
       {statsCards && !isStudent && (
         <div className={styles.statsGrid}>
           {statsCards.map((card) => (
-            <div key={card.label} className={styles.statCard}>
+            <div
+              key={card.label}
+              className={styles.statCard}
+              data-cy={`stat-${card.label}`}
+            >
               <div className={styles.statLabel}>{card.label}</div>
               <div className={styles.statValue}>{card.value}</div>
               <div className={styles.statSubtext}>{card.subtext}</div>
@@ -727,6 +740,7 @@ export const AssignmentDetails = () => {
             accept=".sldprt"
             onChange={handleFileChange}
             className={styles.fileInput}
+            data-cy="part-file"
           />
           <Button
             onClick={handleSubmit}
@@ -735,8 +749,8 @@ export const AssignmentDetails = () => {
             {lateStatus.locked
               ? "Submissions closed"
               : uploading
-              ? "Uploading..."
-              : "Upload submission"}
+                ? "Uploading..."
+                : "Upload submission"}
           </Button>
           {uploadError && (
             <p className={`${styles.status} ${styles.statusError}`}>
@@ -847,7 +861,8 @@ export const AssignmentDetails = () => {
             <div className={styles.sectionTitle}>Student submissions</div>
             <p className={styles.sectionMeta}>
               Latest submission from {teacherStudentCount} student
-              {teacherStudentCount === 1 ? "" : "s"} · {teacherTotalAttempts} attempt
+              {teacherStudentCount === 1 ? "" : "s"} · {teacherTotalAttempts}{" "}
+              attempt
               {teacherTotalAttempts === 1 ? "" : "s"}
             </p>
           </div>
@@ -858,7 +873,10 @@ export const AssignmentDetails = () => {
                 <React.Fragment
                   key={submission?.id ?? `${submission?.userId}-${index}`}
                 >
-                  <div className={styles.teacherSubmissionEntry}>
+                  <div
+                    className={styles.teacherSubmissionEntry}
+                    data-cy={`submission-${formatName(submission.user)}`}
+                  >
                     <div className={styles.teacherSubmissionInfo}>
                       <div className={styles.teacherSubmissionName}>
                         {formatName(submission.user)}
