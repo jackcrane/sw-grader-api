@@ -1412,10 +1412,10 @@ cross-spawn@^7.0.0:
     shebang-command "^2.0.0"
     which "^2.0.1"
 
-cypress-yaml-plugin@^0.1.13:
-  version "0.1.13"
-  resolved "https://registry.npmjs.org/cypress-yaml-plugin/-/cypress-yaml-plugin-0.1.13.tgz#7d9ec499e4a60c2bcb6d72718f537c9d7e6e7e09"
-  integrity sha512-yssBmu8Oq2QBLFvQkJbvTz4nsOcMWQL/K+0Uf0Ge3/fv2RIR+HY5LMfHuKWfSalA3Va24hFcpX2wRBbfDdkObA==
+cypress-yaml-plugin@^0.1.14:
+  version "0.1.14"
+  resolved "https://registry.npmjs.org/cypress-yaml-plugin/-/cypress-yaml-plugin-0.1.14.tgz#ea51c923ce4081a200be98e4538da4cb8d135af8"
+  integrity sha512-VJNL9Nvjn/tcoU6QFcZVBzsizx+fO8ItTsYYCcfKTcnvcnyb6/hd8Wzjmolgyw0HJ52afSQveiKQkXkf4t52Fw==
   dependencies:
     chalk "^5.3.0"
     commander "^12.1.0"

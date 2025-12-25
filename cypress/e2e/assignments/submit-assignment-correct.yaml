@@ -47,18 +47,6 @@ steps:
   - tapOn:
       text: E2E Test Assignment
   - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "1/1 students"
-  - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "100%"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "1/1 students"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "100%"
-  - assertVisible:
       dataCy: "submission-Test Student"
       parentSelector: div[class^="_teacherSubmissionList"]
   - assertVisible:

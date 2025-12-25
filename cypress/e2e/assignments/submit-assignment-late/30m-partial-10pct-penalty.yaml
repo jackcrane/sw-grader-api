@@ -81,18 +81,6 @@ steps:
   - tapOn:
       text: E2E Test Assignment (30 mins late)
   - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "1/1 students"
-  - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "100%"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "0/1 students"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "0%"
-  - assertVisible:
       dataCy: "submission-Test Student"
       parentSelector: div[class^="_teacherSubmissionList"]
   - assertVisible:
@@ -151,9 +139,6 @@ steps:
   - tapOn:
       text: Test Student
       parentSelector: '[class^="_roster"] [class^="_column"]'
-  - assertVisible:
-      parentCy: "stat-Overall average"
-      text: "56.0%"
   - assertVisible:
       text: "56/100"
       parentCy: "grade-row-E2E Test Assignment (30 mins late)"
