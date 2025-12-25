@@ -10,3 +10,4 @@
 - [ ] Option to keep [best|most recent] submissions for each assignment
 - [ ] Add ability to go forward and back through submissions
 - [ ] Add a chip in the assignments to show missing and late assignments
+- [ ] Add a normal CSV export, not just canvas
