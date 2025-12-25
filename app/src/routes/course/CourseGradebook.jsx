@@ -21,6 +21,7 @@ import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
 import {
   getSubmissionGradeLabel,
+  getLatePenaltyLabel,
   getSubmissionGradeStatus,
   parseGradeValue,
 } from "../../utils/gradeUtils";
@@ -239,6 +240,7 @@ const submissionPreviewInitialState = {
   feedback: null,
   error: null,
   queueStatus: null,
+  latePenaltyLabel: null,
 };
 
 export const CourseGradebook = () => {
@@ -351,10 +353,11 @@ export const CourseGradebook = () => {
       feedback: null,
       error: null,
       queueStatus: null,
+      latePenaltyLabel: null,
     });
   };
 
-  const showSubmissionPreview = (submission, gradeLabel) => {
+  const showSubmissionPreview = (submission, gradeLabel, pointsPossible = null) => {
     if (!submission) return;
     setPreviewModalOpen(true);
     setPreviewModalState({
@@ -367,6 +370,11 @@ export const CourseGradebook = () => {
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
       queueStatus: submission?.queueStatus ?? null,
+      latePenaltyLabel: getLatePenaltyLabel({
+        grade: submission?.grade,
+        unpenalizedGrade: submission?.unpenalizedGrade,
+        pointsPossible,
+      }),
     });
   };
 
@@ -383,7 +391,15 @@ export const CourseGradebook = () => {
       if (!submission) {
         throw new Error("No submission recorded for this assignment.");
       }
-      showSubmissionPreview(submission, gradeLabel);
+      const assignment =
+        assignments.find(
+          (item) => String(item.id) === String(assignmentId)
+        ) ?? null;
+      showSubmissionPreview(
+        submission,
+        gradeLabel,
+        assignment?.pointsPossible ?? null
+      );
     } catch (err) {
       setPreviewModalState({
         status: "error",
@@ -395,6 +411,7 @@ export const CourseGradebook = () => {
         feedback: null,
         error: err?.message || "Unable to load submission.",
         queueStatus: null,
+        latePenaltyLabel: null,
       });
     }
   };
@@ -847,6 +864,7 @@ export const CourseGradebook = () => {
         feedback={previewModalState.feedback}
         queueStatus={previewModalState.queueStatus}
         onClose={closePreviewModal}
+        latePenaltyLabel={previewModalState.latePenaltyLabel}
       />
     </section>
   );

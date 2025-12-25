@@ -13,6 +13,7 @@ import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import {
   getSubmissionGradeLabel,
+  getLatePenaltyLabel,
   parseGradeValue,
 } from "../../utils/gradeUtils";
 import {
@@ -197,30 +198,14 @@ export const AssignmentDetails = () => {
     },
     [assignment]
   );
-  const formatGradeWithPoints = useCallback(
-    (gradeValue) => {
-      const numeric = parseGradeValue(gradeValue);
-      if (numeric == null) return null;
-      const points = Number(assignment?.pointsPossible);
-      if (Number.isFinite(points)) {
-        return `${numeric}/${points}`;
-      }
-      return `${numeric}`;
-    },
-    [assignment]
-  );
-  const getLatePenaltyLabel = useCallback(
-    (submission) => {
-      const raw = parseGradeValue(submission?.unpenalizedGrade);
-      const graded = parseGradeValue(submission?.grade);
-      if (raw == null || graded == null) return null;
-      if (raw <= graded + 0.001) return null;
-      const original = formatGradeWithPoints(raw);
-      return original
-        ? `Late penalty applied (original score ${original}).`
-        : "Late penalty applied.";
-    },
-    [formatGradeWithPoints]
+  const computeLatePenaltyLabel = useCallback(
+    (submission) =>
+      getLatePenaltyLabel({
+        grade: submission?.grade,
+        unpenalizedGrade: submission?.unpenalizedGrade,
+        pointsPossible: assignment?.pointsPossible,
+      }),
+    [assignment?.pointsPossible]
   );
 
   const stopQueueTracking = useCallback(() => {
@@ -336,7 +321,7 @@ export const AssignmentDetails = () => {
       }
       const successGradeValue = submissionPayload?.grade ?? null;
       if (!autoGradingPending) {
-        const penaltyLabel = getLatePenaltyLabel(submissionPayload);
+        const penaltyLabel = computeLatePenaltyLabel(submissionPayload);
         setPreviewModalState({
           status: "success",
           screenshotUrl: submissionPayload?.screenshotUrl ?? null,
@@ -434,7 +419,7 @@ export const AssignmentDetails = () => {
       if (payload.state === "graded" && payload.submission) {
         const gradedSubmission = payload.submission;
         const gradeValue = parseGradeValue(gradedSubmission?.grade);
-        const penaltyLabel = getLatePenaltyLabel(gradedSubmission);
+        const penaltyLabel = computeLatePenaltyLabel(gradedSubmission);
         setPreviewModalState({
           status: "success",
           screenshotUrl: gradedSubmission?.screenshotUrl ?? null,
@@ -563,7 +548,7 @@ export const AssignmentDetails = () => {
     }
 
     const previewGradeValue = parseGradeValue(submission?.grade);
-    const penaltyLabel = getLatePenaltyLabel(submission);
+    const penaltyLabel = computeLatePenaltyLabel(submission);
     setPreviewModalState({
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
@@ -802,7 +787,7 @@ export const AssignmentDetails = () => {
               const attemptNumber = sortedSubmissions.length - index;
               const timestamp =
                 submission?.updatedAt ?? submission?.createdAt ?? null;
-              const penaltyLabel = getLatePenaltyLabel(submission);
+              const penaltyLabel = computeLatePenaltyLabel(submission);
               const fileUrl = submission?.fileUrl;
               const fileName =
                 submission?.fileName ||
@@ -868,7 +853,7 @@ export const AssignmentDetails = () => {
           </div>
           <div className={styles.teacherSubmissionList}>
             {teacherSubmissions.map((submission, index) => {
-              const penaltyLabel = getLatePenaltyLabel(submission);
+              const penaltyLabel = computeLatePenaltyLabel(submission);
               return (
                 <React.Fragment
                   key={submission?.id ?? `${submission?.userId}-${index}`}

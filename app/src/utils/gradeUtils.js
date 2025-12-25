@@ -14,6 +14,31 @@ const formatScoredLabel = (gradeValue, pointsPossible) => {
   return `${gradeValue}`;
 };
 
+export const formatScoreWithPoints = (score, pointsPossible) => {
+  const numericScore = parseGradeValue(score);
+  if (numericScore == null) return null;
+  const pointsNumber = Number(pointsPossible);
+  if (Number.isFinite(pointsNumber)) {
+    return `${numericScore}/${pointsNumber}`;
+  }
+  return `${numericScore}`;
+};
+
+export const getLatePenaltyLabel = ({
+  grade,
+  unpenalizedGrade,
+  pointsPossible,
+}) => {
+  const raw = parseGradeValue(unpenalizedGrade);
+  const penalized = parseGradeValue(grade);
+  if (raw == null || penalized == null) return null;
+  if (raw <= penalized + 0.001) return null;
+  const original = formatScoreWithPoints(unpenalizedGrade, pointsPossible);
+  return original
+    ? `Late penalty applied (original score ${original}).`
+    : "Late penalty applied.";
+};
+
 const isDueDatePassed = (dueDate) => {
   if (!dueDate) return false;
   const nextDate = new Date(dueDate).getTime();

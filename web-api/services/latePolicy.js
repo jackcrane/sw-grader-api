@@ -224,7 +224,10 @@ export const applyLatePolicyToGrade = ({
     return base;
   }
 
-  const maxMinutes = Number(policy.maxLatenessMinutes);
+  const maxMinutes =
+    policy.maxLatenessMinutes == null
+      ? null
+      : Number(policy.maxLatenessMinutes);
   base.minutesLate = lateness.minutesLate;
   base.isLate = true;
 
