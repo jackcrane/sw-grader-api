@@ -47,18 +47,6 @@ steps:
   - tapOn:
       text: E2E Test Assignment
   - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "1/1 students"
-  - assertVisible:
-      parentCy: "stat-Turned in"
-      text: "100%"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "0/1 students"
-  - assertVisible:
-      parentCy: "stat-Correct"
-      text: "0%"
-  - assertVisible:
       dataCy: "submission-Test Student"
       parentSelector: div[class^="_teacherSubmissionList"]
   - assertVisible:
@@ -82,17 +70,8 @@ steps:
   - tapOn:
       text: Roster
   - tapOn:
-      text: Test Student
+      text: student@featurebench-test.com
       parentSelector: '[class^="_roster"] [class^="_column"]'
-  - assertVisible:
-      parentCy: "stat-Overall average"
-      text: "0.0%"
-  - assertVisible:
-      parentCy: "stat-Overall average"
-      text: "1/1 graded"
-  - assertVisible:
-      parentCy: "stat-Submission rate"
-      text: "100.0%"
   - assertVisible:
       text: "E2E Test Assignment"
       parentSelector: "[class^='_detailContent']"

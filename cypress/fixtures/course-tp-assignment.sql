@@ -34,13 +34,13 @@ INSERT INTO "public"."AssignmentSignature" ("id", "assignmentId", "sortOrder", "
 ('cmjjg0nft0003qrmbeh7fnres', 'cmjjh4z2n0001qrmblp8k7s9e', 2, 'INCORRECT', 'SI', 2.990631582664338e-05, 0.01566438535520661, 1.747425647229148e-10, -0.005584063228028379, 0.003348343718129235, 'This is a test feedback', 70, '2025-12-24 03:17:16.074', '2025-12-24 03:17:16.074', 'f', 'analyzer/prescans/screenshots/test.no-chamfer-1766546235133-fb7d738e-f832-4cca-86fd-e803d1c71425.sldprt', 'https://jack-general.nyc3.digitaloceanspaces.com/analyzer/prescans/screenshots/test.no-chamfer-1766546235133-fb7d738e-f832-4cca-86fd-e803d1c71425.sldprt');
 
 INSERT INTO "public"."User" ("id", "email", "firstName", "lastName", "createdAt", "updatedAt", "canCreateCourses", "deleted", "passwordHash", "stripeCustomerId") VALUES
-('cmj9ffow70000qr6bagbe3d51', 'student1@featurebench-test.com', 'Test', 'Student 1', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
-('cmj9ffow70000qr6bagbe3d52', 'student2@featurebench-test.com', 'Test', 'Student 2', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
-('cmj9ffow70000qr6bagbe3d53', 'student3@featurebench-test.com', 'Test', 'Student 3', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
+('cmj9ffow70000qr6bagbe3d51', 'student1@featurebench-test.com', 'Test', 'Student 1', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
+('cmj9ffow70000qr6bagbe3d52', 'student2@featurebench-test.com', 'Test', 'Student 2', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
+('cmj9ffow70000qr6bagbe3d53', 'student3@featurebench-test.com', 'Test', 'Student 3', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
 ('cmj9ffow70000qr6bagbe3d54', 'student4@featurebench-test.com', 'Test', 'Student 4', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
 
 INSERT INTO "public"."Enrollment" ("id", "userId", "courseId", "type", "createdAt", "updatedAt", "deleted", "billingFollowUpResolvedAt") VALUES
 ('cmjewhjhh00302qrye2pu2mzr', 'cmj9ffow70000qr6bagbe3d51', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
 ('cmjewhjhh00302qrye7pu2mzr', 'cmj9ffow70000qr6bagbe3d52', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
 ('cmjewhjhh003k2qrye2pu2mzr', 'cmj9ffow70000qr6bagbe3d53', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
-('cmjewrjhh00302qrye2pu2mzr', 'cmj9ffow70000qr6bagbe3d54', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
+('cmjewrjhh00302qrye2pu2mzr', 'cmj9ffow70000qr6bagbe3d54', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL);
