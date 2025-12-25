@@ -148,6 +148,16 @@ registerCommand(
   }
 );
 
+registerCommand(
+  "sql",
+  (query) => {
+    return [`cy.task('sql', ${JSON.stringify(query)})`];
+  },
+  {
+    schema: z.string().min(1),
+  }
+);
+
 generateJsonSchema();
 // console.log(listRegisteredCommands());
 
@@ -469,6 +479,10 @@ export default defineConfig({
               `Expected to find 1 enrollment with userId ${userId} and a billingFollowUpResolvedAt within the last 60 seconds, but found ${enrollment.rowCount}`
             );
           }
+          return null;
+        },
+        sql: async (query) => {
+          await client.query(query);
           return null;
         },
       });
