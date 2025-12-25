@@ -325,7 +325,7 @@ export default defineConfig({
     screenshotsFolder: "cypress/screenshots",
     downloadsFolder: "cypress/downloads",
     retries: {
-      runMode: 2,
+      runMode: 1,
       openMode: 0,
     },
     viewportWidth: 1280,
