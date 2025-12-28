@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
@@ -7,6 +13,7 @@ import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import {
   getSubmissionGradeLabel,
+  getLatePenaltyLabel,
   parseGradeValue,
 } from "../../utils/gradeUtils";
 import {
@@ -153,7 +160,9 @@ export const AssignmentDetails = () => {
   const latestSubmission = hasSubmission ? sortedSubmissions[0] : null;
   const pendingSubmission = useMemo(() => {
     if (!hasSubmission) return null;
-    return sortedSubmissions.find((submission) => submission?.grade == null) ?? null;
+    return (
+      sortedSubmissions.find((submission) => submission?.grade == null) ?? null
+    );
   }, [hasSubmission, sortedSubmissions]);
   const submissionTimestamp =
     latestSubmission?.updatedAt ?? latestSubmission?.createdAt;
@@ -189,30 +198,14 @@ export const AssignmentDetails = () => {
     },
     [assignment]
   );
-  const formatGradeWithPoints = useCallback(
-    (gradeValue) => {
-      const numeric = parseGradeValue(gradeValue);
-      if (numeric == null) return null;
-      const points = Number(assignment?.pointsPossible);
-      if (Number.isFinite(points)) {
-        return `${numeric}/${points}`;
-      }
-      return `${numeric}`;
-    },
-    [assignment]
-  );
-  const getLatePenaltyLabel = useCallback(
-    (submission) => {
-      const raw = parseGradeValue(submission?.unpenalizedGrade);
-      const graded = parseGradeValue(submission?.grade);
-      if (raw == null || graded == null) return null;
-      if (raw <= graded + 0.001) return null;
-      const original = formatGradeWithPoints(raw);
-      return original
-        ? `Late penalty applied (original score ${original}).`
-        : "Late penalty applied.";
-    },
-    [formatGradeWithPoints]
+  const computeLatePenaltyLabel = useCallback(
+    (submission) =>
+      getLatePenaltyLabel({
+        grade: submission?.grade,
+        unpenalizedGrade: submission?.unpenalizedGrade,
+        pointsPossible: assignment?.pointsPossible,
+      }),
+    [assignment?.pointsPossible]
   );
 
   const stopQueueTracking = useCallback(() => {
@@ -251,9 +244,7 @@ export const AssignmentDetails = () => {
     }
 
     if (lateStatus.locked) {
-      setUploadError(
-        "Late submissions are not accepted for this assignment."
-      );
+      setUploadError("Late submissions are not accepted for this assignment.");
       return;
     }
 
@@ -330,7 +321,7 @@ export const AssignmentDetails = () => {
       }
       const successGradeValue = submissionPayload?.grade ?? null;
       if (!autoGradingPending) {
-        const penaltyLabel = getLatePenaltyLabel(submissionPayload);
+        const penaltyLabel = computeLatePenaltyLabel(submissionPayload);
         setPreviewModalState({
           status: "success",
           screenshotUrl: submissionPayload?.screenshotUrl ?? null,
@@ -428,7 +419,7 @@ export const AssignmentDetails = () => {
       if (payload.state === "graded" && payload.submission) {
         const gradedSubmission = payload.submission;
         const gradeValue = parseGradeValue(gradedSubmission?.grade);
-        const penaltyLabel = getLatePenaltyLabel(gradedSubmission);
+        const penaltyLabel = computeLatePenaltyLabel(gradedSubmission);
         setPreviewModalState({
           status: "success",
           screenshotUrl: gradedSubmission?.screenshotUrl ?? null,
@@ -501,7 +492,10 @@ export const AssignmentDetails = () => {
       setQueueStatus((prev) =>
         prev
           ? { ...prev, error: "Connection lost. Attempting to reconnect…" }
-          : { state: "queued", error: "Connection lost. Attempting to reconnect…" }
+          : {
+              state: "queued",
+              error: "Connection lost. Attempting to reconnect…",
+            }
       );
     };
 
@@ -554,7 +548,7 @@ export const AssignmentDetails = () => {
     }
 
     const previewGradeValue = parseGradeValue(submission?.grade);
-    const penaltyLabel = getLatePenaltyLabel(submission);
+    const penaltyLabel = computeLatePenaltyLabel(submission);
     setPreviewModalState({
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
@@ -688,7 +682,11 @@ export const AssignmentDetails = () => {
       {statsCards && !isStudent && (
         <div className={styles.statsGrid}>
           {statsCards.map((card) => (
-            <div key={card.label} className={styles.statCard}>
+            <div
+              key={card.label}
+              className={styles.statCard}
+              data-cy={`stat-${card.label}`}
+            >
               <div className={styles.statLabel}>{card.label}</div>
               <div className={styles.statValue}>{card.value}</div>
               <div className={styles.statSubtext}>{card.subtext}</div>
@@ -727,6 +725,7 @@ export const AssignmentDetails = () => {
             accept=".sldprt"
             onChange={handleFileChange}
             className={styles.fileInput}
+            data-cy="part-file"
           />
           <Button
             onClick={handleSubmit}
@@ -735,8 +734,8 @@ export const AssignmentDetails = () => {
             {lateStatus.locked
               ? "Submissions closed"
               : uploading
-              ? "Uploading..."
-              : "Upload submission"}
+                ? "Uploading..."
+                : "Upload submission"}
           </Button>
           {uploadError && (
             <p className={`${styles.status} ${styles.statusError}`}>
@@ -788,7 +787,7 @@ export const AssignmentDetails = () => {
               const attemptNumber = sortedSubmissions.length - index;
               const timestamp =
                 submission?.updatedAt ?? submission?.createdAt ?? null;
-              const penaltyLabel = getLatePenaltyLabel(submission);
+              const penaltyLabel = computeLatePenaltyLabel(submission);
               const fileUrl = submission?.fileUrl;
               const fileName =
                 submission?.fileName ||
@@ -847,18 +846,22 @@ export const AssignmentDetails = () => {
             <div className={styles.sectionTitle}>Student submissions</div>
             <p className={styles.sectionMeta}>
               Latest submission from {teacherStudentCount} student
-              {teacherStudentCount === 1 ? "" : "s"} · {teacherTotalAttempts} attempt
+              {teacherStudentCount === 1 ? "" : "s"} · {teacherTotalAttempts}{" "}
+              attempt
               {teacherTotalAttempts === 1 ? "" : "s"}
             </p>
           </div>
           <div className={styles.teacherSubmissionList}>
             {teacherSubmissions.map((submission, index) => {
-              const penaltyLabel = getLatePenaltyLabel(submission);
+              const penaltyLabel = computeLatePenaltyLabel(submission);
               return (
                 <React.Fragment
                   key={submission?.id ?? `${submission?.userId}-${index}`}
                 >
-                  <div className={styles.teacherSubmissionEntry}>
+                  <div
+                    className={styles.teacherSubmissionEntry}
+                    data-cy={`submission-${formatName(submission.user)}`}
+                  >
                     <div className={styles.teacherSubmissionInfo}>
                       <div className={styles.teacherSubmissionName}>
                         {formatName(submission.user)}

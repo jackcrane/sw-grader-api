@@ -14,6 +14,7 @@ import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
 import {
+  getLatePenaltyLabel,
   getSubmissionGradeLabel,
   parseGradeValue,
 } from "../../utils/gradeUtils";
@@ -80,6 +81,7 @@ const submissionPreviewInitialState = {
   downloadFilename: null,
   feedback: null,
   error: null,
+  latePenaltyLabel: null,
 };
 
 export const CourseRoster = () => {
@@ -149,7 +151,11 @@ export const CourseRoster = () => {
     setPreviewModalState(submissionPreviewInitialState);
   };
 
-  const showSubmissionPreview = (submission, gradeLabel) => {
+  const showSubmissionPreview = (
+    submission,
+    gradeLabel,
+    pointsPossible = null
+  ) => {
     setPreviewModalOpen(true);
     setPreviewModalState({
       status: "success",
@@ -160,6 +166,11 @@ export const CourseRoster = () => {
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
+      latePenaltyLabel: getLatePenaltyLabel({
+        grade: submission?.grade,
+        unpenalizedGrade: submission?.unpenalizedGrade,
+        pointsPossible,
+      }),
     });
   };
 
@@ -174,6 +185,7 @@ export const CourseRoster = () => {
       downloadFilename: null,
       feedback: null,
       error: null,
+      latePenaltyLabel: null,
     });
   };
 
@@ -289,7 +301,8 @@ export const CourseRoster = () => {
       }
       showSubmissionPreview(
         submission,
-        formatGradeLabel(submission.grade, assignment.pointsPossible)
+        formatGradeLabel(submission.grade, assignment.pointsPossible),
+        assignment.pointsPossible
       );
     } catch (err) {
       setPreviewModalState({
@@ -301,6 +314,7 @@ export const CourseRoster = () => {
         downloadFilename: null,
         feedback: null,
         error: err?.message || "Unable to load submission.",
+        latePenaltyLabel: null,
       });
     }
   };
@@ -366,7 +380,11 @@ export const CourseRoster = () => {
             <div className={styles.sectionDivider} />
             <div className={styles.statsGrid}>
               {statsCards.map((card) => (
-                <div key={card.label} className={styles.statCard}>
+                <div
+                  key={card.label}
+                  className={styles.statCard}
+                  data-cy={`stat-${card.label}`}
+                >
                   <div className={styles.statLabel}>{card.label}</div>
                   <div className={styles.statValue}>{card.value}</div>
                   <div className={styles.statSubtext}>{card.subtext}</div>
@@ -447,7 +465,10 @@ export const CourseRoster = () => {
                         : "—";
                     return (
                       <React.Fragment key={assignment.id}>
-                        <div className={styles.gradeRow}>
+                        <div
+                          className={styles.gradeRow}
+                          data-cy={`grade-row-${assignment.name}`}
+                        >
                           <div style={{ flex: 1 }}>
                             <div className={styles.assignmentName}>
                               {assignment.name}
@@ -500,6 +521,7 @@ export const CourseRoster = () => {
         error={previewModalState.error}
         feedback={previewModalState.feedback}
         onClose={closePreviewModal}
+        latePenaltyLabel={previewModalState.latePenaltyLabel}
       />
     </section>
   );

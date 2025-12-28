@@ -7,17 +7,71 @@ import {
 import { uploadObject, buildPublicUrl, getSignedDownloadUrl } from "./s3.js";
 import { ValidationError } from "../routes/courses/[courseId]/assignments/validation.js";
 
+const normalizeOptionalString = (value) =>
+  typeof value === "string" ? value.trim() || null : null;
+
+const stripUrlQueryAndHash = (value) => {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    return null;
+  }
+  try {
+    const parsed = new URL(normalized);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    const [withoutQuery] = normalized.split("?");
+    return withoutQuery || null;
+  }
+};
+
+const extractKeyFromUrl = (value) => {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) return null;
+  try {
+    const parsed = new URL(normalized);
+    const trimmedPath = (parsed.pathname || "").replace(/^\/+/, "");
+    return trimmedPath ? decodeURIComponent(trimmedPath) : null;
+  } catch {
+    const trimmed = normalized.replace(/^\/+/, "");
+    return trimmed || null;
+  }
+};
+
+const resolveScreenshotUrlForKey = ({
+  key,
+  uploadUrl = null,
+  payloadUrl = null,
+  existingUrl = null,
+}) => {
+  if (!key) return null;
+  const candidates = [
+    stripUrlQueryAndHash(uploadUrl),
+    stripUrlQueryAndHash(existingUrl),
+    stripUrlQueryAndHash(payloadUrl),
+  ];
+  for (const candidate of candidates) {
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return buildPublicUrl(key) ?? null;
+};
+
 const ensureSingleSignatureScreenshot = async ({
   assignmentId,
   signature,
   existingSignature,
   index,
 }) => {
-  const screenshotB64 = signature?.screenshotB64?.trim() || null;
-  const screenshotUrl =
-    typeof signature?.screenshotUrl === "string" && signature.screenshotUrl.trim()
-      ? signature.screenshotUrl.trim()
-      : null;
+  const screenshotB64 = normalizeOptionalString(signature?.screenshotB64);
+  const screenshotUrlValue = normalizeOptionalString(signature?.screenshotUrl);
+  const requestedKey = normalizeOptionalString(signature?.screenshotKey);
+  const inferredKey = extractKeyFromUrl(screenshotUrlValue);
+  const existingKey = normalizeOptionalString(existingSignature?.screenshotKey);
+  const existingUrl = normalizeOptionalString(existingSignature?.screenshotUrl);
+
   if (screenshotB64) {
     const buffer = bufferFromBase64(screenshotB64);
     if (!buffer) {
@@ -38,30 +92,34 @@ const ensureSingleSignatureScreenshot = async ({
       contentType: "image/png",
     });
     signature.screenshotKey = upload?.key ?? targetKey;
-    signature.screenshotUrl =
-      upload?.url ?? buildPublicUrl(signature.screenshotKey);
+    signature.screenshotUrl = resolveScreenshotUrlForKey({
+      key: signature.screenshotKey,
+      uploadUrl: upload?.url,
+      payloadUrl: screenshotUrlValue,
+      existingUrl,
+    });
     signature.screenshotB64 = null;
     return;
   }
 
-  if (signature?.screenshotKey) {
-    signature.screenshotUrl =
-      existingSignature?.screenshotUrl ??
-      buildPublicUrl(signature.screenshotKey);
+  const resolvedKey = requestedKey ?? inferredKey ?? null;
+  if (resolvedKey) {
+    signature.screenshotKey = resolvedKey;
+    signature.screenshotUrl = resolveScreenshotUrlForKey({
+      key: resolvedKey,
+      payloadUrl: screenshotUrlValue,
+      existingUrl,
+    });
     signature.screenshotB64 = null;
     return;
   }
 
-  if (screenshotUrl) {
-    signature.screenshotKey = signature.screenshotKey ?? null;
-    signature.screenshotUrl = screenshotUrl;
-    signature.screenshotB64 = null;
-    return;
-  }
-
-  if (existingSignature?.screenshotKey) {
-    signature.screenshotKey = existingSignature.screenshotKey;
-    signature.screenshotUrl = existingSignature.screenshotUrl;
+  if (existingKey) {
+    signature.screenshotKey = existingKey;
+    signature.screenshotUrl = resolveScreenshotUrlForKey({
+      key: existingKey,
+      existingUrl,
+    });
     signature.screenshotB64 = null;
     return;
   }

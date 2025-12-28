@@ -465,8 +465,7 @@ export const CreateAssignmentModal = ({
                 units: signature.units ?? {},
               },
               prescanState:
-                signature.screenshotUrl ||
-                signature.screenshotKey
+                signature.screenshotUrl || signature.screenshotKey
                   ? "success"
                   : "idle",
               prescanError: null,
@@ -924,6 +923,7 @@ export const CreateAssignmentModal = ({
                 { value: "yes", label: "Yes, accept late submissions" },
                 { value: "no", label: "No, close at the deadline" },
               ]}
+              data-cy="allow-late-submissions"
             />
             {lateAllowLateSubmissions && (
               <>
@@ -937,6 +937,7 @@ export const CreateAssignmentModal = ({
                   onChange={(event) =>
                     setLateMaxLatenessHours(event.target.value)
                   }
+                  data-cy="max-lateness"
                 />
                 {validationAttempted && latePolicyValidation.maxLateness && (
                   <p style={{ color: "#b00020", marginTop: -8 }}>
@@ -955,6 +956,7 @@ export const CreateAssignmentModal = ({
               placeholder="Leave blank for no penalty"
               value={latePenaltyPercent}
               onChange={(event) => setLatePenaltyPercent(event.target.value)}
+              data-cy="penalty-percent"
             />
             {validationAttempted && latePolicyValidation.penaltyPercent && (
               <p style={{ color: "#b00020", marginTop: -8 }}>
@@ -972,6 +974,7 @@ export const CreateAssignmentModal = ({
                 { value: "FLAT", label: "Flat penalty" },
                 { value: "PER_DAY", label: "Penalty per day" },
               ]}
+              data-cy="penalty-type"
             />
           </>
         )}

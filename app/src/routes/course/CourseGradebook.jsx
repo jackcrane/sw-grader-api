@@ -21,6 +21,7 @@ import { calculateAverageGrade } from "../../utils/calculateAverageGrade";
 import { fetchJson } from "../../utils/fetchJson";
 import {
   getSubmissionGradeLabel,
+  getLatePenaltyLabel,
   getSubmissionGradeStatus,
   parseGradeValue,
 } from "../../utils/gradeUtils";
@@ -239,6 +240,7 @@ const submissionPreviewInitialState = {
   feedback: null,
   error: null,
   queueStatus: null,
+  latePenaltyLabel: null,
 };
 
 export const CourseGradebook = () => {
@@ -351,10 +353,11 @@ export const CourseGradebook = () => {
       feedback: null,
       error: null,
       queueStatus: null,
+      latePenaltyLabel: null,
     });
   };
 
-  const showSubmissionPreview = (submission, gradeLabel) => {
+  const showSubmissionPreview = (submission, gradeLabel, pointsPossible = null) => {
     if (!submission) return;
     setPreviewModalOpen(true);
     setPreviewModalState({
@@ -367,6 +370,11 @@ export const CourseGradebook = () => {
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
       queueStatus: submission?.queueStatus ?? null,
+      latePenaltyLabel: getLatePenaltyLabel({
+        grade: submission?.grade,
+        unpenalizedGrade: submission?.unpenalizedGrade,
+        pointsPossible,
+      }),
     });
   };
 
@@ -383,7 +391,15 @@ export const CourseGradebook = () => {
       if (!submission) {
         throw new Error("No submission recorded for this assignment.");
       }
-      showSubmissionPreview(submission, gradeLabel);
+      const assignment =
+        assignments.find(
+          (item) => String(item.id) === String(assignmentId)
+        ) ?? null;
+      showSubmissionPreview(
+        submission,
+        gradeLabel,
+        assignment?.pointsPossible ?? null
+      );
     } catch (err) {
       setPreviewModalState({
         status: "error",
@@ -395,6 +411,7 @@ export const CourseGradebook = () => {
         feedback: null,
         error: err?.message || "Unable to load submission.",
         queueStatus: null,
+        latePenaltyLabel: null,
       });
     }
   };
@@ -523,8 +540,8 @@ export const CourseGradebook = () => {
               cell == null
                 ? ""
                 : typeof cell === "number"
-                ? String(cell)
-                : String(cell);
+                  ? String(cell)
+                  : String(cell);
             const escaped = stringCell.replace(/"/g, '""');
             return /[",\n]/.test(stringCell) ? `"${escaped}"` : escaped;
           })
@@ -626,7 +643,7 @@ export const CourseGradebook = () => {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} data-cy={`gradebook-row-${row.name}`}>
                   <td className={styles.studentCell}>
                     {row.enrollmentId ? (
                       <Link
@@ -638,9 +655,6 @@ export const CourseGradebook = () => {
                     ) : (
                       <span className={styles.studentName}>{row.name}</span>
                     )}
-                    {/* <span className={styles.studentMeta}>
-                      {row.email} • {row.role}
-                    </span> */}
                   </td>
                   {row.grades.map((grade) => (
                     <td
@@ -651,6 +665,7 @@ export const CourseGradebook = () => {
                         [styles.gradeCellMissing]: grade.status === "missing",
                         [styles.gradeCellWaiting]: grade.status === "waiting",
                       })}
+                      data-cy={`gradebook-column-${grade.assignmentId}`}
                     >
                       <div className={styles.gradeCellInner}>
                         <div className={styles.gradeCellDetails}>
@@ -673,6 +688,7 @@ export const CourseGradebook = () => {
                                 className={styles.gradeCellIcon}
                                 disabled
                                 aria-label="Assignment missing"
+                                data-cy={`gradebook-missing-icon-${grade.assignmentId}`}
                               >
                                 <Prohibit size={16} />
                               </button>
@@ -686,6 +702,7 @@ export const CourseGradebook = () => {
                                 className={styles.gradeCellIcon}
                                 disabled
                                 aria-label="Awaiting grading"
+                                data-cy={`gradebook-waiting-icon-${grade.assignmentId}`}
                               >
                                 <Hourglass size={16} />
                               </button>
@@ -705,6 +722,7 @@ export const CourseGradebook = () => {
                                     grade.label
                                   )
                                 }
+                                data-cy={`gradebook-scored-button-${grade.assignmentId}`}
                               >
                                 <SignOut size={16} />
                               </button>
@@ -846,6 +864,7 @@ export const CourseGradebook = () => {
         feedback={previewModalState.feedback}
         queueStatus={previewModalState.queueStatus}
         onClose={closePreviewModal}
+        latePenaltyLabel={previewModalState.latePenaltyLabel}
       />
     </section>
   );

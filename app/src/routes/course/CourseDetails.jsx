@@ -475,6 +475,7 @@ export const CourseDetails = () => {
                   { value: "yes", label: "Yes, accept late submissions" },
                   { value: "no", label: "No, close at the deadline" },
                 ]}
+                data-cy="allow-late-submissions"
               />
               {lateAllowLateSubmissions && (
                 <>
@@ -488,10 +489,12 @@ export const CourseDetails = () => {
                     onChange={(event) =>
                       setLateMaxLatenessHours(event.target.value)
                     }
+                    data-cy="max-lateness"
                   />
                   {latePolicyValidation.maxLateness && (
                     <p style={{ color: "#b00020", marginTop: -8 }}>
-                      Max lateness must be between 0 and 10,000 minutes (about 0‑167 hours). Enter 0 for unlimited.
+                      Max lateness must be between 0 and 10,000 minutes (about
+                      0‑167 hours). Enter 0 for unlimited.
                     </p>
                   )}
                 </>
@@ -505,6 +508,7 @@ export const CourseDetails = () => {
                 placeholder="Leave blank for no penalty"
                 value={latePenaltyPercent}
                 onChange={(event) => setLatePenaltyPercent(event.target.value)}
+                data-cy="penalty-percent"
               />
               {latePolicyValidation.penaltyPercent && (
                 <p style={{ color: "#b00020", marginTop: -8 }}>
@@ -522,6 +526,7 @@ export const CourseDetails = () => {
                   { value: "FLAT", label: "Flat penalty" },
                   { value: "PER_DAY", label: "Penalty per day" },
                 ]}
+                data-cy="penalty-type"
               />
               {latePolicyError && (
                 <p style={{ color: "#b00020" }}>{latePolicyError}</p>
