@@ -5,10 +5,12 @@
 - [ ] Add material data extraction in grader worker
 - [x] Teachers and TAs should not be charged
 - [ ] Add an option for a teacher to disallow new students from joining
-- [ ] Add an option to configure what teacher/ta should be the "primary" account that FeatureBench will email. There should be 2 settings: one for billing issues and one for other system notifications (trends etc)
+- [ ] Add an option to configure what teacher/ta should be the "primary" account that FeatureBench will email. There should be 2 settings: one for billing info & issues and one for other system notifications (trends etc)
 - [ ] allow changing payment information for enrollments and course creation
 - [ ] Option to keep [best|most recent] submissions for each assignment
 - [ ] Add ability to go forward and back through submissions
 - [ ] Add a chip in the assignments to show missing and late assignments
 - [ ] Add a normal CSV export, not just canvas
 - [ ] Tint late submissions blue in the gradebook
+- [ ] Disable create course button if data is invalid or missing
+- [ ] Add a billing history/balance on course settings for the teacher
