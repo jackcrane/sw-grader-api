@@ -27,7 +27,7 @@ steps:
       dataCy: penalty-type
       option: PER_DAY
   - tapOn:
-      text: Save late policy
+      text: Save course settings
   ##############################################################################
   # Modify assignment due date to 49 hrs ago; this puts us in the 3 days late state
   - sql: UPDATE "Assignment" SET "dueDate" = NOW() - INTERVAL '49 hours' WHERE "name" = 'E2E Test Assignment (30 mins late)'
