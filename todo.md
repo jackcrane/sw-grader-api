@@ -4,7 +4,7 @@
 - [ ] Add under definition detection in grader worker
 - [ ] Add material data extraction in grader worker
 - [x] Teachers and TAs should not be charged
-- [ ] Add an option for a teacher to disallow new students from joining
+- [x] Add an option for a teacher to disallow new students from joining
 - [ ] Add an option to configure what teacher/ta should be the "primary" account that FeatureBench will email. There should be 2 settings: one for billing info & issues and one for other system notifications (trends etc)
 - [ ] allow changing payment information for enrollments and course creation
 - [ ] Option to keep [best|most recent] submissions for each assignment
@@ -14,3 +14,5 @@
 - [ ] Tint late submissions blue in the gradebook
 - [ ] Disable create course button if data is invalid or missing
 - [ ] Add a billing history/balance on course settings for the teacher
+- [ ] Add a "You have unsaved changes" message to the course settings
+- [ ] Instead of "Course settings saved.", lets use a toast from "react-hot-toast" in the bottom right
