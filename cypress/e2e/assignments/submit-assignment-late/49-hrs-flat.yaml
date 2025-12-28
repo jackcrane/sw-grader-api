@@ -141,7 +141,7 @@ steps:
   - tapOn:
       text: Roster
   - tapOn:
-      text: Test Student
+      text: student@featurebench-test.com
       parentSelector: '[class^="_roster"] [class^="_column"]'
   - assertVisible:
       text: "56/100"
