@@ -2,6 +2,7 @@ import { prisma } from "#prisma";
 import { getStripeClient } from "../../util/stripe.js";
 import { sendEmail } from "../../util/postmark.js";
 import { scheduleEnrollmentFollowUps } from "../../services/enrollmentFollowUps.js";
+import { getActiveTaUserForCourse } from "../../services/courseContacts.js";
 import { posthog } from "../../util/posthog.js";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -145,6 +146,15 @@ const notifyTeacherOfFailedCharge = async (
         })
       : null;
 
+  const billingContactUserId = course?.primaryBillingContactUserId ?? null;
+  const billingContact =
+    billingContactUserId && course?.id
+      ? await getActiveTaUserForCourse({
+          courseId: course.id,
+          userId: billingContactUserId,
+        })
+      : null;
+
   const studentFirstName = student?.firstName?.trim();
   const teacherName = formatName(teacher) || "there";
   const courseName = course?.name ?? "your course";
@@ -162,31 +172,47 @@ const notifyTeacherOfFailedCharge = async (
     ? `We have still allowed ${studentFirstName} to join your class, but they will be automatically removed in 48 hours if you do not fix your payment method.`
     : "We have still allowed this student to join your class, but they will be automatically removed in 48 hours if you do not fix your payment method.";
 
-  const body = [
-    `Hi ${teacherName},`,
-    "",
-    intro,
-    `Stripe reported: ${failureMessage}`,
-    "",
-    warningSentence,
-    "",
-    "Please update your payment method in FeatureBench right away.",
-    "",
-    "Thanks,",
-    "The FeatureBench team",
-  ].join("\n");
+  const sendFailureEmailTo = async ({ recipient, recipientName, context }) => {
+    if (!recipient?.email) {
+      console.warn(
+        "Stripe webhook unable to send failure email: missing email",
+        { recipientId: recipient?.id ?? null, context }
+      );
+      return;
+    }
 
-  if (teacher?.email) {
+    const emailBody = [
+      `Hi ${recipientName},`,
+      "",
+      intro,
+      `Stripe reported: ${failureMessage}`,
+      "",
+      warningSentence,
+      "",
+      "Please update your payment method in FeatureBench right away.",
+      "",
+      "Thanks,",
+      "The FeatureBench team",
+    ].join("\n");
+
     await sendEmail({
-      to: teacher.email,
+      to: recipient.email,
       subject: `Action needed: Unable to charge for ${courseName}`,
-      text: body,
+      text: emailBody,
     });
-  } else {
-    console.warn(
-      "Stripe webhook unable to send failure email: missing teacher email",
-      { teacherId }
-    );
+  };
+
+  await sendFailureEmailTo({
+    recipient: teacher,
+    recipientName: teacherName,
+    context: "teacher",
+  });
+  if (billingContact?.id && billingContact.id !== teacherId) {
+    await sendFailureEmailTo({
+      recipient: billingContact,
+      recipientName: formatName(billingContact) || "there",
+      context: "billing_contact",
+    });
   }
 
   if (enrollment && student && course) {
@@ -199,15 +225,31 @@ const notifyTeacherOfFailedCharge = async (
   }
 
   if (isAuthenticationFailure && teacherId) {
-    await createTeacherPaymentNotification({
-      teacherId,
-      course,
-      student,
-      paymentIntentId: paymentIntent?.id,
-      intro,
-      warningSentence,
-      failureMessage,
-    });
+    const notificationTargets = [
+      createTeacherPaymentNotification({
+        teacherId,
+        course,
+        student,
+        paymentIntentId: paymentIntent?.id,
+        intro,
+        warningSentence,
+        failureMessage,
+      }),
+    ];
+    if (billingContact?.id && billingContact.id !== teacherId) {
+      notificationTargets.push(
+        createTeacherPaymentNotification({
+          teacherId: billingContact.id,
+          course,
+          student,
+          paymentIntentId: paymentIntent?.id,
+          intro,
+          warningSentence,
+          failureMessage,
+        })
+      );
+    }
+    await Promise.all(notificationTargets);
   }
 };
 

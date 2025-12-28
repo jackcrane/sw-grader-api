@@ -9,6 +9,7 @@ import { Modal } from "../../components/modal/Modal";
 import { SetupElement } from "../../components/stripe/SetupElement";
 import setupStyles from "../../components/stripe/SetupElement.module.css";
 import { fetchJson } from "../../utils/fetchJson";
+import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { MonoSection, Section } from "../../components/form/Section";
 import {
   describeLatePolicy,
@@ -39,6 +40,14 @@ const billingSchemeCopy = {
     description:
       "Each student is charged $20 when they enroll. This billing scheme cannot be changed.",
   },
+};
+
+const formatStaffName = (user) => {
+  if (!user) return "Unnamed TA";
+  const first = user.firstName ?? "";
+  const last = user.lastName ?? "";
+  const full = `${first} ${last}`.trim();
+  return full || user.email || "Unnamed TA";
 };
 
 export const CourseDetails = () => {
@@ -75,6 +84,21 @@ export const CourseDetails = () => {
       }),
     [course]
   );
+  const taOptions = useMemo(() => {
+    return courseRoster
+      .filter((entry) => entry.type === "TA" && entry.user?.id)
+      .map((entry) => ({
+        value: entry.user.id,
+        label: formatStaffName(entry.user),
+      }));
+  }, [courseRoster]);
+  const notificationOptions = useMemo(
+    () => [
+      { value: "", label: "None (teacher only)" },
+      ...taOptions,
+    ],
+    [taOptions]
+  );
   const [lateAllowLateSubmissions, setLateAllowLateSubmissions] = useState(
     normalizedLatePolicy.allowLateSubmissions
   );
@@ -92,6 +116,19 @@ export const CourseDetails = () => {
   const [latePolicySaving, setLatePolicySaving] = useState(false);
   const [latePolicyError, setLatePolicyError] = useState(null);
   const [latePolicySuccess, setLatePolicySuccess] = useState(null);
+  const {
+    roster: courseRoster = [],
+    loading: rosterLoading,
+  } = useCourseRoster(courseId, { enabled: isTeacher });
+  const [billingContactSelection, setBillingContactSelection] = useState(
+    course?.primaryBillingContactUserId ?? ""
+  );
+  const [systemContactSelection, setSystemContactSelection] = useState(
+    course?.primarySystemContactUserId ?? ""
+  );
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationError, setNotificationError] = useState(null);
+  const [notificationSuccess, setNotificationSuccess] = useState(null);
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -117,6 +154,16 @@ export const CourseDetails = () => {
     );
     setLatePenaltyType(normalizedLatePolicy.penaltyType ?? "FLAT");
   }, [normalizedLatePolicy]);
+
+  useEffect(() => {
+    setBillingContactSelection(course?.primaryBillingContactUserId ?? "");
+    setSystemContactSelection(
+      course?.primarySystemContactUserId ?? ""
+    );
+  }, [
+    course?.primaryBillingContactUserId,
+    course?.primarySystemContactUserId,
+  ]);
 
   useEffect(() => {
     if (!isTeacher || course.billingScheme !== "PER_COURSE") {
@@ -245,6 +292,34 @@ export const CourseDetails = () => {
     }
   };
 
+  const handleSaveNotificationContacts = async () => {
+    setNotificationSaving(true);
+    setNotificationError(null);
+    setNotificationSuccess(null);
+    try {
+      await fetchJson(`/api/courses/${courseId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notificationContacts: {
+            billingContactId: billingContactSelection || null,
+            systemContactId: systemContactSelection || null,
+          },
+        }),
+      });
+      await refetchEnrollments?.();
+      setNotificationSuccess("Notification routing saved.");
+    } catch (err) {
+      setNotificationError(
+        err?.message || "Unable to save the notification routing settings."
+      );
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
   return (
     <div style={{ padding: 16 }}>
       <H2>Course details</H2>
@@ -351,6 +426,64 @@ export const CourseDetails = () => {
           </div>
         )}
       </Card>
+      {isTeacher && (
+        <>
+          <Spacer size={2} />
+          <Card>
+            <div style={{ marginBottom: 12 }}>
+              <strong>Notification routing</strong>
+              <p style={{ margin: "4px 0 0", color: "#555" }}>
+                Choose which teaching assistant should receive billing issues and
+                system updates. Selecting "None" keeps the teacher as the primary
+                recipient.
+              </p>
+            </div>
+            <Select
+              label="Billing notification recipient"
+              value={billingContactSelection}
+              onChange={(event) => setBillingContactSelection(event.target.value)}
+              options={notificationOptions}
+              disabled={rosterLoading}
+            />
+            <Spacer size={1} />
+            <Select
+              label="System notification recipient"
+              value={systemContactSelection}
+              onChange={(event) => setSystemContactSelection(event.target.value)}
+              options={notificationOptions}
+              disabled={rosterLoading}
+            />
+            {rosterLoading && (
+              <p style={{ margin: "8px 0 0", color: "#555" }}>
+                Loading teaching assistant list...
+              </p>
+            )}
+            {!rosterLoading && taOptions.length === 0 && (
+              <p style={{ margin: "8px 0 0", color: "#555" }}>
+                Invite teaching assistants before you can route notifications to
+                them.
+              </p>
+            )}
+            {notificationError && (
+              <p style={{ margin: "8px 0 0", color: "#b00020" }}>
+                {notificationError}
+              </p>
+            )}
+            {notificationSuccess && (
+              <p style={{ margin: "8px 0 0", color: "#0a7d29" }}>
+                {notificationSuccess}
+              </p>
+            )}
+            <Button
+              onClick={handleSaveNotificationContacts}
+              disabled={notificationSaving || rosterLoading}
+              style={{ marginTop: 12 }}
+            >
+              {notificationSaving ? "Saving..." : "Save notification routing"}
+            </Button>
+          </Card>
+        </>
+      )}
       {isTeacher &&
         (hasInviteCodes ? (
           <>

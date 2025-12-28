@@ -7,6 +7,7 @@ import {
   applyLatePolicyToGrade,
   resolveLatePolicy,
 } from "./latePolicy.js";
+import { getActiveTaUserForCourse } from "./courseContacts.js";
 
 const SIGNATURE_TREND_TYPE = "SIGNATURE_TREND";
 
@@ -276,6 +277,13 @@ export const checkSignatureTrendsForAssignment = async ({
   }
 
   const { course, studentCount, teachers } = await getCourseContext(courseId);
+  const systemContact =
+    course?.primarySystemContactUserId && course?.id
+      ? await getActiveTaUserForCourse({
+          courseId: course.id,
+          userId: course.primarySystemContactUserId,
+        })
+      : null;
   const threshold = deriveThreshold(studentCount);
 
   const activeKeys = new Set();
@@ -343,6 +351,47 @@ export const checkSignatureTrendsForAssignment = async ({
             },
           },
         });
+      }
+    }
+
+    const systemContactIsTeacher =
+      systemContact?.id &&
+      teachers.some(
+        (teacherEnrollment) =>
+          teacherEnrollment?.user?.id === systemContact.id
+      );
+
+    if (systemContact?.id && !systemContactIsTeacher) {
+      const notification = await upsertTrendNotification({
+        teacher: systemContact,
+        assignment,
+        courseId,
+        courseName: course?.name ?? null,
+        trendKey,
+        occurrenceCount: uniqueStudents,
+        signatureSeed,
+      });
+
+      if (notification) {
+        const emailAlreadySent =
+          notification?.data && notification.data.emailSent;
+        if (!emailAlreadySent) {
+          await sendTrendEmail({
+            teacher: systemContact,
+            assignment,
+            course,
+            occurrenceCount: uniqueStudents,
+          });
+          await prisma.notification.update({
+            where: { id: notification.id },
+            data: {
+              data: {
+                ...notification.data,
+                emailSent: true,
+              },
+            },
+          });
+        }
       }
     }
 
