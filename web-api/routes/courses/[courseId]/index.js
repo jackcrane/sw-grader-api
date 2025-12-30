@@ -4,7 +4,6 @@ import { normalizeLatePolicyInput } from "../../../services/latePolicy.js";
 import { ValidationError } from "../../../util/errors.js";
 import { posthog } from "../../../util/posthog.js";
 import { rescoreSubmissionsAgainstSignatures } from "../../../services/signatureTrends.js";
-import { getActiveTaEnrollment } from "../../../services/courseContacts.js";
 
 const ensureTeacherEnrollment = async (courseId, userId) => {
   if (!courseId || !userId) return null;
@@ -24,64 +23,6 @@ const ensureTeacherEnrollment = async (courseId, userId) => {
   });
 };
 
-const parseContactValue = (value) => {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed === "" ? null : trimmed;
-  }
-  return undefined;
-};
-
-const parseNotificationContacts = async (courseId, payload) => {
-  const buildField = async (fieldName, label) => {
-    if (!payload || typeof payload !== "object") {
-      return { provided: false };
-    }
-    if (!Object.prototype.hasOwnProperty.call(payload, fieldName)) {
-      return { provided: false };
-    }
-
-    const normalized = parseContactValue(payload[fieldName]);
-    if (normalized === undefined) {
-      throw new ValidationError(`${label} must be blank or a teaching assistant user.`);
-    }
-    if (normalized === null) {
-      return { provided: true, value: null };
-    }
-
-    const enrollment = await getActiveTaEnrollment({
-      courseId,
-      userId: normalized,
-    });
-    if (!enrollment) {
-      throw new ValidationError(
-        `${label} must reference an active teaching assistant for this course.`
-      );
-    }
-
-    return { provided: true, value: normalized };
-  };
-
-  const billingField = await buildField(
-    "billingContactId",
-    "Billing notification contact"
-  );
-  const systemField = await buildField(
-    "systemContactId",
-    "System notification contact"
-  );
-
-  return {
-    billingContactProvided: billingField.provided,
-    billingContactId: billingField.value ?? null,
-    systemContactProvided: systemField.provided,
-    systemContactId: systemField.value ?? null,
-  };
-};
-
 export const patch = [
   withAuth,
   async (req, res) => {
@@ -99,25 +40,13 @@ export const patch = [
       req.body && typeof req.body.latePolicy === "object"
         ? req.body.latePolicy
         : null;
-    const notificationPayload =
-      req.body && typeof req.body.notificationContacts === "object"
-        ? req.body.notificationContacts
-        : null;
 
     let normalizedPolicy = null;
-    let parsedContacts = {
-      billingContactProvided: false,
-      systemContactProvided: false,
-    };
 
     try {
       if (latePolicyInput) {
         normalizedPolicy = normalizeLatePolicyInput(latePolicyInput);
       }
-      parsedContacts = await parseNotificationContacts(
-        courseId,
-        notificationPayload
-      );
     } catch (error) {
       if (error instanceof ValidationError) {
         return res.status(400).json({ error: error.message });
@@ -142,14 +71,6 @@ export const patch = [
       updateData.latePolicyPenaltyType = normalizedPolicy.penaltyPercent
         ? normalizedPolicy.penaltyType
         : null;
-    }
-
-    if (parsedContacts.billingContactProvided) {
-      updateData.primaryBillingContactUserId =
-        parsedContacts.billingContactId;
-    }
-    if (parsedContacts.systemContactProvided) {
-      updateData.primarySystemContactUserId = parsedContacts.systemContactId;
     }
 
     if (!Object.keys(updateData).length) {
@@ -209,24 +130,6 @@ export const patch = [
           penaltyType: normalizedPolicy.penaltyPercent
             ? normalizedPolicy.penaltyType
             : null,
-        },
-      });
-    }
-
-    if (
-      parsedContacts.billingContactProvided ||
-      parsedContacts.systemContactProvided
-    ) {
-      posthog.capture({
-        distinctId: userId,
-        event: "course notification contacts updated",
-        properties: {
-          courseId,
-          billingContactId:
-            updatedCourse.primaryBillingContactUserId ?? null,
-          systemContactId: updatedCourse.primarySystemContactUserId ?? null,
-          billingContactUpdated: parsedContacts.billingContactProvided,
-          systemContactUpdated: parsedContacts.systemContactProvided,
         },
       });
     }

@@ -47,9 +47,11 @@ model Course {
   enrollments Enrollment[]
   deleted     Boolean  @default(false)
 
-  billingScheme                 BillingScheme
-  primaryBillingContactUserId   String?
-  primarySystemContactUserId    String?
+  billingScheme                   BillingScheme
+  primaryBillingContactUserId     String?
+  primarySystemContactUserId      String?
+  primaryTeacherUserId            String?
+  hidePaymentInfoFromOtherTeachers Boolean @default(false)
   submissions Submission[]
   assignments Assignment[]
   latePolicyAllowLateSubmissions Boolean @default(true)

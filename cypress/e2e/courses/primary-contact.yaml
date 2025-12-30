@@ -1,0 +1,50 @@
+name: Test assigning another admin contact
+seedFile: fixtures/course-tp-assignment.sql
+steps:
+  ##############################################################################
+  # Setup: Add a new TA to the course
+  - authenticateUser:
+      username: ta@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - typeText:
+      placeholder: "e.g., STU-1A2B3C"
+      text: TA-E2E
+  - tapOn:
+      text: "Join course"
+  - assertVisible:
+      text: "E2E Test Course"
+  ##############################################################################
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: Course Details
+  - selectOption:
+      dataCy: additional-admin-select
+      option: "Test TA"
+      allowScroll: true
+  - tapOn:
+      text: "Save additional admin"
+  ##############################################################################
+  # Check that the new TA is the primary contact
+  - authenticateUser:
+      username: ta@featurebench-test.com
+      password: Password!
+  - open: /
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: Course Details

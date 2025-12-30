@@ -14,3 +14,4 @@
 - [ ] Tint late submissions blue in the gradebook
 - [ ] Disable create course button if data is invalid or missing
 - [ ] Add a billing history/balance on course settings for the teacher
+- [ ] Invite codes should always be visible

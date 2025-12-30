@@ -33,6 +33,48 @@ const readEnrollment = async (courseId, enrollmentId) => {
   });
 };
 
+const cloneCourseNotifications = async ({
+  courseId,
+  fromUserId,
+  toUserId,
+}) => {
+  if (
+    !courseId ||
+    !fromUserId ||
+    !toUserId ||
+    fromUserId === toUserId
+  ) {
+    return;
+  }
+  const notifications = await prisma.notification.findMany({
+    where: {
+      userId: fromUserId,
+      deleted: false,
+      readAt: null,
+      data: {
+        path: ["courseId"],
+        equals: courseId,
+      },
+    },
+  });
+  if (!notifications.length) {
+    return;
+  }
+  await Promise.all(
+    notifications.map((notification) =>
+      prisma.notification.create({
+        data: {
+          userId: toUserId,
+          type: notification.type,
+          title: notification.title,
+          content: notification.content,
+          data: notification.data,
+        },
+      })
+    )
+  );
+};
+
 const clearPaymentNotificationsForEnrollment = async ({
   courseId,
   studentId,
@@ -74,9 +116,10 @@ export const patch = [
       return res.status(400).json({ message: "Course and enrollment ids are required" });
     }
 
-    if (!["STUDENT", "TA"].includes(type)) {
+    const allowedTypes = ["STUDENT", "TA", "TEACHER"];
+    if (!allowedTypes.includes(type)) {
       return res.status(400).json({
-        message: "Type must be either STUDENT or TA",
+        message: `Type must be one of ${allowedTypes.join(", ")}`,
       });
     }
 
@@ -91,7 +134,7 @@ export const patch = [
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    if (targetEnrollment.type === "TEACHER") {
+    if (targetEnrollment.type === "TEACHER" && type !== "TA") {
       return res.status(400).json({ message: "Teachers cannot be reassigned via this endpoint" });
     }
 
@@ -106,6 +149,22 @@ export const patch = [
         user: true,
       },
     });
+
+    if (targetEnrollment.type !== "TEACHER" && type === "TEACHER") {
+      try {
+        await cloneCourseNotifications({
+          courseId,
+          fromUserId: userId,
+          toUserId: targetEnrollment.userId,
+        });
+      } catch (cloneError) {
+        console.warn(
+          "Failed to clone notifications to new admin",
+          cloneError,
+          { courseId, targetUserId: targetEnrollment.userId }
+        );
+      }
+    }
 
     posthog.capture({
       distinctId: userId,

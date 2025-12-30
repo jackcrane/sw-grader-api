@@ -52,7 +52,15 @@ const formatDateTime = (value) => {
   }
 };
 
-const nextRole = (type) => (type === "STUDENT" ? "TA" : "STUDENT");
+const getRoleAction = (type) => {
+  if (type === "STUDENT") {
+    return { label: "Promote to TA", nextType: "TA" };
+  }
+  if (type === "TA") {
+    return { label: "Demote to student", nextType: "STUDENT" };
+  }
+  return null;
+};
 
 const formatGradeLabel = (gradeValue, pointsPossible) => {
   const numeric = parseGradeValue(gradeValue);
@@ -192,6 +200,9 @@ export const CourseRoster = () => {
   const activeEnrollment = visibleRoster.find(
     (entry) => normalizeId(entry.id) === selectedEnrollmentId
   );
+  const roleAction = activeEnrollment
+    ? getRoleAction(activeEnrollment.type)
+    : null;
 
   const submissions = activeEnrollment?.submissions ?? [];
   const averageGrade = useMemo(
@@ -249,15 +260,12 @@ export const CourseRoster = () => {
   const canManageRoster =
     viewerEnrollmentType === "TEACHER" && !isViewingAsStudent;
 
-  const handleToggleRole = async () => {
-    if (!activeEnrollment) return;
+  const handleChangeRole = async (nextType) => {
+    if (!activeEnrollment || !nextType) return;
     setActionError(null);
     setPendingAction("role");
     try {
-      await updateEnrollmentType(
-        activeEnrollment.id,
-        nextRole(activeEnrollment.type)
-      );
+      await updateEnrollmentType(activeEnrollment.id, nextType);
     } catch (err) {
       setActionError(err?.message || "Failed to update roster role.");
     } finally {
@@ -396,22 +404,22 @@ export const CourseRoster = () => {
               <>
                 <div className={styles.sectionDivider} />
                 <div className={styles.manageSection}>
-                  <div>
-                    <div className={styles.sectionTitle}>Manage access</div>
-                    <p className={styles.sectionMeta}>
-                      Promote standout students to TAs or remove inactive
-                      accounts.
-                    </p>
-                  </div>
-                  <div className={styles.actions}>
-                    <Button
-                      onClick={handleToggleRole}
-                      disabled={pendingAction === "role"}
-                    >
-                      {activeEnrollment.type === "STUDENT"
-                        ? "Promote to TA"
-                        : "Demote to Student"}
-                    </Button>
+                <div>
+                  <div className={styles.sectionTitle}>Manage access</div>
+                  <p className={styles.sectionMeta}>
+                    Promote standout students to TAs, demote TAs back to
+                    students, or remove inactive accounts. Use Course Details to
+                    assign admin access.
+                  </p>
+                </div>
+                <div className={styles.actions}>
+                  <Button
+                    onClick={() => handleChangeRole(roleAction?.nextType)}
+                    disabled={pendingAction === "role" || !roleAction}
+                    data-cy="manage-role-button"
+                  >
+                    {roleAction?.label ?? "Update role"}
+                  </Button>
                     <Button
                       onClick={handleRemove}
                       disabled={pendingAction === "remove"}

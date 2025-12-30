@@ -10,7 +10,7 @@ import { SetupElement } from "../../components/stripe/SetupElement";
 import setupStyles from "../../components/stripe/SetupElement.module.css";
 import { fetchJson } from "../../utils/fetchJson";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
-import { MonoSection, Section } from "../../components/form/Section";
+import { Section } from "../../components/form/Section";
 import {
   describeLatePolicy,
   hoursToMinutesValue,
@@ -84,21 +84,6 @@ export const CourseDetails = () => {
       }),
     [course]
   );
-  const taOptions = useMemo(() => {
-    return courseRoster
-      .filter((entry) => entry.type === "TA" && entry.user?.id)
-      .map((entry) => ({
-        value: entry.user.id,
-        label: formatStaffName(entry.user),
-      }));
-  }, [courseRoster]);
-  const notificationOptions = useMemo(
-    () => [
-      { value: "", label: "None (teacher only)" },
-      ...taOptions,
-    ],
-    [taOptions]
-  );
   const [lateAllowLateSubmissions, setLateAllowLateSubmissions] = useState(
     normalizedLatePolicy.allowLateSubmissions
   );
@@ -116,19 +101,48 @@ export const CourseDetails = () => {
   const [latePolicySaving, setLatePolicySaving] = useState(false);
   const [latePolicyError, setLatePolicyError] = useState(null);
   const [latePolicySuccess, setLatePolicySuccess] = useState(null);
+  const canSeePaymentInfo = isTeacher && course.billingScheme === "PER_COURSE";
   const {
     roster: courseRoster = [],
     loading: rosterLoading,
+    updateEnrollmentType,
   } = useCourseRoster(courseId, { enabled: isTeacher });
-  const [billingContactSelection, setBillingContactSelection] = useState(
-    course?.primaryBillingContactUserId ?? ""
+  const [adminSelection, setAdminSelection] = useState("");
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminError, setAdminError] = useState(null);
+  const [adminSuccess, setAdminSuccess] = useState(null);
+  const taOptions = useMemo(
+    () =>
+      courseRoster
+        .filter((entry) => entry.type === "TA" && entry.user?.id)
+        .map((entry) => ({
+          value: entry.id,
+          label: formatStaffName(entry.user),
+        })),
+    [courseRoster]
   );
-  const [systemContactSelection, setSystemContactSelection] = useState(
-    course?.primarySystemContactUserId ?? ""
+  const additionalAdmin = useMemo(
+    () =>
+      courseRoster.find(
+        (entry) =>
+          entry.type === "TEACHER" && entry.user?.id !== enrollment?.userId
+      ),
+    [courseRoster, enrollment?.userId]
   );
-  const [notificationSaving, setNotificationSaving] = useState(false);
-  const [notificationError, setNotificationError] = useState(null);
-  const [notificationSuccess, setNotificationSuccess] = useState(null);
+  const additionalAdminOption = additionalAdmin
+    ? {
+        value: additionalAdmin.id,
+        label: formatStaffName(additionalAdmin.user),
+      }
+    : null;
+  const adminSelectOptions = useMemo(
+    () => [
+      { value: "", label: "None (teacher only)" },
+      ...(additionalAdminOption ? [additionalAdminOption] : []),
+      ...taOptions,
+    ],
+    [taOptions, additionalAdminOption]
+  );
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -154,16 +168,6 @@ export const CourseDetails = () => {
     );
     setLatePenaltyType(normalizedLatePolicy.penaltyType ?? "FLAT");
   }, [normalizedLatePolicy]);
-
-  useEffect(() => {
-    setBillingContactSelection(course?.primaryBillingContactUserId ?? "");
-    setSystemContactSelection(
-      course?.primarySystemContactUserId ?? ""
-    );
-  }, [
-    course?.primaryBillingContactUserId,
-    course?.primarySystemContactUserId,
-  ]);
 
   useEffect(() => {
     if (!isTeacher || course.billingScheme !== "PER_COURSE") {
@@ -199,6 +203,16 @@ export const CourseDetails = () => {
       isCancelled = true;
     };
   }, [isTeacher, course.billingScheme, paymentMethodRefreshIndex]);
+
+  useEffect(() => {
+    if (additionalAdmin) {
+      setAdminSelection((prev) =>
+        prev === additionalAdmin.id ? prev : additionalAdmin.id
+      );
+    } else {
+      setAdminSelection((prev) => (prev ? "" : prev));
+    }
+  }, [additionalAdmin]);
 
   const handleRegenerate = async (inviteType) => {
     if (!regenerateInviteCode) return;
@@ -292,31 +306,41 @@ export const CourseDetails = () => {
     }
   };
 
-  const handleSaveNotificationContacts = async () => {
-    setNotificationSaving(true);
-    setNotificationError(null);
-    setNotificationSuccess(null);
+  const handlePromoteToAdmin = async () => {
+    setAdminSaving(true);
+    setAdminError(null);
+    setAdminSuccess(null);
     try {
-      await fetchJson(`/api/courses/${courseId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          notificationContacts: {
-            billingContactId: billingContactSelection || null,
-            systemContactId: systemContactSelection || null,
-          },
-        }),
-      });
-      await refetchEnrollments?.();
-      setNotificationSuccess("Notification routing saved.");
+      if (!adminSelection) {
+        if (!additionalAdmin) {
+          setAdminError("No additional admin is assigned.");
+          return;
+        }
+        await updateEnrollmentType(additionalAdmin.id, "TA");
+        setAdminSuccess(
+          `${formatStaffName(additionalAdmin.user)} was removed from admin access.`
+        );
+        setAdminSelection("");
+        return;
+      }
+
+      if (adminSelection === additionalAdmin?.id) {
+        setAdminSuccess("The selected TA already has admin access.");
+        return;
+      }
+
+      const target = courseRoster.find((entry) => entry.id === adminSelection);
+      if (!target || target.type !== "TA") {
+        setAdminError("Select an available teaching assistant.");
+        return;
+      }
+
+      await updateEnrollmentType(adminSelection, "TEACHER");
+      setAdminSuccess(`${formatStaffName(target.user)} is now an admin.`);
     } catch (err) {
-      setNotificationError(
-        err?.message || "Unable to save the notification routing settings."
-      );
+      setAdminError(err?.message || "Unable to update admin assignment.");
     } finally {
-      setNotificationSaving(false);
+      setAdminSaving(false);
     }
   };
 
@@ -369,46 +393,52 @@ export const CourseDetails = () => {
             {course.billingScheme === "PER_COURSE" && (
               <>
                 <Spacer size={1} />
-                {paymentMethodLoading ? (
-                  <p style={{ margin: 0, color: "#555" }}>
-                    Loading payment method...
-                  </p>
-                ) : paymentMethod ? (
-                  <div className={setupStyles.cardSummary}>
-                    <p className={setupStyles.cardSummaryTitle}>
-                      Active payment method
-                    </p>
-                    <p className={setupStyles.cardSummaryMessage}>
-                      We will charge your{" "}
-                      {paymentMethod.brand
-                        ? paymentMethod.brand.charAt(0).toUpperCase() +
-                          paymentMethod.brand.slice(1)
-                        : "card"}{" "}
-                      ending in {paymentMethod.last4}.
-                    </p>
-                    <Button
-                      onClick={() => setBillingModalOpen(true)}
-                      style={{ marginTop: 12 }}
-                    >
-                      Update payment method
-                    </Button>
-                  </div>
-                ) : (
-                  <>
+                {canSeePaymentInfo ? (
+                  paymentMethodLoading ? (
                     <p style={{ margin: 0, color: "#555" }}>
-                      No payment method has been saved for this course yet.
+                      Loading payment method...
                     </p>
-                    <Spacer size={1} />
-                    <Button
-                      onClick={() => setBillingModalOpen(true)}
-                      style={smallButtonStyle}
-                      disabled={paymentMethodLoading}
-                    >
-                      Add payment method
-                    </Button>
-                  </>
+                  ) : paymentMethod ? (
+                    <div className={setupStyles.cardSummary}>
+                      <p className={setupStyles.cardSummaryTitle}>
+                        Active payment method
+                      </p>
+                      <p className={setupStyles.cardSummaryMessage}>
+                        We will charge your{" "}
+                        {paymentMethod.brand
+                          ? paymentMethod.brand.charAt(0).toUpperCase() +
+                            paymentMethod.brand.slice(1)
+                          : "card"}{" "}
+                        ending in {paymentMethod.last4}.
+                      </p>
+                      <Button
+                        onClick={() => setBillingModalOpen(true)}
+                        style={{ marginTop: 12 }}
+                      >
+                        Update payment method
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ margin: 0, color: "#555" }}>
+                        No payment method has been saved for this course yet.
+                      </p>
+                      <Spacer size={1} />
+                      <Button
+                        onClick={() => setBillingModalOpen(true)}
+                        style={smallButtonStyle}
+                        disabled={paymentMethodLoading}
+                      >
+                        Add payment method
+                      </Button>
+                    </>
+                  )
+                ) : (
+                  <p style={{ margin: 0, color: "#555" }}>
+                    Payment information is restricted to the primary admin.
+                  </p>
                 )}
-                {paymentMethodError && (
+                {paymentMethodError && canSeePaymentInfo && (
                   <>
                     <Spacer size={0.5} />
                     <p
@@ -431,164 +461,52 @@ export const CourseDetails = () => {
           <Spacer size={2} />
           <Card>
             <div style={{ marginBottom: 12 }}>
-              <strong>Notification routing</strong>
+              <strong>Additional admin</strong>
               <p style={{ margin: "4px 0 0", color: "#555" }}>
-                Choose which teaching assistant should receive billing issues and
-                system updates. Selecting "None" keeps the teacher as the primary
-                recipient.
+                Pick an existing TA from within your course to have admin
+                rights, including course configuration, modifying and creating
+                assignments, exporting grades, and more.
               </p>
             </div>
             <Select
-              label="Billing notification recipient"
-              value={billingContactSelection}
-              onChange={(event) => setBillingContactSelection(event.target.value)}
-              options={notificationOptions}
-              disabled={rosterLoading}
-            />
-            <Spacer size={1} />
-            <Select
-              label="System notification recipient"
-              value={systemContactSelection}
-              onChange={(event) => setSystemContactSelection(event.target.value)}
-              options={notificationOptions}
-              disabled={rosterLoading}
+              label="Pick an additional admin"
+              value={adminSelection}
+              onChange={(event) => {
+                setAdminSelection(event.target.value);
+                setAdminError(null);
+                setAdminSuccess(null);
+              }}
+              options={adminSelectOptions}
+              disabled={rosterLoading || adminSaving}
+              data-cy="additional-admin-select"
             />
             {rosterLoading && (
               <p style={{ margin: "8px 0 0", color: "#555" }}>
                 Loading teaching assistant list...
               </p>
             )}
-            {!rosterLoading && taOptions.length === 0 && (
-              <p style={{ margin: "8px 0 0", color: "#555" }}>
-                Invite teaching assistants before you can route notifications to
-                them.
+            {adminError && (
+              <p style={{ margin: "8px 0 0", color: "#c62828" }}>
+                {adminError}
               </p>
             )}
-            {notificationError && (
-              <p style={{ margin: "8px 0 0", color: "#b00020" }}>
-                {notificationError}
-              </p>
-            )}
-            {notificationSuccess && (
+            {adminSuccess && (
               <p style={{ margin: "8px 0 0", color: "#0a7d29" }}>
-                {notificationSuccess}
+                {adminSuccess}
               </p>
             )}
+            <Spacer size={0.5} />
             <Button
-              onClick={handleSaveNotificationContacts}
-              disabled={notificationSaving || rosterLoading}
-              style={{ marginTop: 12 }}
+              onClick={handlePromoteToAdmin}
+              disabled={adminSaving || rosterLoading}
+              data-cy="save-additional-admin"
+              isLoading={adminSaving}
             >
-              {notificationSaving ? "Saving..." : "Save notification routing"}
+              Save additional admin
             </Button>
           </Card>
         </>
       )}
-      {isTeacher &&
-        (hasInviteCodes ? (
-          <>
-            <Spacer size={2} />
-            <Card>
-              <div style={{ marginBottom: 12 }}>
-                <strong>Invite codes</strong>
-                <p style={{ margin: "4px 0 0", color: "#555" }}>
-                  Share the appropriate code depending on the role of the person
-                  joining the course.
-                </p>
-              </div>
-              {course.studentInviteCode && (
-                <div style={{ marginBottom: 16 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      textTransform: "uppercase",
-                      color: "#777",
-                    }}
-                  >
-                    Student code
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <code style={{ fontSize: 16 }}>
-                      {studentVisible
-                        ? course.studentInviteCode
-                        : maskCode(course.studentInviteCode)}
-                    </code>
-                    <Button
-                      onClick={() => setStudentVisible((prev) => !prev)}
-                      style={smallButtonStyle}
-                    >
-                      {studentVisible ? "Hide" : "Show"}
-                    </Button>
-                    <Button
-                      onClick={() => handleRegenerate("student")}
-                      disabled={studentLoading}
-                      style={smallButtonStyle}
-                    >
-                      {studentLoading ? "Regenerating..." : "Regenerate"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {course.taInviteCode && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      textTransform: "uppercase",
-                      color: "#777",
-                    }}
-                  >
-                    TA / instructor code
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <code style={{ fontSize: 16 }}>
-                      {taVisible
-                        ? course.taInviteCode
-                        : maskCode(course.taInviteCode)}
-                    </code>
-                    <Button
-                      onClick={() => setTaVisible((prev) => !prev)}
-                      style={smallButtonStyle}
-                    >
-                      {taVisible ? "Hide" : "Show"}
-                    </Button>
-                    <Button
-                      onClick={() => handleRegenerate("ta")}
-                      disabled={taLoading}
-                      style={smallButtonStyle}
-                    >
-                      {taLoading ? "Regenerating..." : "Regenerate"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </>
-        ) : (
-          <>
-            <Spacer size={2} />
-            <Card>
-              <p style={{ margin: 0, color: "#555" }}>
-                Invite codes will appear here once they are generated for this
-                course.
-              </p>
-            </Card>
-          </>
-        ))}
       <Spacer size={2} />
       <Card>
         <div>
