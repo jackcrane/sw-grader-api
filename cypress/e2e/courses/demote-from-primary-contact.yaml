@@ -50,5 +50,12 @@ steps:
       text: E2E Test Course
   - tapOn:
       text: Course Details
-  # - assertNotVisible:
-  #     text: "Late submission policy"
+  - assertNotVisible:
+      text: "Late submission policy"
+      mode: missing
+  - assertNotVisible:
+      text: "Billing Scheme"
+      mode: missing
+  - assertNotVisible:
+      text: "Additional admin"
+      mode: missing
