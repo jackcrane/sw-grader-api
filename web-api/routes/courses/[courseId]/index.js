@@ -53,6 +53,16 @@ export const patch = [
       }
       throw error;
     }
+    const allowNewEnrollmentsInput = req.body?.allowNewEnrollments;
+    if (
+      allowNewEnrollmentsInput !== undefined &&
+      typeof allowNewEnrollmentsInput !== "boolean"
+    ) {
+      return res.status(400).json({
+        error: "allow_new_enrollments_invalid",
+        message: "The new student access value must be true or false.",
+      });
+    }
 
     const course = await prisma.course.findFirst({
       where: { id: courseId, deleted: false },
@@ -119,20 +129,20 @@ export const patch = [
           );
         });
 
-      posthog.capture({
-        distinctId: userId,
-        event: "course late policy updated",
-        properties: {
-          courseId,
-          allowLateSubmissions: normalizedPolicy.allowLateSubmissions,
-          maxLatenessMinutes: normalizedPolicy.maxLatenessMinutes,
-          penaltyPercent: normalizedPolicy.penaltyPercent,
-          penaltyType: normalizedPolicy.penaltyPercent
-            ? normalizedPolicy.penaltyType
-            : null,
-        },
-      });
-    }
+    posthog.capture({
+      distinctId: userId,
+      event: "course settings updated",
+      properties: {
+        courseId,
+        allowLateSubmissions: normalizedPolicy.allowLateSubmissions,
+        maxLatenessMinutes: normalizedPolicy.maxLatenessMinutes,
+        penaltyPercent: normalizedPolicy.penaltyPercent,
+        penaltyType: normalizedPolicy.penaltyPercent
+          ? normalizedPolicy.penaltyType
+          : null,
+        allowNewEnrollments: updatedCourse.allowNewEnrollments,
+      },
+    });
 
     return res.json({ course: updatedCourse });
   },

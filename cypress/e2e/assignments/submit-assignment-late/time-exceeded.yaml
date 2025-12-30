@@ -24,7 +24,7 @@ steps:
       dataCy: penalty-percent
       text: "20" # percent
   - tapOn:
-      text: Save late policy
+      text: Save course settings
   ##############################################################################
   # Modify assignment due date to 25 hrs ago
   - sql: UPDATE "Assignment" SET "dueDate" = NOW() - INTERVAL '25 hours' WHERE "name" = 'E2E Test Assignment (30 mins late)'

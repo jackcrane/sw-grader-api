@@ -314,6 +314,23 @@ export const post = [
 
       if (
         courseAndType.enrollmentType === "STUDENT" &&
+        courseAndType.course.allowNewEnrollments === false
+      ) {
+        posthog.capture({
+          distinctId: userId,
+          event: "enrollment blocked by teacher",
+          properties: {
+            courseId: courseAndType.course.id,
+          },
+        });
+        return res.status(403).json({
+          error: "new_student_access_blocked",
+          message: "New students are not allowed to join this course right now.",
+        });
+      }
+
+      if (
+        courseAndType.enrollmentType === "STUDENT" &&
         courseAndType.course.billingScheme === "PER_STUDENT"
       ) {
         const coursePayload = {

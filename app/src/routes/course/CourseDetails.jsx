@@ -11,6 +11,7 @@ import setupStyles from "../../components/stripe/SetupElement.module.css";
 import { fetchJson } from "../../utils/fetchJson";
 import { useCourseRoster } from "../../hooks/useCourseRoster";
 import { Section } from "../../components/form/Section";
+import { SegmentedControl } from "../../components/segmentedControl/SegmentedControl";
 import {
   describeLatePolicy,
   hoursToMinutesValue,
@@ -49,6 +50,10 @@ const formatStaffName = (user) => {
   const full = `${first} ${last}`.trim();
   return full || user.email || "Unnamed TA";
 };
+const NEW_STUDENT_ACCESS_OPTIONS = [
+  { value: true, label: "Allow new enrollments" },
+  { value: false, label: "Block new enrollments" },
+];
 
 export const CourseDetails = () => {
   const {
@@ -157,6 +162,12 @@ export const CourseDetails = () => {
     ],
     [taOptions, additionalAdminOption]
   );
+  const [allowNewEnrollments, setAllowNewEnrollments] = useState(
+    course?.allowNewEnrollments ?? true
+  );
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState(null);
+  const [settingsSuccess, setSettingsSuccess] = useState(null);
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -185,6 +196,11 @@ export const CourseDetails = () => {
 
   useEffect(() => {
     if (!isPrimaryTeacher || course.billingScheme !== "PER_COURSE") {
+    setAllowNewEnrollments(course.allowNewEnrollments ?? true);
+  }, [course.allowNewEnrollments]);
+
+  useEffect(() => {
+    if (!isTeacher || course.billingScheme !== "PER_COURSE") {
       return;
     }
 
@@ -281,15 +297,15 @@ export const CourseDetails = () => {
     };
   }, [lateMaxLatenessHours, latePenaltyPercent]);
 
-  const handleSaveLatePolicy = async () => {
+  const handleSaveCourseSettings = async () => {
     if (latePolicyValidation.invalid) {
-      setLatePolicyError("Fix the highlighted late policy fields.");
-      setLatePolicySuccess(null);
+      setSettingsError("Fix the highlighted late policy fields.");
+      setSettingsSuccess(null);
       return;
     }
-    setLatePolicySaving(true);
-    setLatePolicyError(null);
-    setLatePolicySuccess(null);
+    setSettingsSaving(true);
+    setSettingsError(null);
+    setSettingsSuccess(null);
     try {
       await fetchJson(`/api/courses/${courseId}`, {
         method: "PATCH",
@@ -307,16 +323,15 @@ export const CourseDetails = () => {
                 ? latePenaltyType
                 : null,
           },
+          allowNewEnrollments,
         }),
       });
       await refetchEnrollments?.();
-      setLatePolicySuccess("Late submission policy saved.");
+      setSettingsSuccess("Course settings saved.");
     } catch (err) {
-      setLatePolicyError(
-        err?.message || "Unable to save the late submission policy."
-      );
+      setSettingsError(err?.message || "Unable to save course settings.");
     } finally {
-      setLatePolicySaving(false);
+      setSettingsSaving(false);
     }
   };
 
@@ -526,6 +541,19 @@ export const CourseDetails = () => {
         <div>
           {isTeacher ? (
             <>
+              <div style={{ marginBottom: 16 }}>
+                <strong>New Student Access</strong>
+                <p style={{ margin: "4px 0 8px", color: "#555" }}>
+                  {allowNewEnrollments
+                    ? "Students can use the student invite code to join this course."
+                    : "Blocking new enrollments prevents the student invite code from creating new accounts; TA/instructor codes remain active."}
+                </p>
+                <SegmentedControl
+                  options={NEW_STUDENT_ACCESS_OPTIONS}
+                  value={allowNewEnrollments}
+                  onChange={setAllowNewEnrollments}
+                />
+              </div>
               <strong>Late submission policy</strong>
               <p style={{ color: "#555", marginTop: 8, marginBottom: 8 }}>
                 Current policy: {describeLatePolicy(normalizedLatePolicy)}
@@ -593,17 +621,14 @@ export const CourseDetails = () => {
                 ]}
                 data-cy="penalty-type"
               />
-              {latePolicyError && (
-                <p style={{ color: "#b00020" }}>{latePolicyError}</p>
+              {settingsError && (
+                <p style={{ color: "#b00020" }}>{settingsError}</p>
               )}
-              {latePolicySuccess && (
-                <p style={{ color: "#0a7d29" }}>{latePolicySuccess}</p>
+              {settingsSuccess && (
+                <p style={{ color: "#0a7d29" }}>{settingsSuccess}</p>
               )}
-              <Button
-                onClick={handleSaveLatePolicy}
-                disabled={latePolicySaving}
-              >
-                {latePolicySaving ? "Saving..." : "Save late policy"}
+              <Button onClick={handleSaveCourseSettings} disabled={settingsSaving}>
+                {settingsSaving ? "Saving..." : "Save course settings"}
               </Button>
             </>
           ) : (
