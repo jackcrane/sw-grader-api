@@ -101,12 +101,26 @@ export const CourseDetails = () => {
   const [latePolicySaving, setLatePolicySaving] = useState(false);
   const [latePolicyError, setLatePolicyError] = useState(null);
   const [latePolicySuccess, setLatePolicySuccess] = useState(null);
-  const canSeePaymentInfo = isTeacher && course.billingScheme === "PER_COURSE";
   const {
     roster: courseRoster = [],
     loading: rosterLoading,
     updateEnrollmentType,
   } = useCourseRoster(courseId, { enabled: isTeacher });
+  const fallbackPrimaryTeacherId = useMemo(() => {
+    return (
+      courseRoster.find(
+        (entry) => entry.type === "TEACHER" && entry.user?.id
+      )?.user?.id ?? null
+    );
+  }, [courseRoster]);
+  const primaryTeacherId =
+    course.primaryTeacherUserId ?? fallbackPrimaryTeacherId ?? null;
+  const isPrimaryTeacher =
+    isTeacher &&
+    primaryTeacherId != null &&
+    primaryTeacherId === enrollment?.userId;
+  const canSeePaymentInfo =
+    isPrimaryTeacher && course.billingScheme === "PER_COURSE";
   const [adminSelection, setAdminSelection] = useState("");
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminError, setAdminError] = useState(null);
@@ -170,7 +184,7 @@ export const CourseDetails = () => {
   }, [normalizedLatePolicy]);
 
   useEffect(() => {
-    if (!isTeacher || course.billingScheme !== "PER_COURSE") {
+    if (!isPrimaryTeacher || course.billingScheme !== "PER_COURSE") {
       return;
     }
 
@@ -202,7 +216,7 @@ export const CourseDetails = () => {
     return () => {
       isCancelled = true;
     };
-  }, [isTeacher, course.billingScheme, paymentMethodRefreshIndex]);
+  }, [isPrimaryTeacher, course.billingScheme, paymentMethodRefreshIndex]);
 
   useEffect(() => {
     if (additionalAdmin) {
@@ -360,7 +374,7 @@ export const CourseDetails = () => {
           <strong>Abbreviation</strong>
           <p style={{ margin: "4px 0 0", color: "#333" }}>{course.abbr}</p>
         </div>
-        {isTeacher && (
+        {isPrimaryTeacher && (
           <div>
             <strong>Billing Scheme</strong>
             <div style={{ margin: "4px 0 0", color: "#333" }}>
@@ -456,7 +470,7 @@ export const CourseDetails = () => {
           </div>
         )}
       </Card>
-      {isTeacher && (
+      {isPrimaryTeacher && (
         <>
           <Spacer size={2} />
           <Card>
@@ -605,7 +619,7 @@ export const CourseDetails = () => {
           <p style={{ color: "#b00020" }}>{error}</p>
         </>
       )}
-      {isTeacher && course.billingScheme === "PER_COURSE" && (
+      {isPrimaryTeacher && course.billingScheme === "PER_COURSE" && (
         <Modal
           title="Manage payment method"
           open={billingModalOpen}
