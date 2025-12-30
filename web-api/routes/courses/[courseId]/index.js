@@ -129,6 +129,8 @@ export const patch = [
           );
         });
 
+    }
+
     posthog.capture({
       distinctId: userId,
       event: "course settings updated",

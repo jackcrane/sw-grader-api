@@ -196,8 +196,10 @@ export const CourseDetails = () => {
 
   useEffect(() => {
     if (!isPrimaryTeacher || course.billingScheme !== "PER_COURSE") {
+      return;
+    }
     setAllowNewEnrollments(course.allowNewEnrollments ?? true);
-  }, [course.allowNewEnrollments]);
+  }, [course.allowNewEnrollments, isPrimaryTeacher, course.billingScheme]);
 
   useEffect(() => {
     if (!isTeacher || course.billingScheme !== "PER_COURSE") {
