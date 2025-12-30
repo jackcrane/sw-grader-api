@@ -5,7 +5,8 @@
 - [ ] Add material data extraction in grader worker
 - [x] Teachers and TAs should not be charged
 - [ ] Add an option for a teacher to disallow new students from joining
-- [ ] Add an option to configure what teacher/ta should be the "primary" account that FeatureBench will email. There should be 2 settings: one for billing info & issues and one for other system notifications (trends etc)
+- [x] Add an option to configure what teacher/ta should be the admin
+- [ ] Clone existing and forward future notifications to new admin as well
 - [ ] allow changing payment information for enrollments and course creation
 - [ ] Option to keep [best|most recent] submissions for each assignment
 - [ ] Add ability to go forward and back through submissions
