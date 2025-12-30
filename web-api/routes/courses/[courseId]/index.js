@@ -45,6 +45,16 @@ export const patch = [
       }
       throw error;
     }
+    const allowNewEnrollmentsInput = req.body?.allowNewEnrollments;
+    if (
+      allowNewEnrollmentsInput !== undefined &&
+      typeof allowNewEnrollmentsInput !== "boolean"
+    ) {
+      return res.status(400).json({
+        error: "allow_new_enrollments_invalid",
+        message: "The new student access value must be true or false.",
+      });
+    }
 
     const course = await prisma.course.findFirst({
       where: { id: courseId, deleted: false },
@@ -53,18 +63,23 @@ export const patch = [
       return res.status(404).json({ error: "Course not found." });
     }
 
+    const updateData = {
+      latePolicyAllowLateSubmissions:
+        normalizedPolicy.allowLateSubmissions,
+      latePolicyMaxLatenessMinutes:
+        normalizedPolicy.maxLatenessMinutes,
+      latePolicyPenaltyPercent: normalizedPolicy.penaltyPercent,
+      latePolicyPenaltyType: normalizedPolicy.penaltyPercent
+        ? normalizedPolicy.penaltyType
+        : null,
+    };
+    if (typeof allowNewEnrollmentsInput === "boolean") {
+      updateData.allowNewEnrollments = allowNewEnrollmentsInput;
+    }
+
     const updatedCourse = await prisma.course.update({
       where: { id: courseId },
-      data: {
-        latePolicyAllowLateSubmissions:
-          normalizedPolicy.allowLateSubmissions,
-        latePolicyMaxLatenessMinutes:
-          normalizedPolicy.maxLatenessMinutes,
-        latePolicyPenaltyPercent: normalizedPolicy.penaltyPercent,
-        latePolicyPenaltyType: normalizedPolicy.penaltyPercent
-          ? normalizedPolicy.penaltyType
-          : null,
-      },
+      data: updateData,
     });
 
     const inheritingAssignments = await prisma.assignment.findMany({
@@ -103,7 +118,7 @@ export const patch = [
 
     posthog.capture({
       distinctId: userId,
-      event: "course late policy updated",
+      event: "course settings updated",
       properties: {
         courseId,
         allowLateSubmissions: normalizedPolicy.allowLateSubmissions,
@@ -112,6 +127,7 @@ export const patch = [
         penaltyType: normalizedPolicy.penaltyPercent
           ? normalizedPolicy.penaltyType
           : null,
+        allowNewEnrollments: updatedCourse.allowNewEnrollments,
       },
     });
 

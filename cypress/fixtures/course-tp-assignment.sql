@@ -37,7 +37,8 @@ INSERT INTO "public"."User" ("id", "email", "firstName", "lastName", "createdAt"
 ('cmj9ffow70000qr6bagbe3d51', 'student1@featurebench-test.com', 'Test', 'Student 1', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
 ('cmj9ffow70000qr6bagbe3d52', 'student2@featurebench-test.com', 'Test', 'Student 2', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
 ('cmj9ffow70000qr6bagbe3d53', 'student3@featurebench-test.com', 'Test', 'Student 3', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
-('cmj9ffow70000qr6bagbe3d54', 'student4@featurebench-test.com', 'Test', 'Student 4', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
+('cmj9ffow70000qr6bagbe3d54', 'student4@featurebench-test.com', 'Test', 'Student 4', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL),
+('cmj9ffow70000qr6bagbd3d54', 'student5@featurebench-test.com', 'Test', 'Student 5', '2025-12-17 03:03:16.423', '2025-12-17 03:03:17.003', 'f', 'f', '$2b$12$H1o/8a1EWLPeI/CEPTUN3OmAscG9.9KEZO887HA9BH2ktZLf8xdUC', NULL);
 
 INSERT INTO "public"."Enrollment" ("id", "userId", "courseId", "type", "createdAt", "updatedAt", "deleted", "billingFollowUpResolvedAt") VALUES
 ('cmjewhjhh00302qrye2pu2mzr', 'cmj9ffow70000qr6bagbe3d51', 'cmjewhjh90000qryehjj4pkuh', 'STUDENT', '2025-12-20 22:59:27.077', '2025-12-20 22:59:27.077', 'f', NULL),
