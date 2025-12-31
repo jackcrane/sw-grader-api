@@ -20,6 +20,11 @@ import {
 } from "../../../../../services/signatureTrends.js";
 import { posthog } from "../../../../../util/posthog.js";
 import { buildAssignmentLatePolicyUpdate } from "../../../../../services/latePolicy.js";
+import {
+  buildAssignmentSubmissionRetentionUpdate,
+  resolveSubmissionRetention,
+  selectSubmissionForRetention,
+} from "../../../../../services/submissionRetention.js";
 
 const signaturesInclude = {
   signatures: {
@@ -60,7 +65,12 @@ const readAssignment = async (assignmentId, courseId = null) => {
   return withSignedSignatureScreenshots(assignment);
 };
 
-const getSubmissionStats = async (courseId, assignmentId, pointsPossible) => {
+const getSubmissionStats = async (
+  courseId,
+  assignmentId,
+  pointsPossible,
+  retentionMode
+) => {
   const totalStudents = await prisma.enrollment.count({
     where: {
       courseId,
@@ -95,25 +105,28 @@ const getSubmissionStats = async (courseId, assignmentId, pointsPossible) => {
     select: {
       id: true,
       grade: true,
+      unpenalizedGrade: true,
       userId: true,
       updatedAt: true,
+      createdAt: true,
     },
   });
 
   const latestByUser = new Map();
-  submissions
-    .sort((a, b) => {
-      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      return bTime - aTime;
-    })
-    .forEach((submission) => {
-      if (!latestByUser.has(submission.userId)) {
-        latestByUser.set(submission.userId, submission);
-      }
-    });
+  submissions.forEach((submission) => {
+    if (!submission?.userId) return;
+    const existing = latestByUser.get(submission.userId);
+    const winner = selectSubmissionForRetention(
+      existing,
+      submission,
+      retentionMode
+    );
+    latestByUser.set(submission.userId, winner);
+  });
 
-  const latestSubmissions = Array.from(latestByUser.values());
+  const latestSubmissions = Array.from(latestByUser.values()).filter(
+    Boolean
+  );
 
   const submittedCount = latestSubmissions.length;
   const correctCount = latestSubmissions.filter((submission) => {
@@ -153,6 +166,18 @@ export const get = [
       return res.status(404).json({ error: "Assignment not found." });
     }
 
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      return res.status(404).json({ error: "Course not found." });
+    }
+
+    const { mode: retentionMode } = resolveSubmissionRetention({
+      course,
+      assignment,
+    });
+
     const userSubmissionsRaw =
       (await prisma.submission.findMany({
         where: {
@@ -173,7 +198,12 @@ export const get = [
 
     const canViewStats = ["TEACHER", "TA"].includes(enrollment.type);
     const stats = canViewStats
-      ? await getSubmissionStats(courseId, assignmentId, assignment.pointsPossible)
+      ? await getSubmissionStats(
+          courseId,
+          assignmentId,
+          assignment.pointsPossible,
+          retentionMode
+        )
       : null;
 
     const teacherSubmissionsRaw = canViewStats
@@ -222,11 +252,11 @@ export const get = [
         const existing = submissionsByUser.get(userIdKey);
         if (existing) {
           existing.attemptCount += 1;
-          const existingTimestamp = getSubmissionTimestamp(existing.latest);
-          const submissionTimestamp = getSubmissionTimestamp(submission);
-          if (submissionTimestamp >= existingTimestamp) {
-            existing.latest = submission;
-          }
+          existing.latest = selectSubmissionForRetention(
+            existing.latest,
+            submission,
+            retentionMode
+          );
         } else {
           submissionsByUser.set(userIdKey, {
             latest: submission,
@@ -295,6 +325,7 @@ export const patch = [
       dueDate,
       signatures,
       latePolicy,
+      submissionRetention,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -350,6 +381,17 @@ export const patch = [
       throw error;
     }
 
+    let submissionRetentionData = null;
+    try {
+      submissionRetentionData =
+        buildAssignmentSubmissionRetentionUpdate(submissionRetention);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -367,16 +409,17 @@ export const patch = [
             data: {
               name: trimmedName,
               description: description?.trim() || null,
-            unitSystem: firstCorrectSignature.unitSystem,
-            pointsPossible: numericPoints,
-            gradeVisibility,
-            volume: firstCorrectSignature.volume,
-            surfaceArea: firstCorrectSignature.surfaceArea,
-            tolerancePercent: numericTolerance,
-            dueDate: dueDateValue,
-            ...latePolicyData,
-          },
-        });
+              unitSystem: firstCorrectSignature.unitSystem,
+              pointsPossible: numericPoints,
+              gradeVisibility,
+              volume: firstCorrectSignature.volume,
+              surfaceArea: firstCorrectSignature.surfaceArea,
+              tolerancePercent: numericTolerance,
+              dueDate: dueDateValue,
+              ...latePolicyData,
+              ...submissionRetentionData,
+            },
+          });
 
         const existingSignatures = await tx.assignmentSignature.findMany({
           where: {

@@ -18,6 +18,10 @@ import {
   minutesToHoursValue,
   normalizeLatePolicy,
 } from "../../utils/latePolicy";
+import {
+  describeSubmissionRetentionMode,
+  SUBMISSION_RETENTION_OPTIONS,
+} from "../../utils/submissionRetention";
 
 const getInitialPartDetails = () => ({
   volume: "",
@@ -372,6 +376,15 @@ export const CreateAssignmentModal = ({
   const [lateMaxLatenessHours, setLateMaxLatenessHours] = useState("");
   const [latePenaltyPercent, setLatePenaltyPercent] = useState("");
   const [latePenaltyType, setLatePenaltyType] = useState("FLAT");
+  const courseRetentionMode = course?.submissionRetentionMode ?? "BEST";
+  const [
+    submissionRetentionPolicyMode,
+    setSubmissionRetentionPolicyMode,
+  ] = useState("inherit");
+  const [
+    submissionRetentionMode,
+    setSubmissionRetentionMode,
+  ] = useState(courseRetentionMode);
 
   const [signatures, setSignatures] = useState([getInitialSignature("SI")]);
 
@@ -408,6 +421,8 @@ export const CreateAssignmentModal = ({
     setLateMaxLatenessHours("");
     setLatePenaltyPercent("");
     setLatePenaltyType("FLAT");
+    setSubmissionRetentionPolicyMode("inherit");
+    setSubmissionRetentionMode(courseRetentionMode);
     setSubmitting(false);
     setValidationAttempted(false);
     setSignatures([getInitialSignature("SI")]);
@@ -520,10 +535,19 @@ export const CreateAssignmentModal = ({
       setLatePenaltyPercent("");
       setLatePenaltyType("FLAT");
     }
+    if (assignment.submissionRetentionInheritFromCourse === false) {
+      setSubmissionRetentionPolicyMode("override");
+      setSubmissionRetentionMode(
+        assignment.submissionRetentionMode ?? courseRetentionMode
+      );
+    } else {
+      setSubmissionRetentionPolicyMode("inherit");
+      setSubmissionRetentionMode(courseRetentionMode);
+    }
     setSignatures(normalizedSignatures);
     setValidationAttempted(false);
     setSubmitting(false);
-  }, [assignment, resetForm]);
+  }, [assignment, courseRetentionMode, resetForm]);
 
   useEffect(() => {
     if (open && !prevOpenRef.current) {
@@ -537,6 +561,12 @@ export const CreateAssignmentModal = ({
     }
     prevOpenRef.current = open;
   }, [open, isEditMode, hydrateFromAssignment, resetForm]);
+
+  useEffect(() => {
+    if (submissionRetentionPolicyMode === "inherit") {
+      setSubmissionRetentionMode(courseRetentionMode);
+    }
+  }, [courseRetentionMode, submissionRetentionPolicyMode]);
 
   useEffect(() => {
     if (!open || !injectedSignature) return;
@@ -763,6 +793,14 @@ export const CreateAssignmentModal = ({
             }
           : { inheritFromCourse: true };
 
+      const submissionRetentionPayload =
+        submissionRetentionPolicyMode === "override"
+          ? {
+              inheritFromCourse: false,
+              mode: submissionRetentionMode,
+            }
+          : { inheritFromCourse: true };
+
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
@@ -772,6 +810,7 @@ export const CreateAssignmentModal = ({
         tolerancePercent: Number(tolerancePercent),
         signatures: signaturePayloads,
         latePolicy: latePolicyPayload,
+        submissionRetention: submissionRetentionPayload,
       };
 
       if (isEditMode) {
@@ -977,6 +1016,33 @@ export const CreateAssignmentModal = ({
               data-cy="penalty-type"
             />
           </>
+        )}
+      </Section>
+
+      <Section title="Submission retention">
+        <Select
+          label="Policy"
+          value={submissionRetentionPolicyMode}
+          onChange={(event) =>
+            setSubmissionRetentionPolicyMode(event.target.value)
+          }
+          options={[
+            { value: "inherit", label: "Use course default" },
+            { value: "override", label: "Override for this assignment" },
+          ]}
+        />
+        {submissionRetentionPolicyMode === "inherit" ? (
+          <p style={{ color: "#555", marginTop: 8 }}>
+            {describeSubmissionRetentionMode(courseRetentionMode)}
+          </p>
+        ) : (
+          <Select
+            label="Retain submissions"
+            value={submissionRetentionMode}
+            onChange={(event) => setSubmissionRetentionMode(event.target.value)}
+            options={SUBMISSION_RETENTION_OPTIONS}
+            data-cy="submission-retention-select"
+          />
         )}
       </Section>
 

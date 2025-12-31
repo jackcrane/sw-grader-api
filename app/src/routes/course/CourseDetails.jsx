@@ -18,6 +18,7 @@ import {
   minutesToHoursValue,
   normalizeLatePolicy,
 } from "../../utils/latePolicy";
+import { describeSubmissionRetentionMode } from "../../utils/submissionRetention";
 
 const maskCode = (value) => {
   if (!value) return "";
@@ -103,6 +104,9 @@ export const CourseDetails = () => {
   const [latePenaltyType, setLatePenaltyType] = useState(
     normalizedLatePolicy.penaltyType ?? "FLAT"
   );
+  const [submissionRetentionMode, setSubmissionRetentionMode] = useState(
+    course?.submissionRetentionMode ?? "BEST"
+  );
   const [latePolicySaving, setLatePolicySaving] = useState(false);
   const [latePolicyError, setLatePolicyError] = useState(null);
   const [latePolicySuccess, setLatePolicySuccess] = useState(null);
@@ -113,9 +117,8 @@ export const CourseDetails = () => {
   } = useCourseRoster(courseId, { enabled: isTeacher });
   const fallbackPrimaryTeacherId = useMemo(() => {
     return (
-      courseRoster.find(
-        (entry) => entry.type === "TEACHER" && entry.user?.id
-      )?.user?.id ?? null
+      courseRoster.find((entry) => entry.type === "TEACHER" && entry.user?.id)
+        ?.user?.id ?? null
     );
   }, [courseRoster]);
   const primaryTeacherId =
@@ -193,6 +196,10 @@ export const CourseDetails = () => {
     );
     setLatePenaltyType(normalizedLatePolicy.penaltyType ?? "FLAT");
   }, [normalizedLatePolicy]);
+
+  useEffect(() => {
+    setSubmissionRetentionMode(course?.submissionRetentionMode ?? "BEST");
+  }, [course?.submissionRetentionMode]);
 
   useEffect(() => {
     if (!isPrimaryTeacher || course.billingScheme !== "PER_COURSE") {
@@ -326,6 +333,7 @@ export const CourseDetails = () => {
                 : null,
           },
           allowNewEnrollments,
+          submissionRetentionMode,
         }),
       });
       await refetchEnrollments?.();
@@ -623,13 +631,34 @@ export const CourseDetails = () => {
                 ]}
                 data-cy="penalty-type"
               />
+              <Spacer size={1} />
+              <strong>Submission retention</strong>
+              <Spacer size={1} />
+              <Select
+                label="Retain submissions"
+                value={submissionRetentionMode}
+                onChange={(event) =>
+                  setSubmissionRetentionMode(event.target.value)
+                }
+                options={[
+                  { value: "BEST", label: "Keep the best submission" },
+                  {
+                    value: "MOST_RECENT",
+                    label: "Keep the most recent submission",
+                  },
+                ]}
+                data-cy="submission-retention-mode"
+              />
               {settingsError && (
                 <p style={{ color: "#b00020" }}>{settingsError}</p>
               )}
               {settingsSuccess && (
                 <p style={{ color: "#0a7d29" }}>{settingsSuccess}</p>
               )}
-              <Button onClick={handleSaveCourseSettings} disabled={settingsSaving}>
+              <Button
+                onClick={handleSaveCourseSettings}
+                disabled={settingsSaving}
+              >
                 {settingsSaving ? "Saving..." : "Save course settings"}
               </Button>
             </>

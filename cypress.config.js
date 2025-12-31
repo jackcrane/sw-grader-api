@@ -275,7 +275,7 @@ function sanitizeDbUrlForPsql(dbUrl) {
 function runPsql(dbUrl, args) {
   const sanitizedDbUrl = sanitizeDbUrlForPsql(dbUrl);
   const result = spawnSync("psql", [sanitizedDbUrl, ...args], {
-    stdio: "inherit",
+    stdio: "ignore",
     env: process.env,
   });
 
@@ -290,7 +290,7 @@ function runPsql(dbUrl, args) {
 
 function runPrismaMigrate(dbUrl) {
   const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
-    stdio: "inherit",
+    stdio: "ignore",
     env: { ...process.env, DATABASE_URL: dbUrl },
     cwd: path.resolve(process.cwd(), "web-api"),
   });

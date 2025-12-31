@@ -1,6 +1,7 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
 import { normalizeLatePolicyInput } from "../../../services/latePolicy.js";
+import { normalizeSubmissionRetentionMode } from "../../../services/submissionRetention.js";
 import { ValidationError } from "../../../util/errors.js";
 import { posthog } from "../../../util/posthog.js";
 import { rescoreSubmissionsAgainstSignatures } from "../../../services/signatureTrends.js";
@@ -54,6 +55,8 @@ export const patch = [
       throw error;
     }
     const allowNewEnrollmentsInput = req.body?.allowNewEnrollments;
+    const retentionModeInput = req.body?.submissionRetentionMode;
+    let normalizedRetentionMode = null;
     if (
       allowNewEnrollmentsInput !== undefined &&
       typeof allowNewEnrollmentsInput !== "boolean"
@@ -85,6 +88,20 @@ export const patch = [
 
     if (allowNewEnrollmentsInput !== undefined) {
       updateData.allowNewEnrollments = allowNewEnrollmentsInput;
+    }
+
+    if (retentionModeInput !== undefined) {
+      try {
+        normalizedRetentionMode = normalizeSubmissionRetentionMode(
+          retentionModeInput
+        );
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return res.status(400).json({ error: error.message });
+        }
+        throw error;
+      }
+      updateData.submissionRetentionMode = normalizedRetentionMode;
     }
 
     if (!Object.keys(updateData).length) {
@@ -147,6 +164,7 @@ export const patch = [
           ? normalizedPolicy.penaltyType
           : null,
         allowNewEnrollments: updatedCourse.allowNewEnrollments,
+        submissionRetentionMode: updatedCourse.submissionRetentionMode,
       },
     });
 
