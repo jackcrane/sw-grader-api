@@ -275,7 +275,7 @@ function sanitizeDbUrlForPsql(dbUrl) {
 function runPsql(dbUrl, args) {
   const sanitizedDbUrl = sanitizeDbUrlForPsql(dbUrl);
   const result = spawnSync("psql", [sanitizedDbUrl, ...args], {
-    stdio: "inherit",
+    stdio: "ignore",
     env: process.env,
   });
 
