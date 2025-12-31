@@ -15,7 +15,6 @@ steps:
       text: Course Details
   - tapOn:
       text: Block new enrollments
-      allowScroll: true
   - tapOn:
       text: Save course settings
       allowScroll: true
