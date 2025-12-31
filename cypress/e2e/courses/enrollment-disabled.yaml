@@ -7,7 +7,7 @@ steps:
   - open: /
   - setViewport:
       width: 1280
-      height: 720
+      height: 1000
   - waitFor: 200
   - tapOn:
       text: E2E Test Course
