@@ -1,0 +1,61 @@
+name: Test unassigning another admin contact
+seedFile: fixtures/course-tp-assignment.sql
+steps:
+  ##############################################################################
+  # Setup: Add a new TA to the course
+  - authenticateUser:
+      username: ta@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - typeText:
+      placeholder: "e.g., STU-1A2B3C"
+      text: TA-E2E
+  - tapOn:
+      text: "Join course"
+  - assertVisible:
+      text: "E2E Test Course"
+  # Setup: Make the new TA the primary contact
+  - sql: 'UPDATE "Enrollment" SET "type" = ''TEACHER'' FROM "User" WHERE "Enrollment"."userId" = "User"."id" AND "User"."email" = ''ta@featurebench-test.com'';'
+  ##############################################################################
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: Course Details
+  - selectOption:
+      dataCy: additional-admin-select
+      option: "None (teacher only)"
+      allowScroll: true
+  - tapOn:
+      text: "Save additional admin"
+  ##############################################################################
+  # Check that the new TA is the primary contact
+  - authenticateUser:
+      username: ta@featurebench-test.com
+      password: Password!
+  - open: /
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: Course Details
+  - assertNotVisible:
+      text: "Late submission policy"
+      mode: missing
+  - assertNotVisible:
+      text: "Billing Scheme"
+      mode: missing
+  - assertNotVisible:
+      text: "Additional admin"
+      mode: missing

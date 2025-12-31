@@ -6,21 +6,48 @@ import {
 } from "./enrollmentFollowUps.js";
 import { sendEmail } from "../util/postmark.js";
 import { posthog } from "../util/posthog.js";
+import { getActiveTaUserForCourse } from "./courseContacts.js";
 
 const formatName = (user) => {
   if (!user) return "";
   return [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
 };
 
-const sendWarningEmail = async ({ teacher, student, course, testOverride }) => {
-  const targetEmail = testOverride?.email || teacher?.email;
-  if (!targetEmail) return;
+const sendBillingFollowUpEmail = async ({
+  recipient,
+  recipientName,
+  subject,
+  lines,
+  context,
+}) => {
+  if (!recipient?.email) {
+    console.warn(
+      "Billing follow-up unable to send email: missing address",
+      { recipientId: recipient?.id ?? null, context }
+    );
+    return;
+  }
+
+  await sendEmail({
+    to: recipient.email,
+    subject,
+    text: lines.join("\n"),
+  });
+};
+
+const sendWarningEmail = async ({
+  teacher,
+  student,
+  course,
+  billingContact,
+  testOverride,
+}) => {
   const teacherName =
     testOverride?.teacherName || formatName(teacher) || "there";
   const studentName =
     testOverride?.studentName || formatName(student) || "a student";
   const courseName = testOverride?.courseName || course?.name || "your course";
-
+  const subject = `Action required soon: ${courseName}`;
   const lines = [
     `Hi ${teacherName},`,
     "",
@@ -33,14 +60,53 @@ const sendWarningEmail = async ({ teacher, student, course, testOverride }) => {
     "The FeatureBench team",
   ];
 
-  await sendEmail({
-    to: targetEmail,
-    subject: `Action required soon: ${courseName}`,
-    text: lines.join("\n"),
-  });
+  if (testOverride) {
+    const targetEmail = testOverride.email;
+    if (!targetEmail) return;
+    await sendEmail({
+      to: targetEmail,
+      subject,
+      text: lines.join("\n"),
+    });
+    return;
+  }
+
+  const recipients = [
+    {
+      recipient: teacher,
+      recipientName: teacherName,
+      context: "teacher",
+    },
+  ];
+
+  if (billingContact?.id && billingContact.id !== teacher?.id) {
+    recipients.push({
+      recipient: billingContact,
+      recipientName: formatName(billingContact) || "there",
+      context: "billing_contact",
+    });
+  }
+
+  await Promise.all(
+    recipients.map(({ recipient, recipientName, context }) =>
+      sendBillingFollowUpEmail({
+        recipient,
+        recipientName,
+        subject,
+        lines,
+        context,
+      })
+    )
+  );
 };
 
-const dropEnrollment = async ({ enrollment, teacher, student, course }) => {
+const dropEnrollment = async ({
+  enrollment,
+  teacher,
+  student,
+  course,
+  billingContact,
+}) => {
   if (!enrollment) return;
   await prisma.enrollment.updateMany({
     where: { id: enrollment.id },
@@ -58,26 +124,47 @@ const dropEnrollment = async ({ enrollment, teacher, student, course }) => {
     },
   });
 
-  if (teacher?.email) {
-    const teacherName = formatName(teacher) || "there";
-    const studentName = formatName(student) || "a student";
-    const courseName = course?.name || "your course";
-    const lines = [
-      `Hi ${teacherName},`,
-      "",
-      `${studentName} has been removed from ${courseName} because we still couldn't charge your saved payment method.`,
-      "Update your billing details if you'd like to invite them back.",
-      "",
-      "Thanks,",
-      "The FeatureBench team",
-    ];
+  const teacherName = formatName(teacher) || "there";
+  const studentName = formatName(student) || "a student";
+  const courseName = course?.name || "your course";
+  const subject = `${studentName} removed from ${courseName}`;
+  const lines = [
+    `Hi ${teacherName},`,
+    "",
+    `${studentName} has been removed from ${courseName} because we still couldn't charge your saved payment method.`,
+    "Update your billing details if you'd like to invite them back.",
+    "",
+    "Thanks,",
+    "The FeatureBench team",
+  ];
 
-    await sendEmail({
-      to: teacher.email,
-      subject: `${studentName} removed from ${courseName}`,
-      text: lines.join("\n"),
+  const recipients = [
+    {
+      recipient: teacher,
+      recipientName: teacherName,
+      context: "teacher",
+    },
+  ];
+
+  if (billingContact?.id && billingContact.id !== teacher?.id) {
+    recipients.push({
+      recipient: billingContact,
+      recipientName: formatName(billingContact) || "there",
+      context: "billing_contact",
     });
   }
+
+  await Promise.all(
+    recipients.map(({ recipient, recipientName, context }) =>
+      sendBillingFollowUpEmail({
+        recipient,
+        recipientName,
+        subject,
+        lines,
+        context,
+      })
+    )
+  );
 };
 
 const handleJob = async (job = {}) => {
@@ -101,6 +188,7 @@ const handleJob = async (job = {}) => {
       teacher: null,
       student: null,
       course: null,
+      billingContact,
       testOverride: job.testEmailOverride,
     });
     posthog.capture({
@@ -134,6 +222,11 @@ const handleJob = async (job = {}) => {
     return;
   }
 
+  const billingContact = await getActiveTaUserForCourse({
+    courseId,
+    userId: course.primaryBillingContactUserId ?? null,
+  });
+
   if (enrollment.billingFollowUpResolvedAt || enrollment.deleted) {
     return;
   }
@@ -143,6 +236,7 @@ const handleJob = async (job = {}) => {
       teacher,
       student,
       course,
+      billingContact,
       testOverride: job.testEmailOverride,
     });
     posthog.capture({
@@ -156,7 +250,13 @@ const handleJob = async (job = {}) => {
       },
     });
   } else if (action === EnrollmentFollowUpType.DROP) {
-    await dropEnrollment({ enrollment, teacher, student, course });
+    await dropEnrollment({
+      enrollment,
+      teacher,
+      student,
+      course,
+      billingContact,
+    });
   }
 };
 

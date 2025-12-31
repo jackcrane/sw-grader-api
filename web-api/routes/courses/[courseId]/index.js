@@ -36,9 +36,17 @@ export const patch = [
         .json({ error: "Only teachers can update course settings." });
     }
 
+    const latePolicyInput =
+      req.body && typeof req.body.latePolicy === "object"
+        ? req.body.latePolicy
+        : null;
+
     let normalizedPolicy = null;
+
     try {
-      normalizedPolicy = normalizeLatePolicyInput(req.body?.latePolicy ?? {});
+      if (latePolicyInput) {
+        normalizedPolicy = normalizeLatePolicyInput(latePolicyInput);
+      }
     } catch (error) {
       if (error instanceof ValidationError) {
         return res.status(400).json({ error: error.message });
@@ -63,18 +71,26 @@ export const patch = [
       return res.status(404).json({ error: "Course not found." });
     }
 
-    const updateData = {
-      latePolicyAllowLateSubmissions:
-        normalizedPolicy.allowLateSubmissions,
-      latePolicyMaxLatenessMinutes:
-        normalizedPolicy.maxLatenessMinutes,
-      latePolicyPenaltyPercent: normalizedPolicy.penaltyPercent,
-      latePolicyPenaltyType: normalizedPolicy.penaltyPercent
+    const updateData = {};
+    if (normalizedPolicy) {
+      updateData.latePolicyAllowLateSubmissions =
+        normalizedPolicy.allowLateSubmissions;
+      updateData.latePolicyMaxLatenessMinutes =
+        normalizedPolicy.maxLatenessMinutes;
+      updateData.latePolicyPenaltyPercent = normalizedPolicy.penaltyPercent;
+      updateData.latePolicyPenaltyType = normalizedPolicy.penaltyPercent
         ? normalizedPolicy.penaltyType
-        : null,
-    };
-    if (typeof allowNewEnrollmentsInput === "boolean") {
+        : null;
+    }
+
+    if (allowNewEnrollmentsInput !== undefined) {
       updateData.allowNewEnrollments = allowNewEnrollmentsInput;
+    }
+
+    if (!Object.keys(updateData).length) {
+      return res
+        .status(400)
+        .json({ error: "No updates were provided for this course." });
     }
 
     const updatedCourse = await prisma.course.update({
@@ -82,49 +98,52 @@ export const patch = [
       data: updateData,
     });
 
-    const inheritingAssignments = await prisma.assignment.findMany({
-      where: {
-        deleted: false,
-        courseId,
-        latePolicyInheritFromCourse: true,
-      },
-      select: {
-        id: true,
-      },
-    });
+    if (normalizedPolicy) {
+      const inheritingAssignments = await prisma.assignment.findMany({
+        where: {
+          deleted: false,
+          courseId,
+          latePolicyInheritFromCourse: true,
+        },
+        select: {
+          id: true,
+        },
+      });
 
-    Promise.resolve()
-      .then(() =>
-        Promise.allSettled(
-          inheritingAssignments.map(({ id }) =>
-            rescoreSubmissionsAgainstSignatures({
-              assignmentId: id,
-              courseId,
-            }).catch((err) => {
-              console.warn(
-                `Failed to rescore assignment ${id} after course policy update`,
-                err
-              );
-            })
+      Promise.resolve()
+        .then(() =>
+          Promise.allSettled(
+            inheritingAssignments.map(({ id }) =>
+              rescoreSubmissionsAgainstSignatures({
+                assignmentId: id,
+                courseId,
+              }).catch((err) => {
+                console.warn(
+                  `Failed to rescore assignment ${id} after course policy update`,
+                  err
+                );
+              })
+            )
           )
         )
-      )
-      .catch((error) => {
-        console.warn(
-          `Failed to schedule rescoring for course ${courseId}`,
-          error
-        );
-      });
+        .catch((error) => {
+          console.warn(
+            `Failed to schedule rescoring for course ${courseId}`,
+            error
+          );
+        });
+
+    }
 
     posthog.capture({
       distinctId: userId,
       event: "course settings updated",
       properties: {
         courseId,
-        allowLateSubmissions: normalizedPolicy.allowLateSubmissions,
-        maxLatenessMinutes: normalizedPolicy.maxLatenessMinutes,
-        penaltyPercent: normalizedPolicy.penaltyPercent,
-        penaltyType: normalizedPolicy.penaltyPercent
+        allowLateSubmissions: normalizedPolicy?.allowLateSubmissions ?? null,
+        maxLatenessMinutes: normalizedPolicy?.maxLatenessMinutes ?? null,
+        penaltyPercent: normalizedPolicy?.penaltyPercent ?? null,
+        penaltyType: normalizedPolicy?.penaltyPercent
           ? normalizedPolicy.penaltyType
           : null,
         allowNewEnrollments: updatedCourse.allowNewEnrollments,

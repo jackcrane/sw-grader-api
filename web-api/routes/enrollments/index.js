@@ -553,6 +553,7 @@ export const post = [
         studentInviteCode,
         taInviteCode,
         billingScheme: normalizedBillingScheme,
+        primaryTeacherUserId: userId,
       },
     });
 
