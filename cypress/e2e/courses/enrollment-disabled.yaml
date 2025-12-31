@@ -15,6 +15,7 @@ steps:
       text: Course Details
   - tapOn:
       text: Block new enrollments
+  - waitFor: 200
   - tapOn:
       text: Save course settings
       allowScroll: true
