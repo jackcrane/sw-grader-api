@@ -116,6 +116,10 @@ export const CourseRoster = () => {
   const [previewModalState, setPreviewModalState] = useState(
     submissionPreviewInitialState
   );
+  const [previewSubmissions, setPreviewSubmissions] = useState([]);
+  const [previewSubmissionIndex, setPreviewSubmissionIndex] = useState(0);
+  const [previewSubmissionPointsPossible, setPreviewSubmissionPointsPossible] =
+    useState(null);
 
   const visibleRoster = useMemo(
     () => roster.filter((entry) => entry.type !== "TEACHER"),
@@ -154,22 +158,25 @@ export const CourseRoster = () => {
     }
   }, [visibleRoster, selectedEnrollmentId, routeEnrollmentId]);
 
+  const resetSubmissionNavigation = () => {
+    setPreviewSubmissions([]);
+    setPreviewSubmissionIndex(0);
+    setPreviewSubmissionPointsPossible(null);
+  };
+
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
     setPreviewModalState(submissionPreviewInitialState);
+    resetSubmissionNavigation();
   };
 
-  const showSubmissionPreview = (
-    submission,
-    gradeLabel,
-    pointsPossible = null
-  ) => {
+  const showSubmissionPreview = (submission, pointsPossible = null) => {
     setPreviewModalOpen(true);
     setPreviewModalState({
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
       gradeValue: submission?.grade ?? null,
-      gradeLabel,
+      gradeLabel: formatGradeLabel(submission?.grade, pointsPossible),
       feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
@@ -184,6 +191,7 @@ export const CourseRoster = () => {
 
   const showLoadingPreview = () => {
     setPreviewModalOpen(true);
+    resetSubmissionNavigation();
     setPreviewModalState({
       status: "loading",
       screenshotUrl: null,
@@ -303,16 +311,17 @@ export const CourseRoster = () => {
       const payload = await fetchJson(
         `/api/courses/${courseId}/assignments/${assignment.id}/submissions?${params}`
       );
-      const submission = payload?.submissions?.[0] ?? null;
-      if (!submission) {
+      const submissions = payload?.submissions ?? [];
+      if (!submissions.length) {
         throw new Error("No submission recorded for this assignment.");
       }
-      showSubmissionPreview(
-        submission,
-        formatGradeLabel(submission.grade, assignment.pointsPossible),
-        assignment.pointsPossible
-      );
+      setPreviewSubmissions(submissions);
+      setPreviewSubmissionIndex(0);
+      const pointsPossible = assignment.pointsPossible ?? null;
+      setPreviewSubmissionPointsPossible(pointsPossible);
+      showSubmissionPreview(submissions[0], pointsPossible);
     } catch (err) {
+      resetSubmissionNavigation();
       setPreviewModalState({
         status: "error",
         screenshotUrl: null,
@@ -325,6 +334,29 @@ export const CourseRoster = () => {
         latePenaltyLabel: null,
       });
     }
+  };
+
+  const goToPreviousPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.max(0, previewSubmissionIndex - 1);
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    showSubmissionPreview(submission, previewSubmissionPointsPossible);
+  };
+
+  const goToNextPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.min(
+      previewSubmissions.length - 1,
+      previewSubmissionIndex + 1
+    );
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    showSubmissionPreview(submission, previewSubmissionPointsPossible);
   };
 
   if (!canViewRoster) {
@@ -530,6 +562,16 @@ export const CourseRoster = () => {
         feedback={previewModalState.feedback}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
+        navigation={
+          previewSubmissions.length > 1
+            ? {
+                totalSubmissions: previewSubmissions.length,
+                currentIndex: previewSubmissionIndex,
+                onPrevious: goToPreviousPreviewSubmission,
+                onNext: goToNextPreviewSubmission,
+              }
+            : undefined
+        }
       />
     </section>
   );

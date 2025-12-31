@@ -5,9 +5,9 @@ Main Module:
 - [x] Add an option to configure what teacher/ta should be the admin
 - [ ] Clone existing and forward future notifications to new admin as well
 - [ ] allow changing payment information for enrollments and course creation
-- [ ] Option to keep [best|most recent] submissions for each assignment and course-wide. Default to best.
-- [ ] Add ability to go forward and back through submissions in the submission modal
-- [ ] Add a chip in the assignments to show missing and late assignments
+- [x] Option to keep [best|most recent] submissions for each assignment and course-wide. Default to best.
+- [ ] Add ability to go forward and back through the current student's submissions in the submission modal. This should be a previous/next buttons left aligned in the footer of the modal. If only one submission, don't show the buttons.
+- [ ] Add a chip in the assignments list for students to show missing and late assignments
 - [ ] Add a normal CSV export, not just canvas
 - [ ] Tint late submissions blue in the gradebook
 - [ ] Disable create course button if data is invalid or missing

@@ -109,6 +109,8 @@ export const AssignmentDetails = () => {
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
   const [autoTrackEnabled, setAutoTrackEnabled] = useState(true);
+  const [previewSubmissions, setPreviewSubmissions] = useState([]);
+  const [previewSubmissionIndex, setPreviewSubmissionIndex] = useState(0);
   const eventSourceRef = useRef(null);
   const patchSubmission = useCallback(
     (updatedSubmission) => {
@@ -223,6 +225,11 @@ export const AssignmentDetails = () => {
     setSuccessMessage(null);
   };
 
+  const resetSubmissionNavigation = () => {
+    setPreviewSubmissions([]);
+    setPreviewSubmissionIndex(0);
+  };
+
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
     setPreviewModalState({
@@ -234,7 +241,10 @@ export const AssignmentDetails = () => {
       error: null,
       downloadUrl: null,
       downloadFilename: null,
+      unpenalizedGrade: null,
+      latePenaltyLabel: null,
     });
+    resetSubmissionNavigation();
   };
 
   const handleSubmit = async () => {
@@ -522,7 +532,7 @@ export const AssignmentDetails = () => {
     };
   }, [stopQueueTracking]);
 
-  const showSubmissionInModal = (submission) => {
+  const displaySubmissionPreview = (submission) => {
     if (!submission) return;
     const pending = submission?.grade == null;
 
@@ -566,6 +576,54 @@ export const AssignmentDetails = () => {
       unpenalizedGrade: submission?.unpenalizedGrade ?? null,
       latePenaltyLabel: penaltyLabel,
     });
+  };
+
+  const showSubmissionInModal = (
+    submission,
+    submissionList = sortedSubmissions
+  ) => {
+    if (!submission) return;
+    const list =
+      Array.isArray(submissionList) && submissionList.length > 0
+        ? submissionList
+        : submission
+        ? [submission]
+        : [];
+    if (list.length > 0) {
+      const foundIndex =
+        submission?.id != null
+          ? list.findIndex((entry) => entry?.id === submission.id)
+          : -1;
+      const normalizedIndex = foundIndex >= 0 ? foundIndex : 0;
+      setPreviewSubmissions(list);
+      setPreviewSubmissionIndex(normalizedIndex);
+    } else {
+      resetSubmissionNavigation();
+    }
+    displaySubmissionPreview(submission);
+  };
+
+  const goToPreviousPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.max(0, previewSubmissionIndex - 1);
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    displaySubmissionPreview(submission);
+  };
+
+  const goToNextPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.min(
+      previewSubmissions.length - 1,
+      previewSubmissionIndex + 1
+    );
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    displaySubmissionPreview(submission);
   };
 
   const statsCards = useMemo(() => {
@@ -911,6 +969,16 @@ export const AssignmentDetails = () => {
         queueStatus={queueStatus}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
+        navigation={
+          previewSubmissions.length > 1
+            ? {
+                totalSubmissions: previewSubmissions.length,
+                currentIndex: previewSubmissionIndex,
+                onPrevious: goToPreviousPreviewSubmission,
+                onNext: goToNextPreviewSubmission,
+              }
+            : undefined
+        }
       />
     </div>
   );
