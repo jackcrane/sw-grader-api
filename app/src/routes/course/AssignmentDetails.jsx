@@ -11,6 +11,7 @@ import { SubmissionPreviewModal } from "../../components/submissionPreview/Submi
 import { Spinner } from "../../components/spinner/Spinner";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
+import { fetchJson } from "../../utils/fetchJson";
 import {
   getSubmissionGradeLabel,
   getLatePenaltyLabel,
@@ -21,6 +22,7 @@ import {
   describeLatePolicy,
   resolveAssignmentLatePolicy,
 } from "../../utils/latePolicy";
+import { findSubmissionIndexById, sortSubmissionsByTimestamp } from "../../utils/submissionUtils";
 import styles from "./AssignmentDetails.module.css";
 
 const formatDateTime = (value) => {
@@ -148,16 +150,8 @@ export const AssignmentDetails = () => {
   const submissions =
     (userSubmissions && userSubmissions.length > 0 && userSubmissions) ||
     (userSubmission ? [userSubmission] : []);
-  const sortedSubmissions = submissions
-    .map((submission) => ({
-      ...submission,
-      sortTimestamp: submission?.updatedAt ?? submission?.createdAt ?? null,
-    }))
-    .sort((a, b) => {
-      const aTime = a.sortTimestamp ? new Date(a.sortTimestamp).getTime() : 0;
-      const bTime = b.sortTimestamp ? new Date(b.sortTimestamp).getTime() : 0;
-      return bTime - aTime;
-    });
+  const chronologicalSubmissions = sortSubmissionsByTimestamp(submissions);
+  const sortedSubmissions = [...chronologicalSubmissions].reverse();
   const hasSubmission = sortedSubmissions.length > 0;
   const latestSubmission = hasSubmission ? sortedSubmissions[0] : null;
   const pendingSubmission = useMemo(() => {
@@ -245,6 +239,23 @@ export const AssignmentDetails = () => {
       latePenaltyLabel: null,
     });
     resetSubmissionNavigation();
+  };
+
+  const showLoadingPreview = () => {
+    setPreviewModalOpen(true);
+    resetSubmissionNavigation();
+    setPreviewModalState({
+      status: "loading",
+      screenshotUrl: null,
+      gradeValue: null,
+      gradeLabel: null,
+      feedback: null,
+      downloadUrl: null,
+      downloadFilename: null,
+      error: null,
+      unpenalizedGrade: null,
+      latePenaltyLabel: null,
+    });
   };
 
   const handleSubmit = async () => {
@@ -580,7 +591,7 @@ export const AssignmentDetails = () => {
 
   const showSubmissionInModal = (
     submission,
-    submissionList = sortedSubmissions
+    submissionList = chronologicalSubmissions
   ) => {
     if (!submission) return;
     const list =
@@ -590,17 +601,47 @@ export const AssignmentDetails = () => {
         ? [submission]
         : [];
     if (list.length > 0) {
-      const foundIndex =
-        submission?.id != null
-          ? list.findIndex((entry) => entry?.id === submission.id)
-          : -1;
+      const normalizedList = [...list];
+      const foundIndex = findSubmissionIndexById(normalizedList, submission?.id);
       const normalizedIndex = foundIndex >= 0 ? foundIndex : 0;
-      setPreviewSubmissions(list);
+      setPreviewSubmissions(normalizedList);
       setPreviewSubmissionIndex(normalizedIndex);
     } else {
       resetSubmissionNavigation();
     }
     displaySubmissionPreview(submission);
+  };
+
+  const handleTeacherSubmissionPreview = async (submission) => {
+    if (!submission?.userId) return;
+    showLoadingPreview();
+    try {
+      const params = new URLSearchParams();
+      params.set("userId", submission.userId);
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${assignmentId}/submissions?${params}`
+      );
+      const studentSubmissions = payload?.submissions ?? [];
+      if (!studentSubmissions.length) {
+        throw new Error("No submission recorded for this assignment.");
+      }
+      const sorted = sortSubmissionsByTimestamp(studentSubmissions);
+      showSubmissionInModal(submission, sorted);
+    } catch (err) {
+      resetSubmissionNavigation();
+      setPreviewModalState({
+        status: "error",
+        screenshotUrl: null,
+        gradeValue: null,
+        gradeLabel: null,
+        feedback: null,
+        downloadUrl: null,
+        downloadFilename: null,
+        error: err?.message || "Unable to load submission.",
+        unpenalizedGrade: null,
+        latePenaltyLabel: null,
+      });
+    }
   };
 
   const goToPreviousPreviewSubmission = () => {
@@ -871,13 +912,15 @@ export const AssignmentDetails = () => {
                           )}
                         </div>
                       </div>
-                      {fileUrl && (
-                        <Button
-                          onClick={() => showSubmissionInModal(submission)}
-                        >
-                          View
-                        </Button>
-                      )}
+                          {fileUrl && (
+                            <Button
+                              onClick={() =>
+                                showSubmissionInModal(submission, chronologicalSubmissions)
+                              }
+                            >
+                              View
+                            </Button>
+                          )}
                     </div>
                   </div>
                   {index < sortedSubmissions.length - 1 && (
@@ -937,7 +980,7 @@ export const AssignmentDetails = () => {
                         )}
                       </div>
                     </div>
-                    <Button onClick={() => showSubmissionInModal(submission)}>
+                    <Button onClick={() => handleTeacherSubmissionPreview(submission)}>
                       View
                     </Button>
                   </div>

@@ -28,6 +28,7 @@ import {
 import styles from "./CourseGradebook.module.css";
 import assignmentStyles from "./AssignmentDetails.module.css";
 import { useDocs } from "../../context/DocsContext";
+import { findSubmissionIndexById, sortSubmissionsByTimestamp } from "../../utils/submissionUtils";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -399,7 +400,12 @@ export const CourseGradebook = () => {
     });
   };
 
-  const handleViewSubmission = async (assignmentId, userId, gradeLabel) => {
+  const handleViewSubmission = async (
+    assignmentId,
+    userId,
+    gradeLabel,
+    defaultSubmissionId
+  ) => {
     if (!assignmentId || !userId) return;
     showLoadingPreview();
     try {
@@ -408,7 +414,7 @@ export const CourseGradebook = () => {
       const payload = await fetchJson(
         `/api/courses/${courseId}/assignments/${assignmentId}/submissions?${params}`
       );
-      const submissions = payload?.submissions ?? [];
+      const submissions = sortSubmissionsByTimestamp(payload?.submissions ?? []);
       if (!submissions.length) {
         throw new Error("No submission recorded for this assignment.");
       }
@@ -416,10 +422,14 @@ export const CourseGradebook = () => {
         assignments.find((item) => String(item.id) === String(assignmentId)) ??
         null;
       const pointsPossible = assignment?.pointsPossible ?? null;
+      const defaultIndex = Math.max(
+        0,
+        findSubmissionIndexById(submissions, defaultSubmissionId)
+      );
       setPreviewSubmissions(submissions);
-      setPreviewSubmissionIndex(0);
+      setPreviewSubmissionIndex(defaultIndex);
       setPreviewSubmissionPointsPossible(pointsPossible);
-      showSubmissionPreview(submissions[0], pointsPossible);
+      showSubmissionPreview(submissions[defaultIndex], pointsPossible);
     } catch (err) {
       resetSubmissionNavigation();
       setPreviewModalState({
@@ -759,13 +769,14 @@ export const CourseGradebook = () => {
                                 type="button"
                                 className={styles.gradeCellIcon}
                                 aria-label="View submission"
-                                onClick={() =>
-                                  handleViewSubmission(
-                                    grade.assignmentId,
-                                    row.userId,
-                                    grade.label
-                                  )
-                                }
+                                  onClick={() =>
+                                    handleViewSubmission(
+                                      grade.assignmentId,
+                                      row.userId,
+                                      grade.label,
+                                      grade.submission?.id
+                                    )
+                                  }
                                 data-cy={`gradebook-scored-button-${grade.assignmentId}`}
                               >
                                 <SignOut size={16} />

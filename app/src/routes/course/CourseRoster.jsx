@@ -18,6 +18,10 @@ import {
   getSubmissionGradeLabel,
   parseGradeValue,
 } from "../../utils/gradeUtils";
+import {
+  findSubmissionIndexById,
+  sortSubmissionsByTimestamp,
+} from "../../utils/submissionUtils";
 import styles from "./CourseRoster.module.css";
 import { CaretRight } from "@phosphor-icons/react";
 
@@ -302,7 +306,7 @@ export const CourseRoster = () => {
     }
   };
 
-  const handleViewAssignment = async (assignment) => {
+  const handleViewAssignment = async (assignment, defaultSubmissionId) => {
     if (!activeEnrollment?.user?.id) return;
     showLoadingPreview();
     try {
@@ -311,15 +315,19 @@ export const CourseRoster = () => {
       const payload = await fetchJson(
         `/api/courses/${courseId}/assignments/${assignment.id}/submissions?${params}`
       );
-      const submissions = payload?.submissions ?? [];
+      const submissions = sortSubmissionsByTimestamp(payload?.submissions ?? []);
       if (!submissions.length) {
         throw new Error("No submission recorded for this assignment.");
       }
-      setPreviewSubmissions(submissions);
-      setPreviewSubmissionIndex(0);
+      const defaultIndex = Math.max(
+        0,
+        findSubmissionIndexById(submissions, defaultSubmissionId)
+      );
       const pointsPossible = assignment.pointsPossible ?? null;
+      setPreviewSubmissions(submissions);
+      setPreviewSubmissionIndex(defaultIndex);
       setPreviewSubmissionPointsPossible(pointsPossible);
-      showSubmissionPreview(submissions[0], pointsPossible);
+      showSubmissionPreview(submissions[defaultIndex], pointsPossible);
     } catch (err) {
       resetSubmissionNavigation();
       setPreviewModalState({
@@ -528,7 +536,12 @@ export const CourseRoster = () => {
                           {submission && (
                             <div className={styles.gradeRowActions}>
                               <Button
-                                onClick={() => handleViewAssignment(assignment)}
+                                onClick={() =>
+                                  handleViewAssignment(
+                                    assignment,
+                                    submission?.id ?? null
+                                  )
+                                }
                                 disabled={
                                   previewModalState.status === "loading"
                                 }

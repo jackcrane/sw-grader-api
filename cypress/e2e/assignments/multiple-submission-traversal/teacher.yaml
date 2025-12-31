@@ -1,0 +1,78 @@
+# Tests the flow of multiple submissions in the submission view modal
+name: Multiple submissions
+seedFile: fixtures/course-w-submissions.sql
+steps:
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: E2E Test Assignment
+  ##############################################################################
+  # Assignments
+  - tapOn:
+      text: View
+  - assertVisible:
+      text: "Grade earned: 100/100"
+  - assertVisible:
+      text: "Submission 1 of 2"
+  - tapOn:
+      text: "Next"
+  - assertVisible:
+      text: "Submission 2 of 2"
+  - assertVisible:
+      text: "Grade earned: 70/100"
+  - assertVisible:
+      text: "Hint: This is a test feedback"
+  - tapOn:
+      text: "Close"
+  ##############################################################################
+  # Roster
+  - tapOn:
+      text: Roster
+  - tapOn:
+      text: student@featurebench-test.com
+      parentSelector: '[class^="_roster"] [class^="_column"]'
+  - tapOn:
+      text: "View"
+      parentCy: "grade-row-E2E Test Assignment"
+  - assertVisible:
+      text: "Grade earned: 100/100"
+  - assertVisible:
+      text: "Submission 1 of 2"
+  - tapOn:
+      text: "Next"
+  - assertVisible:
+      text: "Submission 2 of 2"
+  - assertVisible:
+      text: "Grade earned: 70/100"
+  - assertVisible:
+      text: "Hint: This is a test feedback"
+  - tapOn:
+      text: "Close"
+  ##############################################################################
+  # Gradebook
+  - tapOn:
+      text: Gradebook
+  - tapOn:
+      dataCy: gradebook-scored-button-cmjjg0nfn0001qrmbspysapdx
+  - assertVisible:
+      text: "Grade earned: 100/100"
+  - assertVisible:
+      text: "Submission 1 of 2"
+  - tapOn:
+      text: "Next"
+  - assertVisible:
+      text: "Submission 2 of 2"
+  - assertVisible:
+      text: "Grade earned: 70/100"
+  - assertVisible:
+      text: "Hint: This is a test feedback"
+  - tapOn:
+      text: "Close"
