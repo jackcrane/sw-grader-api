@@ -1,7 +1,7 @@
 Main Module:
 - [x] Add a configuration to allow teachers to disallow late submissions and add a late penalty
 - [x] Teachers and TAs should not be charged
-- [ ] Add an option for a teacher to disallow new students from joining
+- [x] Add an option for a teacher to disallow new students from joining
 - [x] Add an option to configure what teacher/ta should be the admin
 - [ ] Clone existing and forward future notifications to new admin as well
 - [ ] allow changing payment information for enrollments and course creation
