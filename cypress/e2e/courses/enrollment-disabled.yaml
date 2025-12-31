@@ -19,6 +19,11 @@ steps:
   - tapOn:
       text: Save course settings
       allowScroll: true
+  - assertVisible:
+      text: "Course settings saved."
+  - assertNotVisible:
+      text: Internal server error.
+      mode: missing
   - authenticateUser:
       username: student5@featurebench-test.com
       password: Password!
