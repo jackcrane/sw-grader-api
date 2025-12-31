@@ -1,5 +1,9 @@
 import { prisma } from "#prisma";
 import { withAuth } from "#withAuth";
+import {
+  resolveSubmissionRetention,
+  selectSubmissionForRetention,
+} from "../../../../services/submissionRetention.js";
 
 const STAFF_TYPES = ["TEACHER", "TA"];
 
@@ -44,6 +48,13 @@ export const get = [
       return res.status(403).json({ message: "Not authorized for this roster" });
     }
 
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      return res.status(404).json({ message: "Course not found." });
+    }
+
     const courseEnrollments = await prisma.enrollment.findMany({
       where: {
         courseId,
@@ -70,7 +81,18 @@ export const get = [
         name: true,
         pointsPossible: true,
         dueDate: true,
+        submissionRetentionMode: true,
+        submissionRetentionInheritFromCourse: true,
       },
+    });
+
+    const retentionModes = new Map();
+    assignments.forEach((assignment) => {
+      const retention = resolveSubmissionRetention({
+        course,
+        assignment,
+      });
+      retentionModes.set(assignment.id, retention.mode);
     });
 
     const assignmentIds = new Set(assignments.map((assignment) => assignment.id));
@@ -93,6 +115,8 @@ export const get = [
             userId: true,
             assignmentId: true,
             updatedAt: true,
+            unpenalizedGrade: true,
+            createdAt: true,
           },
           orderBy: {
             updatedAt: "desc",
@@ -101,22 +125,16 @@ export const get = [
       : [];
 
     const submissionsByUser = submissions.reduce((acc, submission) => {
-      if (!acc[submission.userId]) {
-        acc[submission.userId] = {};
-      }
-      const existing = acc[submission.userId][submission.assignmentId];
-      const existingDate = existing ? new Date(existing.updatedAt).getTime() : -Infinity;
-      const submissionDate = submission.updatedAt
-        ? new Date(submission.updatedAt).getTime()
-        : -Infinity;
-      if (!existing || submissionDate > existingDate) {
-        acc[submission.userId][submission.assignmentId] = {
-          id: submission.id,
-          grade: submission.grade,
-          assignmentId: submission.assignmentId,
-          updatedAt: submission.updatedAt,
-        };
-      }
+      if (!submission?.assignmentId || !submission?.userId) return acc;
+      const userMap = acc[submission.userId] ?? {};
+      const mode =
+        retentionModes.get(submission.assignmentId) ?? "BEST";
+      userMap[submission.assignmentId] = selectSubmissionForRetention(
+        userMap[submission.assignmentId],
+        submission,
+        mode
+      );
+      acc[submission.userId] = userMap;
       return acc;
     }, {});
 

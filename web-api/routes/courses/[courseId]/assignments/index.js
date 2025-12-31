@@ -8,6 +8,9 @@ import {
 import { posthog } from "../../../../util/posthog.js";
 import { buildAssignmentLatePolicyUpdate } from "../../../../services/latePolicy.js";
 import {
+  buildAssignmentSubmissionRetentionUpdate,
+} from "../../../../services/submissionRetention.js";
+import {
   ensureSignatureScreenshotAssets,
   withSignedSignatureScreenshots,
 } from "../../../../util/signatureScreenshots.js";
@@ -114,6 +117,7 @@ export const post = [
       dueDate,
       signatures,
       latePolicy,
+      submissionRetention,
     } = req.body ?? {};
 
     const trimmedName = name?.trim();
@@ -169,6 +173,17 @@ export const post = [
       throw error;
     }
 
+    let submissionRetentionData = null;
+    try {
+      submissionRetentionData =
+        buildAssignmentSubmissionRetentionUpdate(submissionRetention);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
     const firstCorrectSignature = normalizedSignatures.find(
       (signature) => signature.type === "CORRECT"
     );
@@ -191,6 +206,7 @@ export const post = [
         dueDate: dueDateValue,
         courseId,
         ...latePolicyData,
+        ...submissionRetentionData,
       },
     });
 
