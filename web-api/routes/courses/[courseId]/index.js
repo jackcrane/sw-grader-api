@@ -83,6 +83,10 @@ export const patch = [
         : null;
     }
 
+    if (allowNewEnrollmentsInput !== undefined) {
+      updateData.allowNewEnrollments = allowNewEnrollmentsInput;
+    }
+
     if (!Object.keys(updateData).length) {
       return res
         .status(400)
@@ -136,10 +140,10 @@ export const patch = [
       event: "course settings updated",
       properties: {
         courseId,
-        allowLateSubmissions: normalizedPolicy.allowLateSubmissions,
-        maxLatenessMinutes: normalizedPolicy.maxLatenessMinutes,
-        penaltyPercent: normalizedPolicy.penaltyPercent,
-        penaltyType: normalizedPolicy.penaltyPercent
+        allowLateSubmissions: normalizedPolicy?.allowLateSubmissions ?? null,
+        maxLatenessMinutes: normalizedPolicy?.maxLatenessMinutes ?? null,
+        penaltyPercent: normalizedPolicy?.penaltyPercent ?? null,
+        penaltyType: normalizedPolicy?.penaltyPercent
           ? normalizedPolicy.penaltyType
           : null,
         allowNewEnrollments: updatedCourse.allowNewEnrollments,
