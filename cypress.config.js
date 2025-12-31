@@ -290,7 +290,7 @@ function runPsql(dbUrl, args) {
 
 function runPrismaMigrate(dbUrl) {
   const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
-    stdio: "inherit",
+    stdio: "ignore",
     env: { ...process.env, DATABASE_URL: dbUrl },
     cwd: path.resolve(process.cwd(), "web-api"),
   });
