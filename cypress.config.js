@@ -321,7 +321,7 @@ function resolveSqlPath(relativePath) {
 export default defineConfig({
   e2e: {
     baseUrl: "http://localhost:3000",
-    video: false,
+    video: true,
     screenshotsFolder: "cypress/screenshots",
     downloadsFolder: "cypress/downloads",
     retries: {
