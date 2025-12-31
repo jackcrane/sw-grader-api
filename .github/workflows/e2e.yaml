@@ -213,10 +213,11 @@ jobs:
 
       - name: Run Cypress tests
         run: |
+          mkdir -p cypress
           npx cypress run \
             --config-file cypress.config.js \
             --reporter json \
-            --reporter-options outputPath=cypress/results.json
+            --reporter-options outputPath=./cypress/results.json
 
       - name: Generate per-spec Cypress table
         run: |
@@ -224,7 +225,14 @@ jobs:
           const fs = require("fs");
           const path = require("path");
 
-          const results = JSON.parse(fs.readFileSync("cypress/results.json", "utf8"));
+          const RESULTS_PATH = path.resolve("cypress/results.json");
+
+          if (!fs.existsSync(RESULTS_PATH)) {
+            console.error("⚠️ Cypress results.json not found — skipping table generation");
+            process.exit(0);
+          }
+
+          const results = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
 
           const rows = results.runs.map(run => {
             const specPath = run.spec.relative || run.spec.name || run.spec;
