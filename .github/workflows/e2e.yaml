@@ -212,7 +212,54 @@ jobs:
           exit 1
 
       - name: Run Cypress tests
-        run: npx cypress run --config-file cypress.config.js
+        run: |
+          npx cypress run \
+            --config-file cypress.config.js \
+            --reporter json \
+            --reporter-options outputPath=cypress/results.json
+
+      - name: Generate per-spec Cypress table
+        run: |
+          node <<'EOF'
+          const fs = require("fs");
+          const path = require("path");
+
+          const results = JSON.parse(fs.readFileSync("cypress/results.json", "utf8"));
+
+          const rows = results.runs.map(run => {
+            const specPath = run.spec.relative || run.spec.name || run.spec;
+            const spec = path.relative(process.cwd(), specPath);
+
+            let tests = 0, pass = 0, fail = 0, pending = 0, skipped = 0;
+
+            for (const test of run.tests) {
+              tests++;
+              if (test.state === "passed") pass++;
+              else if (test.state === "failed") fail++;
+              else if (test.state === "pending") pending++;
+              else skipped++;
+            }
+
+            const durationSec = Math.round(run.stats.duration / 1000);
+            const duration = `${String(Math.floor(durationSec / 60)).padStart(2, "0")}:${String(durationSec % 60).padStart(2, "0")}`;
+
+            const statusEmoji = fail > 0 ? "❌" : "✅";
+
+            return { spec, duration, tests, pass, fail, pending, skipped, statusEmoji };
+          });
+
+          const md = [
+            "### 🧪 Cypress Per-Spec Results",
+            "",
+            "| Status | Spec | Duration | Tests | Passing | Failing | Pending | Skipped |",
+            "|--------|------|----------|-------|---------|---------|---------|---------|",
+            ...rows.map(r =>
+              `| ${r.statusEmoji} | \`${r.spec}\` | ${r.duration} | ${r.tests} | ${r.pass} | ${r.fail || "-"} | ${r.pending || "-"} | ${r.skipped || "-"} |`
+            )
+          ].join("\n");
+
+          fs.writeFileSync("cypress/spec-table.md", md);
+          EOF
 
       - name: Stop background services
         if: always()
@@ -248,16 +295,21 @@ jobs:
             const commentTag = '<!-- e2e-tests-comment -->';
             const artifactUrl = '${{ steps.upload-artifacts.outputs.artifact-url }}';
             const status = '${{ job.status }}';
+            const fs = require("fs");
+
+            let table = "";
+            try {
+              table = fs.readFileSync("cypress/spec-table.md", "utf8");
+            } catch {}
+
             const bodyLines = [
-              `E2E tests ${status === 'success' ? 'passed ✅' : status === 'failure' ? 'failed ❌' : status}.`
-            ];
-            if (artifactUrl) {
-              bodyLines.push(`[Download the Cypress artifacts](${artifactUrl})`);
-            } else {
-              bodyLines.push('No Cypress artifacts were uploaded for this run.');
-            }
-            bodyLines.push(commentTag);
-            const body = bodyLines.join('\n\n');
+              `E2E tests ${status === "success" ? "passed ✅" : "failed ❌"}.`,
+              table,
+              artifactUrl ? `[Download the Cypress artifacts](${artifactUrl})` : "",
+              commentTag,
+            ].filter(Boolean);
+
+            const body = bodyLines.join("\n\n");
 
             async function deleteExistingComments() {
               if (context.eventName === 'pull_request') {
