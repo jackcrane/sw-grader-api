@@ -13,6 +13,7 @@ steps:
       text: E2E Test Course
   - tapOn:
       text: Course Details
+  - waitFor: 1000
   - tapOn:
       text: Block new enrollments
   - waitFor: 1000
