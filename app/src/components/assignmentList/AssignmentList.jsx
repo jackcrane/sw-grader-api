@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import classNames from "classnames";
 import { CaretRight, PencilSimple } from "@phosphor-icons/react";
 import styles from "./AssignmentList.module.css";
@@ -34,6 +40,32 @@ export const AssignmentList = ({
   const canManageAssignments = ["TEACHER", "TA"].includes(enrollmentType);
   const { assignmentId: activeAssignmentId } = useParams();
   const isAssignmentSelected = Boolean(activeAssignmentId);
+
+  const isDueDatePassed = (dueDate) => {
+    if (!dueDate) return false;
+    const timestamp = new Date(dueDate).getTime();
+    if (!Number.isFinite(timestamp)) return false;
+    return Date.now() > timestamp;
+  };
+
+  const getAssignmentStatus = (assignment) => {
+    if (!assignment?.dueDate) return null;
+    const submission = assignment?.userSubmission;
+    if (!submission) {
+      return isDueDatePassed(assignment.dueDate) ? "missing" : null;
+    }
+    const submittedAt = submission.createdAt ?? submission.updatedAt;
+    const dueTs = new Date(assignment.dueDate).getTime();
+    const submittedTs = new Date(submittedAt).getTime();
+    if (!Number.isFinite(dueTs) || !Number.isFinite(submittedTs)) return null;
+    return submittedTs > dueTs ? "late" : null;
+  };
+
+  const formatDueDate = (dueDate) =>
+    new Date(dueDate).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
 
   const handleCreateAssignment = async (payload) => {
     await createAssignment(payload);
@@ -135,10 +167,7 @@ export const AssignmentList = ({
       >
         <div className={classNames(styles.side, styles.left)}>
           {canManageAssignments && (
-            <div
-              className={styles.assignment}
-              onClick={openCreateModal}
-            >
+            <div className={styles.assignment} onClick={openCreateModal}>
               <div>
                 <H2>New Assignment</H2>
                 <p>Create a new assignment</p>
@@ -163,6 +192,9 @@ export const AssignmentList = ({
           )}
           {(assignments || []).map((assignment) => {
             const isActive = assignment.id === activeAssignmentId;
+            const status = !canManageAssignments
+              ? getAssignmentStatus(assignment)
+              : null;
 
             return (
               <NavLink
@@ -174,23 +206,28 @@ export const AssignmentList = ({
                   className={classNames(styles.assignment, {
                     [styles.assignmentActive]: isActive,
                   })}
+                  data-cy={`assignment-card-${assignment.name}`}
                 >
                   <div>
                     <H2>{assignment.name}</H2>
-                    <p>
-                      {assignment.pointsPossible} pts • {assignment.unitSystem}
-                    </p>
+                    <p>{assignment.pointsPossible}</p>
                     {assignment.dueDate && (
-                      <p>
-                        Due{" "}
-                        {new Date(assignment.dueDate).toLocaleString(
-                          undefined,
-                          {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          }
+                      <div className={styles.assignmentMeta}>
+                        <span className={styles.dueDateLabel}>
+                          Due {formatDueDate(assignment.dueDate)}
+                        </span>
+                        {!canManageAssignments && status && (
+                          <span
+                            className={classNames(styles.statusChip, {
+                              [styles.statusChipMissing]: status === "missing",
+                              [styles.statusChipLate]: status === "late",
+                            })}
+                            data-cy="assignment-status"
+                          >
+                            {status === "missing" ? "Missing" : "Late"}
+                          </span>
                         )}
-                      </p>
+                      </div>
                     )}
                   </div>
                   <div className={styles.assignmentActions}>
