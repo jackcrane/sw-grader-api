@@ -215,6 +215,7 @@ jobs:
           exit 1
 
       - name: Run Cypress tests
+        continue-on-error: true
         run: |
           mkdir -p cypress
           npx cypress run \
@@ -389,3 +390,11 @@ jobs:
                 body,
               });
             }
+
+      - name: Fail workflow if Cypress failed
+        if: always()
+        run: |
+          if [ "${{ steps.cypress.conclusion }}" = "failure" ]; then
+            echo "Cypress tests failed"
+            exit 1
+          fi
