@@ -196,7 +196,10 @@ jobs:
 
       - name: Start API server
         run: |
-          yarn --cwd web-api start > web-api.log 2>&1 &
+          set -o pipefail
+          yarn --cwd web-api start 2>&1 \
+            | sed 's/^/[api] /' \
+            | tee web-api.log &
           echo $! > web-api.pid
 
       - name: Wait for API
