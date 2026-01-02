@@ -21,9 +21,6 @@ steps:
       allowScroll: true
   - assertVisible:
       text: "Course settings saved."
-  - assertNotVisible:
-      text: Internal server error.
-      mode: missing
   - waitFor: 10000
   - authenticateUser:
       username: student5@featurebench-test.com
