@@ -215,13 +215,14 @@ jobs:
           exit 1
 
       - name: Run Cypress tests
+        id: cypress
         continue-on-error: true
         run: |
           mkdir -p cypress
           npx cypress run \
             --config-file cypress.config.js \
             --reporter json \
-            --reporter-options outputPath=./cypress/results.json
+            --reporter-options outputPath=./cypress/results.json,overwrite=true,stdout=false
 
       - name: Generate per-spec Cypress table
         if: always()
