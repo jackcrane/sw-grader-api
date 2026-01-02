@@ -220,6 +220,7 @@ jobs:
             --reporter-options outputPath=./cypress/results.json
 
       - name: Generate per-spec Cypress table
+        if: always()
         run: |
           node <<'EOF'
           const fs = require("fs");
@@ -385,11 +386,3 @@ jobs:
                 body,
               });
             }
-
-      - name: Fail job if Cypress failed
-        if: always()
-        run: |
-          if grep -q '"failures":[1-9]' cypress/results.json; then
-            echo "Cypress tests failed"
-            exit 1
-          fi
