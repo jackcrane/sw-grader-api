@@ -196,7 +196,10 @@ jobs:
 
       - name: Start API server
         run: |
-          yarn --cwd web-api start > web-api.log 2>&1 &
+          set -o pipefail
+          yarn --cwd web-api start 2>&1 \
+            | sed 's/^/[api] /' \
+            | tee web-api.log &
           echo $! > web-api.pid
 
       - name: Wait for API
@@ -212,7 +215,64 @@ jobs:
           exit 1
 
       - name: Run Cypress tests
-        run: npx cypress run --config-file cypress.config.js
+        id: cypress
+        run: |
+          mkdir -p cypress
+          npx cypress run \
+            --config-file cypress.config.js \
+            --reporter json \
+            --reporter-options outputPath=./cypress/results.json,overwrite=true,stdout=false
+
+      - name: Generate per-spec Cypress table
+        if: always()
+        run: |
+          node <<'EOF'
+          const fs = require("fs");
+          const path = require("path");
+
+          const RESULTS_PATH = path.resolve("cypress/results.json");
+
+          if (!fs.existsSync(RESULTS_PATH)) {
+            console.error("⚠️ Cypress results.json not found — skipping table generation");
+            process.exit(0);
+          }
+
+          const results = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
+
+          const rows = results.runs.map(run => {
+            const specPath = run.spec.relative || run.spec.name || run.spec;
+            const spec = path.relative(process.cwd(), specPath);
+
+            let tests = 0, pass = 0, fail = 0, pending = 0, skipped = 0;
+
+            for (const test of run.tests) {
+              tests++;
+              if (test.state === "passed") pass++;
+              else if (test.state === "failed") fail++;
+              else if (test.state === "pending") pending++;
+              else skipped++;
+            }
+
+            const durationSec = Math.round(run.stats.duration / 1000);
+            const duration = `${String(Math.floor(durationSec / 60)).padStart(2, "0")}:${String(durationSec % 60).padStart(2, "0")}`;
+
+            const statusEmoji = fail > 0 ? "❌" : "✅";
+
+            return { spec, duration, tests, pass, fail, pending, skipped, statusEmoji };
+          });
+
+          const md = [
+            "### 🧪 Cypress Per-Spec Results",
+            "",
+            "| Status | Spec | Duration | Tests | Passing | Failing | Pending | Skipped |",
+            "|--------|------|----------|-------|---------|---------|---------|---------|",
+            ...rows.map(r =>
+              `| ${r.statusEmoji} | \`${r.spec}\` | ${r.duration} | ${r.tests} | ${r.pass} | ${r.fail || "-"} | ${r.pending || "-"} | ${r.skipped || "-"} |`
+            )
+          ].join("\n");
+
+          fs.writeFileSync("cypress/spec-table.md", md);
+          EOF
 
       - name: Stop background services
         if: always()
@@ -235,6 +295,7 @@ jobs:
             cypress/screenshots
             cypress/videos
             cypress/downloads
+            cypress/artifacts/db-dumps
             web-api.log
             grader-mock.log
           if-no-files-found: ignore
@@ -248,16 +309,21 @@ jobs:
             const commentTag = '<!-- e2e-tests-comment -->';
             const artifactUrl = '${{ steps.upload-artifacts.outputs.artifact-url }}';
             const status = '${{ job.status }}';
+            const fs = require("fs");
+
+            let table = "";
+            try {
+              table = fs.readFileSync("cypress/spec-table.md", "utf8");
+            } catch {}
+
             const bodyLines = [
-              `E2E tests ${status === 'success' ? 'passed ✅' : status === 'failure' ? 'failed ❌' : status}.`
-            ];
-            if (artifactUrl) {
-              bodyLines.push(`[Download the Cypress artifacts](${artifactUrl})`);
-            } else {
-              bodyLines.push('No Cypress artifacts were uploaded for this run.');
-            }
-            bodyLines.push(commentTag);
-            const body = bodyLines.join('\n\n');
+              `E2E tests ${status === "success" ? "passed ✅" : "failed ❌"}.`,
+              table,
+              artifactUrl ? `[Download the Cypress artifacts](${artifactUrl})` : "",
+              commentTag,
+            ].filter(Boolean);
+
+            const body = bodyLines.join("\n\n");
 
             async function deleteExistingComments() {
               if (context.eventName === 'pull_request') {

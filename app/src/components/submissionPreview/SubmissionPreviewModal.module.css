@@ -97,7 +97,23 @@
 
 .footer {
   display: flex;
+  align-items: center;
   gap: 8px;
-  justify-content: flex-end;
   flex-wrap: wrap;
+  justify-content: flex-start;
+  width: 100%;
+}
+.footerNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.footerNavLabel {
+  font-size: 0.85rem;
+  color: #333;
+}
+.footerActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }

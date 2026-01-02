@@ -21,6 +21,7 @@ import { startSignatureTrendWorker } from "./services/signatureTrendWorker.js";
 dotenv.config();
 
 const app = express();
+
 app.use(
   express.json({
     limit: "20mb",
@@ -29,6 +30,12 @@ app.use(
     },
   })
 );
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url} [  ${JSON.stringify(req.body)}  ]`);
+  next();
+});
+
 app.use(cookieParser());
 
 startGraderHealthMonitor();

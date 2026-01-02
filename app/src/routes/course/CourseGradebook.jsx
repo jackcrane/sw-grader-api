@@ -28,6 +28,7 @@ import {
 import styles from "./CourseGradebook.module.css";
 import assignmentStyles from "./AssignmentDetails.module.css";
 import { useDocs } from "../../context/DocsContext";
+import { findSubmissionIndexById, sortSubmissionsByTimestamp } from "../../utils/submissionUtils";
 
 const roleLabels = {
   STUDENT: "Student",
@@ -73,6 +74,15 @@ const formatGradeCell = (submission, assignment) => {
   }
 
   return { label, percent, status };
+};
+
+const formatSubmissionGradeLabel = (gradeValue, pointsPossible) => {
+  const numeric = parseGradeValue(gradeValue);
+  return getSubmissionGradeLabel({
+    gradeValue: numeric,
+    hasSubmission: true,
+    pointsPossible,
+  });
 };
 
 const buildSubmissionLookup = (submissions = []) =>
@@ -254,6 +264,10 @@ export const CourseGradebook = () => {
   const [previewModalState, setPreviewModalState] = useState(
     submissionPreviewInitialState
   );
+  const [previewSubmissions, setPreviewSubmissions] = useState([]);
+  const [previewSubmissionIndex, setPreviewSubmissionIndex] = useState(0);
+  const [previewSubmissionPointsPossible, setPreviewSubmissionPointsPossible] =
+    useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
   const [canvasGradebookData, setCanvasGradebookData] = useState(() =>
@@ -336,13 +350,21 @@ export const CourseGradebook = () => {
     return <Navigate to={`/${courseId}`} replace />;
   }
 
+  const resetSubmissionNavigation = () => {
+    setPreviewSubmissions([]);
+    setPreviewSubmissionIndex(0);
+    setPreviewSubmissionPointsPossible(null);
+  };
+
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
     setPreviewModalState(submissionPreviewInitialState);
+    resetSubmissionNavigation();
   };
 
   const showLoadingPreview = () => {
     setPreviewModalOpen(true);
+    resetSubmissionNavigation();
     setPreviewModalState({
       status: "loading",
       screenshotUrl: null,
@@ -357,14 +379,14 @@ export const CourseGradebook = () => {
     });
   };
 
-  const showSubmissionPreview = (submission, gradeLabel, pointsPossible = null) => {
+  const showSubmissionPreview = (submission, pointsPossible = null) => {
     if (!submission) return;
     setPreviewModalOpen(true);
     setPreviewModalState({
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
       gradeValue: submission?.grade ?? null,
-      gradeLabel,
+      gradeLabel: formatSubmissionGradeLabel(submission?.grade, pointsPossible),
       feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
@@ -378,7 +400,12 @@ export const CourseGradebook = () => {
     });
   };
 
-  const handleViewSubmission = async (assignmentId, userId, gradeLabel) => {
+  const handleViewSubmission = async (
+    assignmentId,
+    userId,
+    gradeLabel,
+    defaultSubmissionId
+  ) => {
     if (!assignmentId || !userId) return;
     showLoadingPreview();
     try {
@@ -387,20 +414,24 @@ export const CourseGradebook = () => {
       const payload = await fetchJson(
         `/api/courses/${courseId}/assignments/${assignmentId}/submissions?${params}`
       );
-      const submission = payload?.submissions?.[0] ?? null;
-      if (!submission) {
+      const submissions = sortSubmissionsByTimestamp(payload?.submissions ?? []);
+      if (!submissions.length) {
         throw new Error("No submission recorded for this assignment.");
       }
       const assignment =
-        assignments.find(
-          (item) => String(item.id) === String(assignmentId)
-        ) ?? null;
-      showSubmissionPreview(
-        submission,
-        gradeLabel,
-        assignment?.pointsPossible ?? null
+        assignments.find((item) => String(item.id) === String(assignmentId)) ??
+        null;
+      const pointsPossible = assignment?.pointsPossible ?? null;
+      const defaultIndex = Math.max(
+        0,
+        findSubmissionIndexById(submissions, defaultSubmissionId)
       );
+      setPreviewSubmissions(submissions);
+      setPreviewSubmissionIndex(defaultIndex);
+      setPreviewSubmissionPointsPossible(pointsPossible);
+      showSubmissionPreview(submissions[defaultIndex], pointsPossible);
     } catch (err) {
+      resetSubmissionNavigation();
       setPreviewModalState({
         status: "error",
         screenshotUrl: null,
@@ -414,6 +445,29 @@ export const CourseGradebook = () => {
         latePenaltyLabel: null,
       });
     }
+  };
+
+  const goToPreviousPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.max(0, previewSubmissionIndex - 1);
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    showSubmissionPreview(submission, previewSubmissionPointsPossible);
+  };
+
+  const goToNextPreviewSubmission = () => {
+    if (!previewSubmissions.length) return;
+    const nextIndex = Math.min(
+      previewSubmissions.length - 1,
+      previewSubmissionIndex + 1
+    );
+    if (nextIndex === previewSubmissionIndex) return;
+    const submission = previewSubmissions[nextIndex];
+    if (!submission) return;
+    setPreviewSubmissionIndex(nextIndex);
+    showSubmissionPreview(submission, previewSubmissionPointsPossible);
   };
 
   const handleCanvasUploadChange = async (event) => {
@@ -715,13 +769,14 @@ export const CourseGradebook = () => {
                                 type="button"
                                 className={styles.gradeCellIcon}
                                 aria-label="View submission"
-                                onClick={() =>
-                                  handleViewSubmission(
-                                    grade.assignmentId,
-                                    row.userId,
-                                    grade.label
-                                  )
-                                }
+                                  onClick={() =>
+                                    handleViewSubmission(
+                                      grade.assignmentId,
+                                      row.userId,
+                                      grade.label,
+                                      grade.submission?.id
+                                    )
+                                  }
                                 data-cy={`gradebook-scored-button-${grade.assignmentId}`}
                               >
                                 <SignOut size={16} />
@@ -865,6 +920,16 @@ export const CourseGradebook = () => {
         queueStatus={previewModalState.queueStatus}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
+        navigation={
+          previewSubmissions.length > 1
+            ? {
+                totalSubmissions: previewSubmissions.length,
+                currentIndex: previewSubmissionIndex,
+                onPrevious: goToPreviousPreviewSubmission,
+                onNext: goToNextPreviewSubmission,
+              }
+            : undefined
+        }
       />
     </section>
   );

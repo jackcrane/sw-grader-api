@@ -7,18 +7,22 @@ steps:
   - open: /
   - setViewport:
       width: 1280
-      height: 720
+      height: 1000
   - waitFor: 200
   - tapOn:
       text: E2E Test Course
   - tapOn:
       text: Course Details
+  - waitFor: 1000
   - tapOn:
       text: Block new enrollments
-      allowScroll: true
+  - waitFor: 1000
   - tapOn:
       text: Save course settings
       allowScroll: true
+  - assertVisible:
+      text: "Course settings saved."
+  - waitFor: 10000
   - authenticateUser:
       username: student5@featurebench-test.com
       password: Password!

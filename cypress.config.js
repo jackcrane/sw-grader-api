@@ -318,10 +318,35 @@ function resolveSqlPath(relativePath) {
   return path.resolve(process.cwd(), "cypress", relativePath);
 }
 
+const dumpDb = (label) => {
+  const outDir = path.resolve("cypress/artifacts/db-dumps");
+  fs.mkdirSync(outDir, { recursive: true });
+
+  const filename = `${Date.now()}-${label}.sql`;
+  const outPath = path.join(outDir, filename);
+
+  const result = spawnSync(
+    "pg_dump",
+    [
+      process.env.DATABASE_URL.replace("?schema=public", ""),
+      "--no-owner",
+      "--no-privileges",
+    ],
+    {
+      stdio: ["ignore", fs.openSync(outPath, "w"), "inherit"],
+      env: process.env,
+    }
+  );
+
+  if (result.status !== 0) {
+    throw new Error("pg_dump failed");
+  }
+};
+
 export default defineConfig({
   e2e: {
     baseUrl: "http://localhost:3000",
-    video: false,
+    video: true,
     screenshotsFolder: "cypress/screenshots",
     downloadsFolder: "cypress/downloads",
     retries: {
@@ -485,6 +510,11 @@ export default defineConfig({
           await client.query(query);
           return null;
         },
+      });
+
+      on("after:spec", (spec, results) => {
+        const label = spec.relative.replace(/[\/\\]/g, "_");
+        dumpDb(label);
       });
 
       return config;

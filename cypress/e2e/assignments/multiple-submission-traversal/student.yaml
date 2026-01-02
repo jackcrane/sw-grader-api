@@ -1,0 +1,32 @@
+# Tests the flow of multiple submissions in the submission view modal
+name: Multiple submissions
+seedFile: fixtures/course-w-submissions.sql
+steps:
+  - authenticateUser:
+      username: student@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: E2E Test Assignment
+  - tapOn:
+      text: View
+  - assertVisible:
+      text: "Hint: This is a test feedback"
+  - assertVisible:
+      text: "Grade earned: 70/100"
+  - assertVisible:
+      text: "Submission 2 of 2"
+  - tapOn:
+      text: "Previous"
+  - assertVisible:
+      text: "Submission 1 of 2"
+  - assertVisible:
+      text: "Grade earned: 100/100"
+  - tapOn:
+      text: "Close"

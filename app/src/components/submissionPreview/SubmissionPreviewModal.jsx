@@ -35,6 +35,7 @@ export const SubmissionPreviewModal = ({
   queueStatus,
   onClose,
   latePenaltyLabel,
+  navigation,
 }) => {
   if (!open) return null;
 
@@ -48,15 +49,39 @@ export const SubmissionPreviewModal = ({
     queueStatus?.state ??
     (queueAheadCount > 0 ? "queued" : "processing");
 
+  const navigationIndex = navigation?.currentIndex ?? 0;
+  const navigationTotal = navigation?.totalSubmissions ?? 0;
+  const canNavigate =
+    navigationTotal > 1 &&
+    typeof navigation?.onPrevious === "function" &&
+    typeof navigation?.onNext === "function";
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       closeOnBackdrop={status !== "loading"}
       title={getTitle(status)}
-      footer={
-        status === "loading" ? null : (
-          <div className={styles.footer}>
+    footer={
+      status === "loading" ? null : (
+        <div className={styles.footer}>
+          {canNavigate && (
+            <div className={styles.footerNav}>
+              <Button onClick={navigation.onPrevious} disabled={navigationIndex <= 0}>
+                Previous
+              </Button>
+              <span className={styles.footerNavLabel}>
+                Submission {navigationIndex + 1} of {navigationTotal}
+              </span>
+              <Button
+                onClick={navigation.onNext}
+                disabled={navigationIndex >= navigationTotal - 1}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+          <div className={styles.footerActions}>
             <Button onClick={onClose}>Close</Button>
             {downloadUrl && (
               <Button
@@ -69,9 +94,10 @@ export const SubmissionPreviewModal = ({
               </Button>
             )}
           </div>
-        )
-      }
-    >
+        </div>
+      )
+    }
+  >
       <div className={styles.content}>
         {status === "loading" && (
           <div className={styles.loading}>

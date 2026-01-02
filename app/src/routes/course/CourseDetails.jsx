@@ -316,6 +316,18 @@ export const CourseDetails = () => {
     setSettingsError(null);
     setSettingsSuccess(null);
     try {
+      if (course?.allowNewEnrollments !== allowNewEnrollments) {
+        await fetchJson(`/api/courses/${courseId}/new-student-access`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            allowNewEnrollments,
+          }),
+        });
+      }
+
       await fetchJson(`/api/courses/${courseId}`, {
         method: "PATCH",
         headers: {
@@ -332,7 +344,6 @@ export const CourseDetails = () => {
                 ? latePenaltyType
                 : null,
           },
-          allowNewEnrollments,
           submissionRetentionMode,
         }),
       });

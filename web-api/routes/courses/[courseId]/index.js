@@ -5,24 +5,7 @@ import { normalizeSubmissionRetentionMode } from "../../../services/submissionRe
 import { ValidationError } from "../../../util/errors.js";
 import { posthog } from "../../../util/posthog.js";
 import { rescoreSubmissionsAgainstSignatures } from "../../../services/signatureTrends.js";
-
-const ensureTeacherEnrollment = async (courseId, userId) => {
-  if (!courseId || !userId) return null;
-  return prisma.enrollment.findFirst({
-    where: {
-      courseId,
-      userId,
-      deleted: false,
-      type: "TEACHER",
-      course: {
-        deleted: false,
-      },
-    },
-    include: {
-      course: true,
-    },
-  });
-};
+import { ensureTeacherEnrollment } from "./helpers.js";
 
 export const patch = [
   withAuth,
