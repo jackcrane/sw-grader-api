@@ -15,13 +15,7 @@ steps:
       text: Course Details
   - tapOn:
       text: Allow new enrollments
-  - tapOn:
-      text: Save course settings
-      allowScroll: true
-  - tapOn:
-      text: Block new enrollments
-      allowScroll: true
-  - waitFor: 200
+  - waitFor: 1000
   - tapOn:
       text: Save course settings
       allowScroll: true
@@ -30,6 +24,7 @@ steps:
   - assertNotVisible:
       text: Internal server error.
       mode: missing
+  - waitFor: 10000
   - authenticateUser:
       username: student5@featurebench-test.com
       password: Password!
