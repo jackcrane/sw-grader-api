@@ -56,25 +56,6 @@ const NEW_STUDENT_ACCESS_OPTIONS = [
   { value: false, label: "Block new enrollments" },
 ];
 
-const findCourseFromEnrollments = (enrollments, courseId) => {
-  if (!Array.isArray(enrollments)) return null;
-  const match = enrollments.find(
-    (entry) =>
-      (entry.course?.id ?? entry.courseId ?? null) === courseId
-  );
-  return match?.course ?? null;
-};
-
-const doesCourseAllowNewEnrollmentsMatch = (
-  enrollments,
-  courseId,
-  targetValue
-) => {
-  const courseRecord = findCourseFromEnrollments(enrollments, courseId);
-  if (!courseRecord) return true;
-  return courseRecord.allowNewEnrollments === targetValue;
-};
-
 export const CourseDetails = () => {
   const {
     courseId,
@@ -334,10 +315,19 @@ export const CourseDetails = () => {
     setSettingsSaving(true);
     setSettingsError(null);
     setSettingsSuccess(null);
-    const previousAllowNewEnrollments = course?.allowNewEnrollments ?? true;
-    const allowNewEnrollmentsChanged =
-      previousAllowNewEnrollments !== allowNewEnrollments;
     try {
+      if (course?.allowNewEnrollments !== allowNewEnrollments) {
+        await fetchJson(`/api/courses/${courseId}/new-student-access`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            allowNewEnrollments,
+          }),
+        });
+      }
+
       await fetchJson(`/api/courses/${courseId}`, {
         method: "PATCH",
         headers: {
@@ -354,43 +344,10 @@ export const CourseDetails = () => {
                 ? latePenaltyType
                 : null,
           },
-          allowNewEnrollments,
           submissionRetentionMode,
         }),
       });
-      const enrollmentsAfterSave = await refetchEnrollments?.();
-
-      if (
-        allowNewEnrollmentsChanged &&
-        !doesCourseAllowNewEnrollmentsMatch(
-          enrollmentsAfterSave,
-          courseId,
-          allowNewEnrollments
-        )
-      ) {
-        await fetchJson(`/api/courses/${courseId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            allowNewEnrollments,
-          }),
-        });
-        const enrollmentsAfterRetry = await refetchEnrollments?.();
-        if (
-          !doesCourseAllowNewEnrollmentsMatch(
-            enrollmentsAfterRetry,
-            courseId,
-            allowNewEnrollments
-          )
-        ) {
-          throw new Error(
-            "Unable to save new student access. Please try again."
-          );
-        }
-      }
-
+      await refetchEnrollments?.();
       setSettingsSuccess("Course settings saved.");
     } catch (err) {
       setSettingsError(err?.message || "Unable to save course settings.");
