@@ -108,7 +108,7 @@ const chargeEnrollmentFeeForUser = async ({
         ...metadata,
       },
       // statement_descriptor: "FeatureBench enrollment",
-      receipt_email: user.email || undefined,
+      // receipt_email: user.email || undefined,
     });
 
     if (paymentIntent.status === "succeeded") {
