@@ -178,6 +178,36 @@ export const Header = () => {
     setViewAsStudent((value) => !value);
   }, [setViewAsStudent]);
 
+  useEffect(() => {
+    const handleBillingAuthorizationOpen = async (event) => {
+      const paymentIntentId = event?.detail?.paymentIntentId;
+      if (!paymentIntentId) return;
+      let notification = notifications.find(
+        (entry) => entry?.data?.paymentIntentId === paymentIntentId
+      );
+      if (!notification) {
+        const payload = await refreshNotifications();
+        const nextNotifications = payload?.notifications ?? [];
+        notification = nextNotifications.find(
+          (entry) => entry?.data?.paymentIntentId === paymentIntentId
+        );
+      }
+      if (!notification) return;
+      await authorizePaymentNotification(notification);
+    };
+
+    window.addEventListener(
+      "billing-authorization:open",
+      handleBillingAuthorizationOpen
+    );
+    return () => {
+      window.removeEventListener(
+        "billing-authorization:open",
+        handleBillingAuthorizationOpen
+      );
+    };
+  }, [authorizePaymentNotification, notifications, refreshNotifications]);
+
   return (
     <>
       <header className={styles.header}>

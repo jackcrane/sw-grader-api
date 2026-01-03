@@ -57,7 +57,11 @@ const billingCellStyle = {
 const escapeCsvValue = (value) => {
   const stringValue =
     value === null || value === undefined ? "" : String(value);
-  if (stringValue.includes('"') || stringValue.includes(",") || stringValue.includes("\n")) {
+  if (
+    stringValue.includes('"') ||
+    stringValue.includes(",") ||
+    stringValue.includes("\n")
+  ) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;
@@ -120,7 +124,8 @@ export const CourseDetails = () => {
     totalPendingCents: 0,
     totalFailedCents: 0,
   });
-  const [billingHistoryRefreshIndex, setBillingHistoryRefreshIndex] = useState(0);
+  const [billingHistoryRefreshIndex, setBillingHistoryRefreshIndex] =
+    useState(0);
   const normalizedLatePolicy = useMemo(
     () =>
       normalizeLatePolicy({
@@ -518,17 +523,24 @@ export const CourseDetails = () => {
       case "processing":
         return "Processing";
       case "requires_action":
-        return "Action required";
+        return "Pending authorization";
       case "requires_payment_method":
         return "Pending authorization";
       case "requires_confirmation":
-        return "Pending confirmation";
+        return "Pending authorization";
       case "canceled":
         return "Canceled";
       default:
         return "Pending";
     }
   };
+
+  const isPendingAuthorization = (status) =>
+    [
+      "requires_action",
+      "requires_payment_method",
+      "requires_confirmation",
+    ].includes(status);
 
   const handleDownloadBillingCsv = () => {
     if (!billingHistory.length) return;
@@ -728,7 +740,10 @@ export const CourseDetails = () => {
                         <div style={{ fontSize: 12, color: "#666" }}>
                           Current balance
                         </div>
-                        <div style={{ fontSize: 18, fontWeight: 600 }}>
+                        <div
+                          style={{ fontSize: 18, fontWeight: 600 }}
+                          data-cy="billing-balance"
+                        >
                           {formatCurrency(billingSummary.totalPendingCents)}
                         </div>
                       </div>
@@ -736,7 +751,10 @@ export const CourseDetails = () => {
                         <div style={{ fontSize: 12, color: "#666" }}>
                           Total billed
                         </div>
-                        <div style={{ fontSize: 18, fontWeight: 600 }}>
+                        <div
+                          style={{ fontSize: 18, fontWeight: 600 }}
+                          data-cy="billing-total-billed"
+                        >
                           {formatCurrency(billingSummary.totalChargedCents)}
                         </div>
                       </div>
@@ -788,7 +806,36 @@ export const CourseDetails = () => {
                               {item.description || "Enrollment charge"}
                             </td>
                             <td style={billingCellStyle}>
-                              {formatBillingStatus(item.status)}
+                              {isPendingAuthorization(item.status) ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    window.dispatchEvent(
+                                      new CustomEvent(
+                                        "billing-authorization:open",
+                                        {
+                                          detail: {
+                                            paymentIntentId: item.id,
+                                          },
+                                        }
+                                      )
+                                    )
+                                  }
+                                  style={{
+                                    padding: 0,
+                                    border: "none",
+                                    background: "none",
+                                    color: "#e07b00",
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                    font: "inherit",
+                                  }}
+                                >
+                                  Pending authorization
+                                </button>
+                              ) : (
+                                formatBillingStatus(item.status)
+                              )}
                             </td>
                             <td
                               style={{

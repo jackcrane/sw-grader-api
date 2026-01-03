@@ -137,3 +137,43 @@ steps:
   - assertVisible:
       text: "Pending authorization"
       parentCy: "billing-history-table"
+  - assertVisible:
+      text: "$12.00"
+      dataCy: "billing-total-billed"
+  - assertVisible:
+      text: "$12.00"
+      dataCy: "billing-balance"
+  ##############################################################################
+  # Test billing authorization
+  - tapOn:
+      text: "Pending authorization"
+      parentCy: "billing-history-table"
+  - assertVisible:
+      text: "Authorize payment"
+  - tapOn:
+      text: "Authorize payment"
+  - assertVisible:
+      text: "Using VISA ending in 3184."
+  - tapOn:
+      text: "Charge saved payment method"
+  - waitFor: 5000
+  - acceptStripe3dSecure:
+      action: accept
+  - waitFor: 2000
+  - assertVisible:
+      text: "Payment complete"
+  - tapOn:
+      text: "Close"
+  - waitFor: 1000
+  ##############################################################################
+  # Check the table
+  - assertVisible:
+      text: "$0.00"
+      dataCy: "billing-balance"
+  - assertVisible:
+      text: "$24.00"
+      dataCy: "billing-total-billed"
+  - assertNotVisible:
+      text: "Pending authorization"
+      mode: missing
+      parentCy: "billing-history-table"

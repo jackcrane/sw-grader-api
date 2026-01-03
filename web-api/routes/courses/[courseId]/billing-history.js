@@ -84,9 +84,11 @@ export const get = [
       expand: [],
     });
 
-    const matchingIntents = paymentIntents.data.filter(
-      (intent) => intent?.metadata?.courseId === courseId
-    );
+    const matchingIntents = paymentIntents.data.filter((intent) => {
+      const metadataCourseId = intent?.metadata?.courseId;
+      if (!metadataCourseId) return false;
+      return String(metadataCourseId) === String(courseId);
+    });
 
     const studentIds = [
       ...new Set(
