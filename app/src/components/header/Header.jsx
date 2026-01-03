@@ -35,6 +35,11 @@ export const Header = () => {
     hasPending: hasPendingNotifications,
   } = useNotifications({ enabled: Boolean(user) });
 
+  const handleBillingAuthorizationSuccess = useCallback(async () => {
+    await refreshNotifications();
+    window.dispatchEvent(new Event("billing-history:refresh"));
+  }, [refreshNotifications]);
+
   const {
     authorizationModal,
     authorizePaymentNotification,
@@ -43,7 +48,7 @@ export const Header = () => {
     notificationActions,
     updateAuthorizationModalState,
   } = usePaymentAuthorization({
-    onSuccess: refreshNotifications,
+    onSuccess: handleBillingAuthorizationSuccess,
   });
 
   const canViewAsStudent = useMemo(() => {
@@ -172,6 +177,36 @@ export const Header = () => {
   const handleToggleStudentView = useCallback(() => {
     setViewAsStudent((value) => !value);
   }, [setViewAsStudent]);
+
+  useEffect(() => {
+    const handleBillingAuthorizationOpen = async (event) => {
+      const paymentIntentId = event?.detail?.paymentIntentId;
+      if (!paymentIntentId) return;
+      let notification = notifications.find(
+        (entry) => entry?.data?.paymentIntentId === paymentIntentId
+      );
+      if (!notification) {
+        const payload = await refreshNotifications();
+        const nextNotifications = payload?.notifications ?? [];
+        notification = nextNotifications.find(
+          (entry) => entry?.data?.paymentIntentId === paymentIntentId
+        );
+      }
+      if (!notification) return;
+      await authorizePaymentNotification(notification);
+    };
+
+    window.addEventListener(
+      "billing-authorization:open",
+      handleBillingAuthorizationOpen
+    );
+    return () => {
+      window.removeEventListener(
+        "billing-authorization:open",
+        handleBillingAuthorizationOpen
+      );
+    };
+  }, [authorizePaymentNotification, notifications, refreshNotifications]);
 
   return (
     <>

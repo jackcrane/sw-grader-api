@@ -1,0 +1,62 @@
+# Checks to see if the student is blocked from submitting a part when the max lateness is reached
+
+name: Submit assignment late by 30 mins (partial signature) (no penalty)
+seedFile: fixtures/course-tp-assignment.sql
+steps:
+  ##############################################################################
+  # Set up a late policy
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - tapOn:
+      text: Course Details
+  - typeText:
+      dataCy: max-lateness
+      text: "24" # hours
+  - typeText:
+      dataCy: penalty-percent
+      text: "20" # percent
+  - tapOn:
+      text: Save course settings
+  ##############################################################################
+  # Modify assignment due date to 10 hrs ago
+  - sql: UPDATE "Assignment" SET "dueDate" = NOW() - INTERVAL '10 hours' WHERE "name" = 'E2E Test Assignment (30 mins late)'
+  ##############################################################################
+  # Log in as a student
+  - authenticateUser:
+      username: student@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - tapOn:
+      text: E2E Test Course
+  - assertVisible:
+      text: E2E Test Assignment (30 mins late)
+  - assertVisible:
+      text: Missing
+      dataCy: assignment-status
+      parentCy: assignment-card-E2E Test Assignment (30 mins late)
+  - tapOn:
+      text: E2E Test Assignment (30 mins late)
+  - selectFile:
+      filePath: cypress/fixtures/SLDPRT/test/test.good.SLDPRT
+      dataCy: part-file
+      allowScroll: true
+  - tapOn:
+      text: Upload submission
+  - assertVisible:
+      text: "Grade earned: 80/100"
+  - assertVisible:
+      text: "Late"
+      dataCy: assignment-status
+      parentCy: assignment-card-E2E Test Assignment (30 mins late)

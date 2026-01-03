@@ -81,13 +81,51 @@ export const get = [
       include: signatureInclude,
     });
 
+    const latestSubmissionsByAssignment = new Map();
+    if (enrollment.type === "STUDENT" && assignments.length > 0) {
+      const submissions = await prisma.submission.findMany({
+        where: {
+          userId,
+          deleted: false,
+          assignmentId: {
+            in: assignments.map((assignment) => assignment.id),
+          },
+        },
+        select: {
+          id: true,
+          assignmentId: true,
+          grade: true,
+          unpenalizedGrade: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      submissions.forEach((submission) => {
+        if (!submission?.assignmentId) return;
+        if (!latestSubmissionsByAssignment.has(submission.assignmentId)) {
+          latestSubmissionsByAssignment.set(submission.assignmentId, submission);
+        }
+      });
+    }
+
     const assignmentsWithSignedScreenshots = await Promise.all(
       assignments.map((assignment) =>
         withSignedSignatureScreenshots(assignment)
       )
     );
 
-    return res.json(assignmentsWithSignedScreenshots);
+    const assignmentsWithUserSubmission = assignmentsWithSignedScreenshots.map(
+      (assignment) => ({
+        ...assignment,
+        userSubmission: latestSubmissionsByAssignment.get(assignment.id) ?? null,
+      })
+    );
+
+    return res.json(assignmentsWithUserSubmission);
   },
 ];
 

@@ -55,6 +55,43 @@
   text-decoration: none;
 }
 
+.assignmentMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.dueDateLabel {
+  font-size: 0.8em;
+  color: var(--body-contrast-primary);
+}
+
+.statusChip {
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #2563eb) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 45%, transparent);
+  color: var(--accent, #2563eb);
+}
+
+.statusChipMissing {
+  background: color-mix(in srgb, var(--danger, #b00020) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger, #b00020) 45%, transparent);
+  color: var(--danger, #b00020);
+}
+
+.statusChipLate {
+  background: color-mix(in srgb, #b45309 18%, transparent);
+  border: 1px solid color-mix(in srgb, #b45309 45%, transparent);
+  color: #b45309;
+}
+
 .a {
   text-decoration: none;
   color: inherit;
