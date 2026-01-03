@@ -10,10 +10,11 @@ Main Module:
 - [x] Add a chip in the assignments list for students to show missing and late assignments
 - [ ] Add a normal CSV export, not just canvas
 - [ ] Tint late submissions blue in the gradebook
-- [ ] Disable create course button if data is invalid or missing
+- [x] Disable create course button if data is invalid or missing
 - [x] Add a billing history table/balance on course settings for the teacher
 - [ ] Invite codes should always be visible
 - [ ] Allow TAs/teachers to manually adjust a submission's grade
+- [ ] Fix help links
 
 SW Grader Module:
 - [ ] Implement plagarism metadata extraction in the api

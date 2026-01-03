@@ -15,6 +15,10 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
   const [submitting, setSubmitting] = useState(false);
   const [billing, setBilling] = useState("pay-per-course");
   const { setDocs, unstackDoc } = useDocs();
+  const trimmedCourseName = courseName.trim();
+  const trimmedCourseAbbr = courseAbbr.trim();
+  const canCreateCourse =
+    trimmedCourseName.length > 0 && trimmedCourseAbbr.length > 0 && !submitting;
 
   useEffect(() => {
     if (!open) {
@@ -31,12 +35,13 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
 
   const handleCreateCourse = async () => {
     if (!onCreateCourse) return;
+    if (!canCreateCourse) return;
 
     try {
       setSubmitting(true);
       await onCreateCourse({
-        name: courseName,
-        abbr: courseAbbr,
+        name: trimmedCourseName,
+        abbr: trimmedCourseAbbr,
         billingScheme:
           billing === "pay-per-student" ? "PER_STUDENT" : "PER_COURSE",
       });
@@ -64,7 +69,7 @@ export const CreateCourseModal = ({ open, onClose, onCreateCourse }) => {
           <Button
             onClick={handleCreateCourse}
             variant="primary"
-            disabled={!courseName || !courseAbbr || submitting}
+            disabled={!canCreateCourse}
           >
             {submitting ? "Creating..." : "Create course"}
           </Button>
