@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Page } from "../components/page/Page";
 import { useAuthContext } from "../context/AuthContext";
 import styles from "./LandingPage.module.css";
@@ -270,19 +270,18 @@ export const LandingPage = () => {
                   </div>
                 </td>
               </tr>
-              <tr>
-                <th></th>
-                {pricingPlans.map((plan) => (
-                  <td key={`${plan.key}-cta`}>
-                    <Button variant="primary">{plan.cta}</Button>
-                  </td>
-                ))}
-              </tr>
               <tr style={{ backgroundColor: "var(--body" }}>
                 <th>Additional invocations</th>
                 <td colSpan={2} className={styles.invocationNoteCell}>
                   Available to the course at 1,000 invocations for $10
                   regardless of the billing scheme chosen.
+                </td>
+              </tr>
+              <tr style={{ backgroundColor: "var(--body" }}>
+                <th>Get started</th>
+                <td colSpan={2} className={styles.invocationNoteCell}>
+                  <Link to="/register">Register an account</Link> and start
+                  creating your first course.
                 </td>
               </tr>
             </tbody>
