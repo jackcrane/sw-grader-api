@@ -598,6 +598,102 @@ export const CourseDetails = () => {
           <strong>Abbreviation</strong>
           <p style={{ margin: "4px 0 0", color: "#333" }}>{course.abbr}</p>
         </div>
+        {isTeacher && (
+          <div style={{ marginBottom: 12 }}>
+            <strong>Invite codes</strong>
+            <p style={{ margin: "4px 0 8px", color: "#555" }}>
+              Students and staff can join this course using the codes below.
+            </p>
+            {hasInviteCodes ? (
+              <>
+                {course.studentInviteCode && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        textTransform: "uppercase",
+                        color: "#777",
+                      }}
+                    >
+                      Student code
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <code style={{ fontSize: 16 }}>
+                        {studentVisible
+                          ? course.studentInviteCode
+                          : maskCode(course.studentInviteCode)}
+                      </code>
+                      <Button
+                        onClick={() => setStudentVisible((prev) => !prev)}
+                        style={smallButtonStyle}
+                      >
+                        {studentVisible ? "Hide" : "Show"}
+                      </Button>
+                      <Button
+                        onClick={() => handleRegenerate("student")}
+                        disabled={studentLoading}
+                        style={smallButtonStyle}
+                      >
+                        {studentLoading ? "Regenerating..." : "Regenerate"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {course.taInviteCode && (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        textTransform: "uppercase",
+                        color: "#777",
+                      }}
+                    >
+                      TA / instructor code
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <code style={{ fontSize: 16 }}>
+                        {taVisible
+                          ? course.taInviteCode
+                          : maskCode(course.taInviteCode)}
+                      </code>
+                      <Button
+                        onClick={() => setTaVisible((prev) => !prev)}
+                        style={smallButtonStyle}
+                      >
+                        {taVisible ? "Hide" : "Show"}
+                      </Button>
+                      <Button
+                        onClick={() => handleRegenerate("ta")}
+                        disabled={taLoading}
+                        style={smallButtonStyle}
+                      >
+                        {taLoading ? "Regenerating..." : "Regenerate"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p style={{ margin: "4px 0 0", color: "#555" }}>
+                Invite codes are not available for this course yet.
+              </p>
+            )}
+          </div>
+        )}
         {isPrimaryTeacher && (
           <div>
             <strong>Billing Scheme</strong>
