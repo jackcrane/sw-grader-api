@@ -111,6 +111,7 @@ export const CourseDetails = () => {
     totalPendingCents: 0,
     totalFailedCents: 0,
   });
+  const [billingHistoryRefreshIndex, setBillingHistoryRefreshIndex] = useState(0);
   const normalizedLatePolicy = useMemo(
     () =>
       normalizeLatePolicy({
@@ -334,7 +335,18 @@ export const CourseDetails = () => {
     return () => {
       isCancelled = true;
     };
-  }, [courseId, isTeacher, course.billingScheme]);
+  }, [courseId, isTeacher, course.billingScheme, billingHistoryRefreshIndex]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      setBillingHistoryRefreshIndex((value) => value + 1);
+    };
+
+    window.addEventListener("billing-history:refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("billing-history:refresh", handleRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     if (additionalAdmin) {

@@ -35,6 +35,11 @@ export const Header = () => {
     hasPending: hasPendingNotifications,
   } = useNotifications({ enabled: Boolean(user) });
 
+  const handleBillingAuthorizationSuccess = useCallback(async () => {
+    await refreshNotifications();
+    window.dispatchEvent(new Event("billing-history:refresh"));
+  }, [refreshNotifications]);
+
   const {
     authorizationModal,
     authorizePaymentNotification,
@@ -43,7 +48,7 @@ export const Header = () => {
     notificationActions,
     updateAuthorizationModalState,
   } = usePaymentAuthorization({
-    onSuccess: refreshNotifications,
+    onSuccess: handleBillingAuthorizationSuccess,
   });
 
   const canViewAsStudent = useMemo(() => {
