@@ -6,10 +6,10 @@ import { Input } from "../components/input/Input";
 import { Button } from "../components/button/Button";
 import styles from "./LoginPage.module.css";
 
-const LoginPage = () => {
+const LoginPage = ({ initialMode = "login" }) => {
   const { login, register, isLoggingIn, isRegistering, isAuthenticated } =
     useAuthContext();
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(initialMode);
   const [formError, setFormError] = useState(null);
   const [formState, setFormState] = useState({
     firstName: "",
