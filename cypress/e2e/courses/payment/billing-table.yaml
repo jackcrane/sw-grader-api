@@ -104,26 +104,36 @@ steps:
       dataCy: "notifications-button"
   - assertVisible:
       text: "Authorize payment"
-  # - tapOn:
-  #     text: "Authorize payment"
-  # - assertVisible:
-  #     text: "Using VISA ending in 3184."
-  # - tapOn:
-  #     text: "Charge saved payment method"
-  # - waitFor: 5000
-  # - acceptStripe3dSecure:
-  #     action: accept
-  # - waitFor: 2000
-  # - assertVisible:
-  #     text: "Payment complete"
-  # - assertVisible:
-  #     text: "The payment was successful and the student is now fully enrolled in your course."
-  # - tapOn:
-  #     text: "Close"
-  # - waitFor: 1000
-  # - waitFor: 5000
-  # - assertStripeCustomerValue:
-  #     dbId: cmj9ffow70000qr6banbe3856 # Teacher
-  #     balance: 1200
-  # - assertEnrollmentFollowUpResolvedAt:
-  #     userId: cmj9ffow70000qr6banbe3d56 # Student
+  - tapOn:
+      text: "Authorize payment"
+  - assertVisible:
+      text: "Using VISA ending in 3184."
+  - tapOn:
+      text: "Charge saved payment method"
+  - waitFor: 5000
+  - acceptStripe3dSecure:
+      action: accept
+  - waitFor: 2000
+  - assertVisible:
+      text: "Payment complete"
+  - assertVisible:
+      text: "The payment was successful and the student is now fully enrolled in your course."
+  - tapOn:
+      text: "Close"
+  - waitFor: 1000
+  - waitFor: 5000
+  ##############################################################################
+  # Check the table
+  - tapOn:
+      text: "E2E Test Course"
+  - tapOn:
+      text: "Course Details"
+  - assertVisible:
+      text: "Billing history"
+      allowScroll: true
+  - assertVisible:
+      text: "Paid"
+      parentCy: "billing-history-table"
+  - assertVisible:
+      text: "Pending authorization"
+      parentCy: "billing-history-table"

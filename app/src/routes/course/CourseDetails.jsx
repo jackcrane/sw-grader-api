@@ -499,7 +499,7 @@ export const CourseDetails = () => {
       case "requires_action":
         return "Action required";
       case "requires_payment_method":
-        return "Payment required";
+        return "Pending authorization";
       case "requires_confirmation":
         return "Pending confirmation";
       case "canceled":
@@ -678,7 +678,10 @@ export const CourseDetails = () => {
                     </div>
                   </div>
                   <div style={{ overflowX: "auto" }}>
-                    <table style={billingTableStyle}>
+                    <table
+                      style={billingTableStyle}
+                      data-cy="billing-history-table"
+                    >
                       <thead>
                         <tr>
                           <th style={billingHeaderStyle}>Date</th>
