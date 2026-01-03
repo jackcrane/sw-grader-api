@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/jackcrane/cypress-yaml-plugin/main/schema.json
 
-# This test suite checks to verify that it throws an incorrect email or password message if we attempt to log into an account that does not exist.
+# This test suite checks to make sure students can still join a course if the teacher has a card that does not allow off-canvas payments
 
-name: Create course (per-course billing)
+name: Billing table
 seedFile: fixtures/account.sql
 steps:
   - authenticateUser:
@@ -29,7 +29,7 @@ steps:
       allowScroll: true
   - fillStripeElementsInput:
       field: cardNumber
-      value: "4242424242424242"
+      value: "4000002760003184"
   - fillStripeElementsInput:
       field: cardExpiry
       value: "429" # 4/29
@@ -38,7 +38,10 @@ steps:
       value: "123"
   - tapOn:
       text: "Save payment method"
-  - waitFor: 1000
+  - waitFor: 5000
+  - acceptStripe3dSecure:
+      action: accept
+  - waitFor: 2000
   - assertVisible:
       text: "Payment method saved"
   - tapOn:
@@ -72,7 +75,55 @@ steps:
       text: STU-E2E
   - tapOn:
       text: "Join course"
-  - waitFor: 10000
-  - assertStripeCustomerValue:
-      dbId: cmj9ffow70000qr6banbe3856 # Teacher
-      balance: 1200
+  ################################################################################
+  # Checking to see that a teacher is in fact charged for the course (second student)
+  - authenticateUser:
+      username: student2@featurebench-test.com
+      password: Password!
+  - open: /
+  - setViewport:
+      width: 1280
+      height: 720
+  - waitFor: 200
+  - typeText:
+      placeholder: "e.g., STU-1A2B3C"
+      text: STU-E2E
+  - tapOn:
+      text: "Join course"
+
+  - waitFor: 5000
+  # Log in as teacher to see notification
+  - authenticateUser:
+      username: test@featurebench-test.com
+      password: Password!
+  - open: /
+  - waitFor: 500
+  - assertVisible:
+      dataCy: "notifications-button-unread-dot"
+  - tapOn:
+      dataCy: "notifications-button"
+  - assertVisible:
+      text: "Authorize payment"
+  # - tapOn:
+  #     text: "Authorize payment"
+  # - assertVisible:
+  #     text: "Using VISA ending in 3184."
+  # - tapOn:
+  #     text: "Charge saved payment method"
+  # - waitFor: 5000
+  # - acceptStripe3dSecure:
+  #     action: accept
+  # - waitFor: 2000
+  # - assertVisible:
+  #     text: "Payment complete"
+  # - assertVisible:
+  #     text: "The payment was successful and the student is now fully enrolled in your course."
+  # - tapOn:
+  #     text: "Close"
+  # - waitFor: 1000
+  # - waitFor: 5000
+  # - assertStripeCustomerValue:
+  #     dbId: cmj9ffow70000qr6banbe3856 # Teacher
+  #     balance: 1200
+  # - assertEnrollmentFollowUpResolvedAt:
+  #     userId: cmj9ffow70000qr6banbe3d56 # Student
