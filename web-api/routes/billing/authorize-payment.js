@@ -233,6 +233,12 @@ export const post = [
           manualAuthorizationMetadata.manualAuthorizationUserId =
             String(userId);
         }
+        const notificationCourseId =
+          notification?.data?.courseId ?? null;
+        if (notificationCourseId) {
+          manualAuthorizationMetadata.courseId =
+            String(notificationCourseId);
+        }
 
         let mergedMetadata = manualAuthorizationMetadata;
         try {

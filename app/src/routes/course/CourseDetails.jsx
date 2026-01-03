@@ -31,6 +31,42 @@ const smallButtonStyle = {
   minHeight: 0,
 };
 
+const billingTableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const billingHeaderStyle = {
+  padding: "6px",
+  borderBottom: "1px solid #e5e5e5",
+  textAlign: "left",
+  color: "#666",
+  fontSize: 11,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+};
+
+const billingCellStyle = {
+  padding: "8px 6px",
+  borderBottom: "1px solid #eee",
+  color: "#333",
+  verticalAlign: "top",
+};
+
+const escapeCsvValue = (value) => {
+  const stringValue =
+    value === null || value === undefined ? "" : String(value);
+  if (
+    stringValue.includes('"') ||
+    stringValue.includes(",") ||
+    stringValue.includes("\n")
+  ) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+};
+
 const billingSchemeCopy = {
   PER_COURSE: {
     title: "The course pays for student access.",
@@ -80,6 +116,16 @@ export const CourseDetails = () => {
   const [paymentMethodError, setPaymentMethodError] = useState(null);
   const [paymentMethodRefreshIndex, setPaymentMethodRefreshIndex] = useState(0);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [billingHistory, setBillingHistory] = useState([]);
+  const [billingHistoryLoading, setBillingHistoryLoading] = useState(false);
+  const [billingHistoryError, setBillingHistoryError] = useState(null);
+  const [billingSummary, setBillingSummary] = useState({
+    totalChargedCents: 0,
+    totalPendingCents: 0,
+    totalFailedCents: 0,
+  });
+  const [billingHistoryRefreshIndex, setBillingHistoryRefreshIndex] =
+    useState(0);
   const normalizedLatePolicy = useMemo(
     () =>
       normalizeLatePolicy({
@@ -171,6 +217,14 @@ export const CourseDetails = () => {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(null);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }),
+    []
+  );
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -242,6 +296,71 @@ export const CourseDetails = () => {
       isCancelled = true;
     };
   }, [isPrimaryTeacher, course.billingScheme, paymentMethodRefreshIndex]);
+
+  useEffect(() => {
+    if (!isTeacher || course.billingScheme !== "PER_COURSE") {
+      setBillingHistory([]);
+      setBillingHistoryLoading(false);
+      setBillingHistoryError(null);
+      setBillingSummary({
+        totalChargedCents: 0,
+        totalPendingCents: 0,
+        totalFailedCents: 0,
+      });
+      return;
+    }
+
+    let isCancelled = false;
+    const loadBillingHistory = async () => {
+      setBillingHistoryLoading(true);
+      setBillingHistoryError(null);
+      try {
+        const payload = await fetchJson(
+          `/api/courses/${courseId}/billing-history`
+        );
+        if (isCancelled) return;
+        setBillingHistory(payload?.items ?? []);
+        setBillingSummary({
+          totalChargedCents: payload?.summary?.totalChargedCents ?? 0,
+          totalPendingCents: payload?.summary?.totalPendingCents ?? 0,
+          totalFailedCents: payload?.summary?.totalFailedCents ?? 0,
+        });
+      } catch (err) {
+        if (!isCancelled) {
+          setBillingHistory([]);
+          setBillingSummary({
+            totalChargedCents: 0,
+            totalPendingCents: 0,
+            totalFailedCents: 0,
+          });
+          setBillingHistoryError(
+            err?.message || "Unable to load billing history."
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setBillingHistoryLoading(false);
+        }
+      }
+    };
+
+    loadBillingHistory();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courseId, isTeacher, course.billingScheme, billingHistoryRefreshIndex]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      setBillingHistoryRefreshIndex((value) => value + 1);
+    };
+
+    window.addEventListener("billing-history:refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("billing-history:refresh", handleRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     if (additionalAdmin) {
@@ -394,6 +513,75 @@ export const CourseDetails = () => {
     }
   };
 
+  const formatCurrency = (value) =>
+    currencyFormatter.format((Number(value) || 0) / 100);
+
+  const formatBillingStatus = (status) => {
+    switch (status) {
+      case "succeeded":
+        return "Paid";
+      case "processing":
+        return "Processing";
+      case "requires_action":
+        return "Pending authorization";
+      case "requires_payment_method":
+        return "Pending authorization";
+      case "requires_confirmation":
+        return "Pending authorization";
+      case "canceled":
+        return "Canceled";
+      default:
+        return "Pending";
+    }
+  };
+
+  const isPendingAuthorization = (status) =>
+    [
+      "requires_action",
+      "requires_payment_method",
+      "requires_confirmation",
+    ].includes(status);
+
+  const handleDownloadBillingCsv = () => {
+    if (!billingHistory.length) return;
+    const headers = [
+      "payment_intent_id",
+      "date_time",
+      "student_name",
+      "student_email",
+      "student_id",
+      "description",
+      "status",
+      "amount",
+    ];
+    const rows = billingHistory.map((item) => {
+      const dateTime = new Date(item.created * 1000).toISOString();
+      return [
+        item.id,
+        dateTime,
+        item.studentName || "",
+        item.studentEmail || "",
+        item.studentId || "",
+        item.description || "",
+        item.status || "",
+        ((Number(item.amountCents) || 0) / 100).toFixed(2),
+      ]
+        .map(escapeCsvValue)
+        .join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `course-${courseId}-billing-history.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ padding: 16 }}>
       <H2>Course details</H2>
@@ -506,6 +694,168 @@ export const CourseDetails = () => {
           </div>
         )}
       </Card>
+      {isTeacher && course.billingScheme === "PER_COURSE" && (
+        <>
+          <Spacer size={2} />
+          <Card>
+            <div style={{ marginBottom: 12 }}>
+              <strong>Billing history</strong>
+              <p style={{ margin: "4px 0 0", color: "#555" }}>
+                Review enrollment charges billed to this course.
+              </p>
+            </div>
+            {billingHistoryLoading && (
+              <p style={{ margin: 0, color: "#555" }}>
+                Loading billing history...
+              </p>
+            )}
+            {billingHistoryError && (
+              <p style={{ margin: 0, color: "#c62828" }}>
+                {billingHistoryError}
+              </p>
+            )}
+            {!billingHistoryLoading &&
+              !billingHistoryError &&
+              billingHistory.length === 0 && (
+                <p style={{ margin: 0, color: "#555" }}>
+                  No charges have been recorded yet.
+                </p>
+              )}
+            {!billingHistoryLoading &&
+              !billingHistoryError &&
+              billingHistory.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 24,
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                      alignItems: "flex-end",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Current balance
+                        </div>
+                        <div
+                          style={{ fontSize: 18, fontWeight: 600 }}
+                          data-cy="billing-balance"
+                        >
+                          {formatCurrency(billingSummary.totalPendingCents)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Total billed
+                        </div>
+                        <div
+                          style={{ fontSize: 18, fontWeight: 600 }}
+                          data-cy="billing-total-billed"
+                        >
+                          {formatCurrency(billingSummary.totalChargedCents)}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleDownloadBillingCsv}
+                      style={smallButtonStyle}
+                      disabled={!billingHistory.length}
+                    >
+                      Download CSV
+                    </Button>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={billingTableStyle}
+                      data-cy="billing-history-table"
+                    >
+                      <thead>
+                        <tr>
+                          <th style={billingHeaderStyle}>Date</th>
+                          <th style={billingHeaderStyle}>Student</th>
+                          <th style={billingHeaderStyle}>Description</th>
+                          <th style={billingHeaderStyle}>Status</th>
+                          <th
+                            style={{
+                              ...billingHeaderStyle,
+                              textAlign: "right",
+                            }}
+                          >
+                            Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {billingHistory.map((item) => (
+                          <tr key={item.id}>
+                            <td style={billingCellStyle}>
+                              {new Date(item.created * 1000).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </td>
+                            <td style={billingCellStyle}>{item.studentName}</td>
+                            <td style={billingCellStyle}>
+                              {item.description || "Enrollment charge"}
+                            </td>
+                            <td style={billingCellStyle}>
+                              {isPendingAuthorization(item.status) ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    window.dispatchEvent(
+                                      new CustomEvent(
+                                        "billing-authorization:open",
+                                        {
+                                          detail: {
+                                            paymentIntentId: item.id,
+                                          },
+                                        }
+                                      )
+                                    )
+                                  }
+                                  style={{
+                                    padding: 0,
+                                    border: "none",
+                                    background: "none",
+                                    color: "#e07b00",
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                    font: "inherit",
+                                  }}
+                                >
+                                  Pending authorization
+                                </button>
+                              ) : (
+                                formatBillingStatus(item.status)
+                              )}
+                            </td>
+                            <td
+                              style={{
+                                ...billingCellStyle,
+                                textAlign: "right",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {formatCurrency(item.amountCents)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+          </Card>
+        </>
+      )}
       {isPrimaryTeacher && (
         <>
           <Spacer size={2} />

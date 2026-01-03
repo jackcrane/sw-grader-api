@@ -11,7 +11,7 @@ Main Module:
 - [ ] Add a normal CSV export, not just canvas
 - [ ] Tint late submissions blue in the gradebook
 - [ ] Disable create course button if data is invalid or missing
-- [ ] Add a billing history/balance on course settings for the teacher
+- [ ] Add a billing history table/balance on course settings for the teacher
 - [ ] Invite codes should always be visible
 - [ ] Allow TAs/teachers to manually adjust a submission's grade
 
@@ -20,3 +20,4 @@ SW Grader Module:
 - [ ] Extract and upload a 3d model from Solidworks (obj?) (gltf?) for optional rendering in web UI
 - [ ] Add under definition detection in grader worker
 - [ ] Add material data extraction in grader worker
+- [ ] Always visible notice for student mode
