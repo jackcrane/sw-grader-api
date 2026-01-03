@@ -377,14 +377,10 @@ export const CreateAssignmentModal = ({
   const [latePenaltyPercent, setLatePenaltyPercent] = useState("");
   const [latePenaltyType, setLatePenaltyType] = useState("FLAT");
   const courseRetentionMode = course?.submissionRetentionMode ?? "BEST";
-  const [
-    submissionRetentionPolicyMode,
-    setSubmissionRetentionPolicyMode,
-  ] = useState("inherit");
-  const [
-    submissionRetentionMode,
-    setSubmissionRetentionMode,
-  ] = useState(courseRetentionMode);
+  const [submissionRetentionPolicyMode, setSubmissionRetentionPolicyMode] =
+    useState("inherit");
+  const [submissionRetentionMode, setSubmissionRetentionMode] =
+    useState(courseRetentionMode);
 
   const [signatures, setSignatures] = useState([getInitialSignature("SI")]);
 
@@ -867,9 +863,10 @@ export const CreateAssignmentModal = ({
   const { setDocs, unstackDoc } = useDocs();
 
   useEffect(() => {
-    if (open) setDocs("https://docs.featurebench.com/p/creating-a-assignment");
+    if (open)
+      setDocs("https://docs.featurebench.com/p/creating-an-assignment/");
     if (!open)
-      unstackDoc("https://docs.featurebench.com/p/creating-a-assignment");
+      unstackDoc("https://docs.featurebench.com/p/creating-an-assignment");
   }, [open]);
 
   const headerActions =
