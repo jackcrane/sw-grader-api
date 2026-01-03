@@ -7,11 +7,11 @@ Main Module:
 - [ ] allow changing payment information for enrollments and course creation
 - [x] Option to keep [best|most recent] submissions for each assignment and course-wide. Default to best.
 - [x] Add ability to go forward and back through the current student's submissions in the submission modal. This should be a previous/next buttons left aligned in the footer of the modal. If only one submission, don't show the buttons.
-- [ ] Add a chip in the assignments list for students to show missing and late assignments
+- [x] Add a chip in the assignments list for students to show missing and late assignments
 - [ ] Add a normal CSV export, not just canvas
 - [ ] Tint late submissions blue in the gradebook
 - [ ] Disable create course button if data is invalid or missing
-- [ ] Add a billing history/balance on course settings for the teacher
+- [x] Add a billing history table/balance on course settings for the teacher
 - [ ] Invite codes should always be visible
 - [ ] Allow TAs/teachers to manually adjust a submission's grade
 
@@ -20,3 +20,4 @@ SW Grader Module:
 - [ ] Extract and upload a 3d model from Solidworks (obj?) (gltf?) for optional rendering in web UI
 - [ ] Add under definition detection in grader worker
 - [ ] Add material data extraction in grader worker
+- [ ] Always visible notice for student mode
