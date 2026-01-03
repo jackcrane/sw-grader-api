@@ -54,6 +54,15 @@ const billingCellStyle = {
   verticalAlign: "top",
 };
 
+const escapeCsvValue = (value) => {
+  const stringValue =
+    value === null || value === undefined ? "" : String(value);
+  if (stringValue.includes('"') || stringValue.includes(",") || stringValue.includes("\n")) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+};
+
 const billingSchemeCopy = {
   PER_COURSE: {
     title: "The course pays for student access.",
@@ -521,6 +530,46 @@ export const CourseDetails = () => {
     }
   };
 
+  const handleDownloadBillingCsv = () => {
+    if (!billingHistory.length) return;
+    const headers = [
+      "payment_intent_id",
+      "date_time",
+      "student_name",
+      "student_email",
+      "student_id",
+      "description",
+      "status",
+      "amount",
+    ];
+    const rows = billingHistory.map((item) => {
+      const dateTime = new Date(item.created * 1000).toISOString();
+      return [
+        item.id,
+        dateTime,
+        item.studentName || "",
+        item.studentEmail || "",
+        item.studentId || "",
+        item.description || "",
+        item.status || "",
+        ((Number(item.amountCents) || 0) / 100).toFixed(2),
+      ]
+        .map(escapeCsvValue)
+        .join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `course-${courseId}-billing-history.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ padding: 16 }}>
       <H2>Course details</H2>
@@ -670,24 +719,35 @@ export const CourseDetails = () => {
                       gap: 24,
                       flexWrap: "wrap",
                       marginBottom: 12,
+                      alignItems: "flex-end",
+                      justifyContent: "space-between",
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: 12, color: "#666" }}>
-                        Current balance
+                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Current balance
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 600 }}>
+                          {formatCurrency(billingSummary.totalPendingCents)}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 18, fontWeight: 600 }}>
-                        {formatCurrency(billingSummary.totalPendingCents)}
+                      <div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Total billed
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 600 }}>
+                          {formatCurrency(billingSummary.totalChargedCents)}
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: "#666" }}>
-                        Total billed
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 600 }}>
-                        {formatCurrency(billingSummary.totalChargedCents)}
-                      </div>
-                    </div>
+                    <Button
+                      onClick={handleDownloadBillingCsv}
+                      style={smallButtonStyle}
+                      disabled={!billingHistory.length}
+                    >
+                      Download CSV
+                    </Button>
                   </div>
                   <div style={{ overflowX: "auto" }}>
                     <table

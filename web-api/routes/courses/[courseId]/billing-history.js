@@ -81,6 +81,7 @@ export const get = [
     const paymentIntents = await stripe.paymentIntents.list({
       customer: customerId,
       limit: 100,
+      expand: [],
     });
 
     const matchingIntents = paymentIntents.data.filter(
@@ -104,7 +105,14 @@ export const get = [
         : [];
 
     const studentById = new Map(
-      students.map((student) => [student.id, formatName(student)])
+      students.map((student) => [
+        student.id,
+        {
+          name: formatName(student),
+          email: student.email ?? "",
+          id: student.id,
+        },
+      ])
     );
 
     const summary = {
@@ -123,15 +131,17 @@ export const get = [
         summary.totalFailedCents += amount;
       }
 
+      const student =
+        studentById.get(intent?.metadata?.studentUserId) ?? null;
       return {
         id: intent.id,
         created: intent.created,
         amountCents: amount,
         status: intent.status,
         description: intent.description ?? "",
-        studentName:
-          studentById.get(intent?.metadata?.studentUserId) ||
-          "Unknown student",
+        studentName: student?.name || "Unknown student",
+        studentEmail: student?.email || "",
+        studentId: student?.id || intent?.metadata?.studentUserId || "",
       };
     });
 
