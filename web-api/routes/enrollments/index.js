@@ -6,10 +6,7 @@ import {
   normalizeInviteCode,
 } from "../../util/inviteCodes.js";
 import { ensureStripeCustomerForUser } from "../../services/stripeCustomers.js";
-import {
-  getStripeClient,
-  getStripePublishableKey,
-} from "../../util/stripe.js";
+import { getStripeClient, getStripePublishableKey } from "../../util/stripe.js";
 import { posthog } from "../../util/posthog.js";
 
 const normalizeBillingScheme = (value) => {
@@ -77,7 +74,7 @@ const chargeEnrollmentFeeForUser = async ({
   const paymentMethodId =
     typeof defaultPaymentMethod === "string"
       ? defaultPaymentMethod
-      : defaultPaymentMethod?.id ?? null;
+      : (defaultPaymentMethod?.id ?? null);
 
   if (!paymentMethodId) {
     throw createPaymentError(
@@ -110,7 +107,7 @@ const chargeEnrollmentFeeForUser = async ({
         courseId: course?.id ?? "",
         ...metadata,
       },
-      receipt_email: user.email || undefined,
+      statement_descriptor: "FeatureBench enrollment",
     });
 
     if (paymentIntent.status === "succeeded") {
@@ -126,11 +123,7 @@ const chargeEnrollmentFeeForUser = async ({
       paymentFailedMessage ||
       "Unable to process payment for this enrollment.";
 
-    throw createPaymentError(
-      failureMessage,
-      paymentFailedCode,
-      course
-    );
+    throw createPaymentError(failureMessage, paymentFailedCode, course);
   } catch (err) {
     if (
       allowActionRequired &&
@@ -325,7 +318,8 @@ export const post = [
         });
         return res.status(403).json({
           error: "new_student_access_blocked",
-          message: "New students are not allowed to join this course right now.",
+          message:
+            "New students are not allowed to join this course right now.",
         });
       }
 
@@ -347,8 +341,7 @@ export const post = [
           });
           return res.status(402).json({
             error: "payment_confirmation_required",
-            message:
-              "Review your payment method before joining this course.",
+            message: "Review your payment method before joining this course.",
             course: coursePayload,
           });
         }
@@ -357,9 +350,8 @@ export const post = [
         if (paymentIntentId) {
           try {
             const stripe = getStripeClient();
-            paymentIntent = await stripe.paymentIntents.retrieve(
-              paymentIntentId
-            );
+            paymentIntent =
+              await stripe.paymentIntents.retrieve(paymentIntentId);
           } catch (intentError) {
             posthog.capture({
               distinctId: userId,
@@ -467,16 +459,12 @@ export const post = [
             course: coursePayload,
           });
         }
-
       } else if (
         courseAndType.enrollmentType === "STUDENT" &&
         courseAndType.course.billingScheme === "PER_COURSE"
       ) {
         try {
-          await chargeTeacherForCourseEnrollment(
-            courseAndType.course,
-            userId
-          );
+          await chargeTeacherForCourseEnrollment(courseAndType.course, userId);
         } catch (err) {
           console.warn("Teacher billing failed for enrollment", {
             courseId: courseAndType.course.id,
@@ -591,7 +579,4 @@ export const post = [
   },
 ];
 
-export {
-  chargePerStudentEnrollment,
-  chargeTeacherForCourseEnrollment,
-};
+export { chargePerStudentEnrollment, chargeTeacherForCourseEnrollment };

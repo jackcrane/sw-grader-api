@@ -31,6 +31,29 @@ const smallButtonStyle = {
   minHeight: 0,
 };
 
+const billingTableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const billingHeaderStyle = {
+  padding: "6px",
+  borderBottom: "1px solid #e5e5e5",
+  textAlign: "left",
+  color: "#666",
+  fontSize: 11,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+};
+
+const billingCellStyle = {
+  padding: "8px 6px",
+  borderBottom: "1px solid #eee",
+  color: "#333",
+  verticalAlign: "top",
+};
+
 const billingSchemeCopy = {
   PER_COURSE: {
     title: "The course pays for student access.",
@@ -80,6 +103,14 @@ export const CourseDetails = () => {
   const [paymentMethodError, setPaymentMethodError] = useState(null);
   const [paymentMethodRefreshIndex, setPaymentMethodRefreshIndex] = useState(0);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [billingHistory, setBillingHistory] = useState([]);
+  const [billingHistoryLoading, setBillingHistoryLoading] = useState(false);
+  const [billingHistoryError, setBillingHistoryError] = useState(null);
+  const [billingSummary, setBillingSummary] = useState({
+    totalChargedCents: 0,
+    totalPendingCents: 0,
+    totalFailedCents: 0,
+  });
   const normalizedLatePolicy = useMemo(
     () =>
       normalizeLatePolicy({
@@ -171,6 +202,14 @@ export const CourseDetails = () => {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(null);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }),
+    []
+  );
 
   if (!isStaff) {
     return <Navigate to={`/${courseId}`} replace />;
@@ -242,6 +281,60 @@ export const CourseDetails = () => {
       isCancelled = true;
     };
   }, [isPrimaryTeacher, course.billingScheme, paymentMethodRefreshIndex]);
+
+  useEffect(() => {
+    if (!isTeacher || course.billingScheme !== "PER_COURSE") {
+      setBillingHistory([]);
+      setBillingHistoryLoading(false);
+      setBillingHistoryError(null);
+      setBillingSummary({
+        totalChargedCents: 0,
+        totalPendingCents: 0,
+        totalFailedCents: 0,
+      });
+      return;
+    }
+
+    let isCancelled = false;
+    const loadBillingHistory = async () => {
+      setBillingHistoryLoading(true);
+      setBillingHistoryError(null);
+      try {
+        const payload = await fetchJson(
+          `/api/courses/${courseId}/billing-history`
+        );
+        if (isCancelled) return;
+        setBillingHistory(payload?.items ?? []);
+        setBillingSummary({
+          totalChargedCents: payload?.summary?.totalChargedCents ?? 0,
+          totalPendingCents: payload?.summary?.totalPendingCents ?? 0,
+          totalFailedCents: payload?.summary?.totalFailedCents ?? 0,
+        });
+      } catch (err) {
+        if (!isCancelled) {
+          setBillingHistory([]);
+          setBillingSummary({
+            totalChargedCents: 0,
+            totalPendingCents: 0,
+            totalFailedCents: 0,
+          });
+          setBillingHistoryError(
+            err?.message || "Unable to load billing history."
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setBillingHistoryLoading(false);
+        }
+      }
+    };
+
+    loadBillingHistory();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courseId, isTeacher, course.billingScheme]);
 
   useEffect(() => {
     if (additionalAdmin) {
@@ -394,6 +487,28 @@ export const CourseDetails = () => {
     }
   };
 
+  const formatCurrency = (value) =>
+    currencyFormatter.format((Number(value) || 0) / 100);
+
+  const formatBillingStatus = (status) => {
+    switch (status) {
+      case "succeeded":
+        return "Paid";
+      case "processing":
+        return "Processing";
+      case "requires_action":
+        return "Action required";
+      case "requires_payment_method":
+        return "Payment required";
+      case "requires_confirmation":
+        return "Pending confirmation";
+      case "canceled":
+        return "Canceled";
+      default:
+        return "Pending";
+    }
+  };
+
   return (
     <div style={{ padding: 16 }}>
       <H2>Course details</H2>
@@ -506,6 +621,119 @@ export const CourseDetails = () => {
           </div>
         )}
       </Card>
+      {isTeacher && course.billingScheme === "PER_COURSE" && (
+        <>
+          <Spacer size={2} />
+          <Card>
+            <div style={{ marginBottom: 12 }}>
+              <strong>Billing history</strong>
+              <p style={{ margin: "4px 0 0", color: "#555" }}>
+                Review enrollment charges billed to this course.
+              </p>
+            </div>
+            {billingHistoryLoading && (
+              <p style={{ margin: 0, color: "#555" }}>
+                Loading billing history...
+              </p>
+            )}
+            {billingHistoryError && (
+              <p style={{ margin: 0, color: "#c62828" }}>
+                {billingHistoryError}
+              </p>
+            )}
+            {!billingHistoryLoading &&
+              !billingHistoryError &&
+              billingHistory.length === 0 && (
+                <p style={{ margin: 0, color: "#555" }}>
+                  No charges have been recorded yet.
+                </p>
+              )}
+            {!billingHistoryLoading &&
+              !billingHistoryError &&
+              billingHistory.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 24,
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        Current balance
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 600 }}>
+                        {formatCurrency(billingSummary.totalPendingCents)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        Total billed
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 600 }}>
+                        {formatCurrency(billingSummary.totalChargedCents)}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={billingTableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={billingHeaderStyle}>Date</th>
+                          <th style={billingHeaderStyle}>Student</th>
+                          <th style={billingHeaderStyle}>Description</th>
+                          <th style={billingHeaderStyle}>Status</th>
+                          <th
+                            style={{
+                              ...billingHeaderStyle,
+                              textAlign: "right",
+                            }}
+                          >
+                            Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {billingHistory.map((item) => (
+                          <tr key={item.id}>
+                            <td style={billingCellStyle}>
+                              {new Date(item.created * 1000).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </td>
+                            <td style={billingCellStyle}>{item.studentName}</td>
+                            <td style={billingCellStyle}>
+                              {item.description || "Enrollment charge"}
+                            </td>
+                            <td style={billingCellStyle}>
+                              {formatBillingStatus(item.status)}
+                            </td>
+                            <td
+                              style={{
+                                ...billingCellStyle,
+                                textAlign: "right",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {formatCurrency(item.amountCents)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+          </Card>
+        </>
+      )}
       {isPrimaryTeacher && (
         <>
           <Spacer size={2} />
