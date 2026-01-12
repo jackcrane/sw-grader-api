@@ -35,6 +35,12 @@ export const SubmissionPreviewModal = ({
   queueStatus,
   onClose,
   latePenaltyLabel,
+  manualGradeEnabled = false,
+  manualGradeValue = "",
+  manualGradeError = null,
+  manualGradeSaving = false,
+  onManualGradeChange = () => {},
+  onManualGradeSubmit = () => {},
   navigation,
 }) => {
   if (!open) return null;
@@ -43,11 +49,9 @@ export const SubmissionPreviewModal = ({
     queueStatus?.queueAheadCount ?? queueStatus?.aheadCount ?? 0;
   const queuePosition =
     queueStatus?.queuePosition ?? queueStatus?.position ?? queueAheadCount + 1;
-  const queueSize =
-    queueStatus?.queueSize ?? queueStatus?.queueDepth ?? null;
+  const queueSize = queueStatus?.queueSize ?? queueStatus?.queueDepth ?? null;
   const queueState =
-    queueStatus?.state ??
-    (queueAheadCount > 0 ? "queued" : "processing");
+    queueStatus?.state ?? (queueAheadCount > 0 ? "queued" : "processing");
 
   const navigationIndex = navigation?.currentIndex ?? 0;
   const navigationTotal = navigation?.totalSubmissions ?? 0;
@@ -56,48 +60,83 @@ export const SubmissionPreviewModal = ({
     typeof navigation?.onPrevious === "function" &&
     typeof navigation?.onNext === "function";
 
+  const manualGradeInputValue =
+    manualGradeValue == null ? "" : String(manualGradeValue);
+  const manualGradeHasValue = manualGradeInputValue.trim().length > 0;
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       closeOnBackdrop={status !== "loading"}
       title={getTitle(status)}
-    footer={
-      status === "loading" ? null : (
-        <div className={styles.footer}>
-          {canNavigate && (
-            <div className={styles.footerNav}>
-              <Button onClick={navigation.onPrevious} disabled={navigationIndex <= 0}>
-                Previous
-              </Button>
-              <span className={styles.footerNavLabel}>
-                Submission {navigationIndex + 1} of {navigationTotal}
-              </span>
-              <Button
-                onClick={navigation.onNext}
-                disabled={navigationIndex >= navigationTotal - 1}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-          <div className={styles.footerActions}>
-            <Button onClick={onClose}>Close</Button>
-            {downloadUrl && (
-              <Button
-                href={downloadUrl}
-                download={downloadFilename ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Download submission
-              </Button>
+      footer={
+        status === "loading" ? null : (
+          <div className={styles.footer}>
+            {canNavigate && (
+              <div className={styles.footerNav}>
+                <Button
+                  onClick={navigation.onPrevious}
+                  disabled={navigationIndex <= 0}
+                >
+                  Previous
+                </Button>
+                <span className={styles.footerNavLabel}>
+                  Submission {navigationIndex + 1} of {navigationTotal}
+                </span>
+                <Button
+                  onClick={navigation.onNext}
+                  disabled={navigationIndex >= navigationTotal - 1}
+                >
+                  Next
+                </Button>
+              </div>
             )}
+            {manualGradeEnabled && (
+              <div className={styles.manualGrade}>
+                <div className={styles.manualGradeControls}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={manualGradeInputValue}
+                    className={styles.manualGradeInput}
+                    onChange={(event) =>
+                      onManualGradeChange(event.target.value ?? "")
+                    }
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={onManualGradeSubmit}
+                    isLoading={manualGradeSaving}
+                    disabled={!manualGradeHasValue}
+                  >
+                    Save
+                  </Button>
+                </div>
+                {manualGradeError && (
+                  <p className={styles.manualGradeError}>{manualGradeError}</p>
+                )}
+              </div>
+            )}
+            <div className={styles.footerActions}>
+              <Button onClick={onClose}>Close</Button>
+              {downloadUrl && (
+                <Button
+                  href={downloadUrl}
+                  download={downloadFilename ?? undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Download submission
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )
-    }
-  >
+        )
+      }
+    >
       <div className={styles.content}>
         {status === "loading" && (
           <div className={styles.loading}>
@@ -145,12 +184,16 @@ export const SubmissionPreviewModal = ({
                 Screenshot not available for this submission.
               </div>
             )}
-            <p className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}>
+            <p
+              className={`${styles.grade} ${getGradeColorClass(gradeValue) ?? ""}`}
+            >
               Grade earned:{" "}
               {gradeValue != null ? (
-                <strong>{gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE}</strong>
+                <strong>
+                  {gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE}
+                </strong>
               ) : (
-                gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE
+                (gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE)
               )}
             </p>
             {latePenaltyLabel && (
@@ -164,7 +207,9 @@ export const SubmissionPreviewModal = ({
           </>
         )}
         {status === "error" && (
-          <p className={styles.error}>{error ?? "Unable to preview submission."}</p>
+          <p className={styles.error}>
+            {error ?? "Unable to preview submission."}
+          </p>
         )}
       </div>
     </Modal>

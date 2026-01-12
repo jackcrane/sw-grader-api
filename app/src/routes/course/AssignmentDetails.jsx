@@ -107,13 +107,22 @@ export const AssignmentDetails = () => {
     downloadFilename: null,
     unpenalizedGrade: null,
     latePenaltyLabel: null,
+    submissionId: null,
   });
+  const [manualGradeDraft, setManualGradeDraft] = useState("");
+  const [manualGradeError, setManualGradeError] = useState(null);
+  const [manualGradeSaving, setManualGradeSaving] = useState(false);
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
   const [autoTrackEnabled, setAutoTrackEnabled] = useState(true);
   const [previewSubmissions, setPreviewSubmissions] = useState([]);
   const [previewSubmissionIndex, setPreviewSubmissionIndex] = useState(0);
   const eventSourceRef = useRef(null);
+  const resetManualGradeControls = useCallback(() => {
+    setManualGradeDraft("");
+    setManualGradeError(null);
+    setManualGradeSaving(false);
+  }, []);
   const patchSubmission = useCallback(
     (updatedSubmission) => {
       if (!updatedSubmission?.id) return;
@@ -237,11 +246,14 @@ export const AssignmentDetails = () => {
       downloadFilename: null,
       unpenalizedGrade: null,
       latePenaltyLabel: null,
+      submissionId: null,
     });
+    resetManualGradeControls();
     resetSubmissionNavigation();
   };
 
   const showLoadingPreview = () => {
+    resetManualGradeControls();
     setPreviewModalOpen(true);
     resetSubmissionNavigation();
     setPreviewModalState({
@@ -255,6 +267,7 @@ export const AssignmentDetails = () => {
       error: null,
       unpenalizedGrade: null,
       latePenaltyLabel: null,
+      submissionId: null,
     });
   };
 
@@ -275,6 +288,7 @@ export const AssignmentDetails = () => {
     setQueueStatus(null);
     setTrackingSubmissionId(null);
     setPreviewModalOpen(true);
+    resetManualGradeControls();
     setPreviewModalState({
       status: "loading",
       screenshotUrl: null,
@@ -286,6 +300,7 @@ export const AssignmentDetails = () => {
       error: null,
       unpenalizedGrade: null,
       latePenaltyLabel: null,
+      submissionId: null,
     });
     setUploadError(null);
     setSuccessMessage(null);
@@ -356,7 +371,13 @@ export const AssignmentDetails = () => {
           error: null,
           unpenalizedGrade: submissionPayload?.unpenalizedGrade ?? null,
           latePenaltyLabel: penaltyLabel,
+          submissionId: submissionPayload?.id ?? null,
         });
+        setManualGradeDraft(
+          submissionPayload?.grade != null
+            ? String(submissionPayload.grade)
+            : ""
+        );
       } else {
         setQueueStatus(() => {
           if (!queuePayload) return null;
@@ -389,7 +410,9 @@ export const AssignmentDetails = () => {
         error: err?.message || "Failed to upload submission.",
         unpenalizedGrade: null,
         latePenaltyLabel: null,
+        submissionId: null,
       });
+      resetManualGradeControls();
     } finally {
       setUploading(false);
       setAutoTrackEnabled(true);
@@ -455,7 +478,11 @@ export const AssignmentDetails = () => {
           error: null,
           unpenalizedGrade: gradedSubmission?.unpenalizedGrade ?? null,
           latePenaltyLabel: penaltyLabel,
+          submissionId: gradedSubmission?.id ?? null,
         });
+        setManualGradeDraft(
+          gradedSubmission?.grade != null ? String(gradedSubmission.grade) : ""
+        );
         setQueueStatus(null);
         setSuccessMessage("Submission graded.");
         patchSubmission(gradedSubmission);
@@ -478,7 +505,9 @@ export const AssignmentDetails = () => {
             "Unable to monitor the grading request. Check your submissions list.",
           unpenalizedGrade: null,
           latePenaltyLabel: null,
+          submissionId: null,
         });
+        resetManualGradeControls();
         setQueueStatus(payload);
         setAutoTrackEnabled(false);
         stopQueueTracking();
@@ -499,7 +528,9 @@ export const AssignmentDetails = () => {
             "Grading is taking longer than expected. We'll keep working on it.",
           unpenalizedGrade: null,
           latePenaltyLabel: null,
+          submissionId: null,
         });
+        resetManualGradeControls();
         setQueueStatus(payload);
         stopQueueTracking();
         return;
@@ -545,6 +576,7 @@ export const AssignmentDetails = () => {
 
   const displaySubmissionPreview = (submission) => {
     if (!submission) return;
+    resetManualGradeControls();
     const pending = submission?.grade == null;
 
     setPreviewModalOpen(true);
@@ -560,6 +592,7 @@ export const AssignmentDetails = () => {
         error: null,
         unpenalizedGrade: null,
         latePenaltyLabel: null,
+        submissionId: submission?.id ?? null,
       });
       if (submission?.id) {
         setAutoTrackEnabled(true);
@@ -586,7 +619,11 @@ export const AssignmentDetails = () => {
       error: null,
       unpenalizedGrade: submission?.unpenalizedGrade ?? null,
       latePenaltyLabel: penaltyLabel,
+      submissionId: submission?.id ?? null,
     });
+    setManualGradeDraft(
+      submission?.grade != null ? String(submission.grade) : ""
+    );
   };
 
   const showSubmissionInModal = (
@@ -640,9 +677,101 @@ export const AssignmentDetails = () => {
         error: err?.message || "Unable to load submission.",
         unpenalizedGrade: null,
         latePenaltyLabel: null,
+        submissionId: null,
       });
+      resetManualGradeControls();
     }
   };
+
+  const handleManualGradeSubmit = useCallback(async () => {
+    const submissionId = previewModalState.submissionId;
+    if (!submissionId || manualGradeSaving) return;
+    const trimmedGrade = manualGradeDraft?.toString?.().trim();
+    if (!trimmedGrade) {
+      setManualGradeError("Enter a grade value to override.");
+      return;
+    }
+    const parsed = Number(trimmedGrade);
+    if (!Number.isFinite(parsed)) {
+      setManualGradeError("Grade must be a valid number.");
+      return;
+    }
+    if (parsed < 0) {
+      setManualGradeError("Grade cannot be negative.");
+      return;
+    }
+
+    setManualGradeSaving(true);
+    setManualGradeError(null);
+    try {
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/grade`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ grade: parsed }),
+        }
+      );
+      const updatedSubmission = payload?.submission ?? null;
+      if (!updatedSubmission) {
+        throw new Error("Updated submission data missing.");
+      }
+
+      patchSubmission(updatedSubmission);
+      setPreviewSubmissions((current) =>
+        current.map((item) =>
+          item?.id === updatedSubmission?.id
+            ? { ...item, ...updatedSubmission }
+            : item
+        )
+      );
+      const newGradeValue = parseGradeValue(updatedSubmission?.grade);
+      const penaltyLabel = computeLatePenaltyLabel(updatedSubmission);
+      setPreviewModalState((prev) => ({
+        ...prev,
+        gradeValue: newGradeValue,
+        gradeLabel: formatSubmissionGrade(updatedSubmission),
+        feedback: updatedSubmission?.feedback ?? prev.feedback,
+        screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
+        downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
+        downloadFilename:
+          updatedSubmission?.fileName ?? prev.downloadFilename,
+        unpenalizedGrade:
+          updatedSubmission?.unpenalizedGrade ?? prev.unpenalizedGrade,
+        latePenaltyLabel: penaltyLabel,
+        submissionId: updatedSubmission?.id ?? prev.submissionId,
+      }));
+      setManualGradeDraft(
+        updatedSubmission?.grade != null ? String(updatedSubmission.grade) : ""
+      );
+    } catch (err) {
+      setManualGradeError(
+        err?.message || "Failed to save manual grade override."
+      );
+    } finally {
+      setManualGradeSaving(false);
+    }
+  }, [
+    assignmentId,
+    courseId,
+    formatSubmissionGrade,
+    manualGradeDraft,
+    manualGradeSaving,
+    patchSubmission,
+    previewModalState.submissionId,
+  ]);
+
+  const handleManualGradeChange = useCallback(
+    (value) => {
+      setManualGradeDraft(value ?? "");
+      if (manualGradeError) {
+        setManualGradeError(null);
+      }
+    },
+    [manualGradeError]
+  );
 
   const goToPreviousPreviewSubmission = () => {
     if (!previewSubmissions.length) return;
@@ -744,6 +873,9 @@ export const AssignmentDetails = () => {
     (sum, submission) => sum + (Number(submission?.attemptCount) || 0),
     0
   );
+
+  const manualGradeEnabled =
+    !isStudent && previewModalState.status === "success";
 
   if (loading) {
     return <p>Loading assignment...</p>;
@@ -1012,6 +1144,12 @@ export const AssignmentDetails = () => {
         queueStatus={queueStatus}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
+        manualGradeEnabled={manualGradeEnabled}
+        manualGradeValue={manualGradeDraft}
+        manualGradeError={manualGradeError}
+        manualGradeSaving={manualGradeSaving}
+        onManualGradeChange={handleManualGradeChange}
+        onManualGradeSubmit={handleManualGradeSubmit}
         navigation={
           previewSubmissions.length > 1
             ? {
