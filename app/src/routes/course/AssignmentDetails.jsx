@@ -10,6 +10,7 @@ import { Button } from "../../components/button/Button";
 import { SubmissionPreviewModal } from "../../components/submissionPreview/SubmissionPreviewModal";
 import { Spinner } from "../../components/spinner/Spinner";
 import { useAssignmentDetails } from "../../hooks/useAssignmentDetails";
+import { useAssignments } from "../../hooks/useAssignments";
 import { useGraderStatus } from "../../hooks/useGraderStatus";
 import { fetchJson } from "../../utils/fetchJson";
 import {
@@ -88,6 +89,7 @@ export const AssignmentDetails = () => {
     refetch,
     teacherSubmissions,
   } = useAssignmentDetails(courseId, assignmentId);
+  const { refetch: refetchAssignments } = useAssignments(courseId);
   const { online: graderOnline } = useGraderStatus();
 
   const isStudent = enrollmentType === "STUDENT";
@@ -396,6 +398,7 @@ export const AssignmentDetails = () => {
         }
       }
       await refetch();
+      await refetchAssignments();
     } catch (err) {
       setUploadError(err?.message || "Failed to upload submission.");
       setQueueStatus(null);
@@ -746,6 +749,8 @@ export const AssignmentDetails = () => {
       setManualGradeDraft(
         updatedSubmission?.grade != null ? String(updatedSubmission.grade) : ""
       );
+      await refetch();
+      await refetchAssignments();
     } catch (err) {
       setManualGradeError(
         err?.message || "Failed to save manual grade override."
@@ -761,6 +766,8 @@ export const AssignmentDetails = () => {
     manualGradeSaving,
     patchSubmission,
     previewModalState.submissionId,
+    refetch,
+    refetchAssignments,
   ]);
 
   const handleManualGradeChange = useCallback(
