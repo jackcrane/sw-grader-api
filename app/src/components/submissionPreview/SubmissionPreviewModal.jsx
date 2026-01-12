@@ -105,12 +105,14 @@ export const SubmissionPreviewModal = ({
                     onChange={(event) =>
                       onManualGradeChange(event.target.value ?? "")
                     }
+                    data-cy="manual-grade-input"
                   />
                   <Button
                     variant="primary"
                     onClick={onManualGradeSubmit}
                     isLoading={manualGradeSaving}
                     disabled={!manualGradeHasValue}
+                    data-cy="manual-grade-save"
                   >
                     Save
                   </Button>

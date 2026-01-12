@@ -163,6 +163,8 @@ model Submission {
   matchingSignatureId String?
   matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id], onDelete: Cascade)
   unpenalizedGrade Float?
+  autoGrade Float?
+  manuallyGraded Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

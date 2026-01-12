@@ -74,11 +74,20 @@ export const patch = [
       });
     }
 
+    let autoGradeValue = submission.autoGrade ?? null;
+    if (autoGradeValue == null && submission.grade != null) {
+      autoGradeValue = submission.grade;
+    }
+
+    const shouldCaptureAutoGrade = autoGradeValue != null;
+
     const updatedSubmission = await prisma.submission.update({
       where: { id: submission.id },
       data: {
         grade: normalizedGrade,
         unpenalizedGrade: normalizedGrade,
+        manuallyGraded: true,
+        ...(shouldCaptureAutoGrade ? { autoGrade: autoGradeValue } : {}),
       },
       include: {
         user: {
