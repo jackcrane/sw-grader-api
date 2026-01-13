@@ -15,6 +15,8 @@ Main Module:
 - [x] Invite codes should always be visible in the course details page
 - [ ] Allow TAs/teachers to manually adjust a submission's grade
 - [ ] Fix help links
+- [ ] - [ ] Allow teacher to pre-buy a set number of enrollments
+- [ ] Dockerize worker
 
 SW Grader Module:
 - [ ] Implement plagarism metadata extraction in the api
