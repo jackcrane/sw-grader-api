@@ -29,6 +29,11 @@ export const SubmissionPreviewModal = ({
   gradeValue,
   gradeLabel,
   feedback,
+  commentValue,
+  commentEnabled = false,
+  commentError = null,
+  commentSaving = false,
+  commentSaved = false,
   downloadUrl,
   downloadFilename,
   error,
@@ -41,6 +46,8 @@ export const SubmissionPreviewModal = ({
   manualGradeSaving = false,
   onManualGradeChange = () => {},
   onManualGradeSubmit = () => {},
+  onCommentChange = () => {},
+  onCommentSubmit = () => {},
   navigation,
 }) => {
   if (!open) return null;
@@ -63,6 +70,9 @@ export const SubmissionPreviewModal = ({
   const manualGradeInputValue =
     manualGradeValue == null ? "" : String(manualGradeValue);
   const manualGradeHasValue = manualGradeInputValue.trim().length > 0;
+  const normalizedCommentValue =
+    commentValue == null ? "" : String(commentValue);
+  const commentHasValue = normalizedCommentValue.trim().length > 0;
 
   return (
     <Modal
@@ -198,6 +208,40 @@ export const SubmissionPreviewModal = ({
                 (gradeLabel ?? SUBMISSION_STATUS_LABELS.WAITING_FOR_GRADE)
               )}
             </p>
+            {commentEnabled && (
+              <div className={styles.commentBlock}>
+                <p className={styles.commentLabel}>Instructor comment</p>
+                <div className={styles.commentControls}>
+                  <textarea
+                    className={styles.commentInput}
+                    rows={2}
+                    value={normalizedCommentValue}
+                    onChange={(event) =>
+                      onCommentChange(event.target.value ?? "")
+                    }
+                    placeholder="Leave a note for the student."
+                    data-cy="submission-comment-input"
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={onCommentSubmit}
+                    isLoading={commentSaving}
+                    disabled={!commentHasValue || commentSaved}
+                    data-cy="submission-comment-save"
+                  >
+                    {commentSaved ? "saved" : "Save"}
+                  </Button>
+                </div>
+                {commentError && (
+                  <p className={styles.commentError}>{commentError}</p>
+                )}
+              </div>
+            )}
+            {!commentEnabled && commentHasValue && (
+              <div className={styles.commentReadOnly}>
+                <strong>Instructor comment:</strong> {normalizedCommentValue}
+              </div>
+            )}
             {latePenaltyLabel && (
               <p className={styles.penaltyNote}>{latePenaltyLabel}</p>
             )}

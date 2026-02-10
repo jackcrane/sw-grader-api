@@ -66,6 +66,7 @@ steps:
 
   - tapOn:
       text: "Close"
+      allowScroll: true
   ##############################################################################
   # Check that the student's grade is accurately reflected in the gradebook
   - tapOn:
@@ -85,6 +86,7 @@ steps:
       text: "Grade earned: 100/100"
   - tapOn:
       text: "Close"
+      allowScroll: true
   - assertVisible:
       text: "100.0%"
       selector: '[class^="_averageCell"]'

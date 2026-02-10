@@ -104,6 +104,7 @@ export const AssignmentDetails = () => {
     gradeValue: null,
     gradeLabel: null,
     feedback: null,
+    staffComment: null,
     error: null,
     downloadUrl: null,
     downloadFilename: null,
@@ -114,6 +115,10 @@ export const AssignmentDetails = () => {
   const [manualGradeDraft, setManualGradeDraft] = useState("");
   const [manualGradeError, setManualGradeError] = useState(null);
   const [manualGradeSaving, setManualGradeSaving] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentError, setCommentError] = useState(null);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
   const [autoTrackEnabled, setAutoTrackEnabled] = useState(true);
@@ -124,6 +129,12 @@ export const AssignmentDetails = () => {
     setManualGradeDraft("");
     setManualGradeError(null);
     setManualGradeSaving(false);
+  }, []);
+  const resetCommentControls = useCallback(() => {
+    setCommentDraft("");
+    setCommentError(null);
+    setCommentSaving(false);
+    setCommentSaved(false);
   }, []);
   const patchSubmission = useCallback(
     (updatedSubmission) => {
@@ -243,6 +254,7 @@ export const AssignmentDetails = () => {
       gradeValue: null,
       gradeLabel: null,
       feedback: null,
+      staffComment: null,
       error: null,
       downloadUrl: null,
       downloadFilename: null,
@@ -251,11 +263,13 @@ export const AssignmentDetails = () => {
       submissionId: null,
     });
     resetManualGradeControls();
+    resetCommentControls();
     resetSubmissionNavigation();
   };
 
   const showLoadingPreview = () => {
     resetManualGradeControls();
+    resetCommentControls();
     setPreviewModalOpen(true);
     resetSubmissionNavigation();
     setPreviewModalState({
@@ -264,6 +278,7 @@ export const AssignmentDetails = () => {
       gradeValue: null,
       gradeLabel: null,
       feedback: null,
+      staffComment: null,
       downloadUrl: null,
       downloadFilename: null,
       error: null,
@@ -291,12 +306,14 @@ export const AssignmentDetails = () => {
     setTrackingSubmissionId(null);
     setPreviewModalOpen(true);
     resetManualGradeControls();
+    resetCommentControls();
     setPreviewModalState({
       status: "loading",
       screenshotUrl: null,
       gradeValue: null,
       gradeLabel: null,
       feedback: null,
+      staffComment: null,
       downloadUrl: null,
       downloadFilename: null,
       error: null,
@@ -368,6 +385,7 @@ export const AssignmentDetails = () => {
             grade: successGradeValue,
           }),
           feedback: hintFeedback,
+          staffComment: submissionPayload?.staffComment ?? null,
           downloadUrl: submissionPayload?.fileUrl ?? null,
           downloadFilename: submissionPayload?.fileName ?? null,
           error: null,
@@ -408,6 +426,7 @@ export const AssignmentDetails = () => {
         gradeValue: null,
         gradeLabel: null,
         feedback: null,
+        staffComment: null,
         downloadUrl: null,
         downloadFilename: null,
         error: err?.message || "Failed to upload submission.",
@@ -416,6 +435,7 @@ export const AssignmentDetails = () => {
         submissionId: null,
       });
       resetManualGradeControls();
+      resetCommentControls();
     } finally {
       setUploading(false);
       setAutoTrackEnabled(true);
@@ -473,6 +493,7 @@ export const AssignmentDetails = () => {
           gradeValue,
           gradeLabel: formatSubmissionGrade(gradedSubmission),
           feedback: gradedSubmission?.feedback ?? null,
+          staffComment: gradedSubmission?.staffComment ?? null,
           downloadUrl: gradedSubmission?.fileUrl ?? null,
           downloadFilename:
             gradedSubmission?.fileName ??
@@ -501,6 +522,7 @@ export const AssignmentDetails = () => {
           gradeValue: null,
           gradeLabel: null,
           feedback: null,
+          staffComment: null,
           downloadUrl: null,
           downloadFilename: null,
           error:
@@ -511,6 +533,7 @@ export const AssignmentDetails = () => {
           submissionId: null,
         });
         resetManualGradeControls();
+        resetCommentControls();
         setQueueStatus(payload);
         setAutoTrackEnabled(false);
         stopQueueTracking();
@@ -524,6 +547,7 @@ export const AssignmentDetails = () => {
           gradeValue: null,
           gradeLabel: null,
           feedback: null,
+          staffComment: null,
           downloadUrl: null,
           downloadFilename: null,
           error:
@@ -534,6 +558,7 @@ export const AssignmentDetails = () => {
           submissionId: null,
         });
         resetManualGradeControls();
+        resetCommentControls();
         setQueueStatus(payload);
         stopQueueTracking();
         return;
@@ -580,6 +605,7 @@ export const AssignmentDetails = () => {
   const displaySubmissionPreview = (submission) => {
     if (!submission) return;
     resetManualGradeControls();
+    resetCommentControls();
     const pending = submission?.grade == null;
 
     setPreviewModalOpen(true);
@@ -590,6 +616,7 @@ export const AssignmentDetails = () => {
         gradeValue: null,
         gradeLabel: null,
         feedback: null,
+        staffComment: null,
         downloadUrl: null,
         downloadFilename: null,
         error: null,
@@ -614,6 +641,7 @@ export const AssignmentDetails = () => {
         grade: previewGradeValue,
       }),
       feedback: submission?.feedback ?? null,
+      staffComment: submission?.staffComment ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename:
         submission?.fileName ||
@@ -627,6 +655,8 @@ export const AssignmentDetails = () => {
     setManualGradeDraft(
       submission?.grade != null ? String(submission.grade) : ""
     );
+    setCommentDraft(submission?.staffComment ?? "");
+    setCommentSaved(false);
   };
 
   const showSubmissionInModal = (
@@ -675,6 +705,7 @@ export const AssignmentDetails = () => {
         gradeValue: null,
         gradeLabel: null,
         feedback: null,
+        staffComment: null,
         downloadUrl: null,
         downloadFilename: null,
         error: err?.message || "Unable to load submission.",
@@ -683,6 +714,7 @@ export const AssignmentDetails = () => {
         submissionId: null,
       });
       resetManualGradeControls();
+      resetCommentControls();
     }
   };
 
@@ -737,6 +769,7 @@ export const AssignmentDetails = () => {
         gradeValue: newGradeValue,
         gradeLabel: formatSubmissionGrade(updatedSubmission),
         feedback: updatedSubmission?.feedback ?? prev.feedback,
+        staffComment: updatedSubmission?.staffComment ?? prev.staffComment,
         screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
         downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
         downloadFilename:
@@ -779,6 +812,83 @@ export const AssignmentDetails = () => {
     },
     [manualGradeError]
   );
+
+  const handleCommentChange = useCallback(
+    (value) => {
+      setCommentDraft(value ?? "");
+      if (commentError) {
+        setCommentError(null);
+      }
+      if (commentSaved) {
+        setCommentSaved(false);
+      }
+    },
+    [commentError, commentSaved]
+  );
+
+  const handleCommentSubmit = useCallback(async () => {
+    const submissionId = previewModalState.submissionId;
+    if (!submissionId || commentSaving) return;
+    const trimmedComment = commentDraft?.toString?.().trim();
+    if (!trimmedComment) {
+      setCommentError("Enter a comment to share.");
+      return;
+    }
+
+    setCommentSaving(true);
+    setCommentError(null);
+    try {
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/comment`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ comment: trimmedComment }),
+        }
+      );
+      const updatedSubmission = payload?.submission ?? null;
+      if (!updatedSubmission) {
+        throw new Error("Updated submission data missing.");
+      }
+
+      patchSubmission(updatedSubmission);
+      setPreviewSubmissions((current) =>
+        current.map((item) =>
+          item?.id === updatedSubmission?.id
+            ? { ...item, ...updatedSubmission }
+            : item
+        )
+      );
+      setPreviewModalState((prev) => ({
+        ...prev,
+        staffComment: updatedSubmission?.staffComment ?? prev.staffComment,
+        screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
+        downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
+        downloadFilename:
+          updatedSubmission?.fileName ?? prev.downloadFilename,
+      }));
+      setCommentDraft(updatedSubmission?.staffComment ?? trimmedComment);
+      setCommentSaved(true);
+      await refetch();
+      await refetchAssignments();
+    } catch (err) {
+      setCommentError(err?.message || "Failed to save comment.");
+      setCommentSaved(false);
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [
+    assignmentId,
+    courseId,
+    commentDraft,
+    commentSaving,
+    patchSubmission,
+    previewModalState.submissionId,
+    refetch,
+    refetchAssignments,
+  ]);
 
   const goToPreviousPreviewSubmission = () => {
     if (!previewSubmissions.length) return;
@@ -883,6 +993,7 @@ export const AssignmentDetails = () => {
 
   const manualGradeEnabled =
     !isStudent && previewModalState.status === "success";
+  const commentEnabled = manualGradeEnabled;
 
   if (loading) {
     return <p>Loading assignment...</p>;
@@ -1145,6 +1256,15 @@ export const AssignmentDetails = () => {
         gradeValue={previewModalState.gradeValue}
         gradeLabel={previewModalState.gradeLabel}
         feedback={previewModalState.feedback}
+        commentValue={
+          commentEnabled
+            ? commentDraft
+            : previewModalState.staffComment ?? ""
+        }
+        commentEnabled={commentEnabled}
+        commentError={commentError}
+        commentSaving={commentSaving}
+        commentSaved={commentSaved}
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
@@ -1157,6 +1277,8 @@ export const AssignmentDetails = () => {
         manualGradeSaving={manualGradeSaving}
         onManualGradeChange={handleManualGradeChange}
         onManualGradeSubmit={handleManualGradeSubmit}
+        onCommentChange={handleCommentChange}
+        onCommentSubmit={handleCommentSubmit}
         navigation={
           previewSubmissions.length > 1
             ? {

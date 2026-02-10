@@ -160,6 +160,7 @@ model Submission {
 
   grade Float?
   feedback String?
+  staffComment String?
   matchingSignatureId String?
   matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id], onDelete: Cascade)
   unpenalizedGrade Float?

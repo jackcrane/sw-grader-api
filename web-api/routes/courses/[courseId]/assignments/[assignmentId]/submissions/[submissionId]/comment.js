@@ -31,12 +31,11 @@ const fetchSubmission = async (submissionId, assignmentId, courseId = null) => {
   });
 };
 
-const parseGradeValue = (value) => {
-  if (value === null || value === undefined) return null;
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) return null;
-  if (numeric < 0) return null;
-  return numeric;
+const formatRecipientName = (user) => {
+  if (!user) return "there";
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  if (parts.length === 0) return "there";
+  return parts.join(" ");
 };
 
 export const patch = [
@@ -55,42 +54,36 @@ export const patch = [
     if (!enrollment) {
       return res.status(404).json({ error: "Course enrollment not found." });
     }
-    if (!["TEACHER", "TA"].includes(enrollment.type)) {
+    if (![
+      "TEACHER",
+      "TA",
+    ].includes(enrollment.type)) {
       return res
         .status(403)
-        .json({ error: "Only staff can override submission grades." });
+        .json({ error: "Only staff can comment on submissions." });
     }
 
-    const submission = await fetchSubmission(submissionId, assignmentId, courseId);
+    const submission = await fetchSubmission(
+      submissionId,
+      assignmentId,
+      courseId
+    );
     if (!submission) {
       return res.status(404).json({ error: "Submission not found." });
     }
 
-    const gradeInput = req.body?.grade;
-    const normalizedGrade = parseGradeValue(gradeInput);
-    if (normalizedGrade == null) {
-      return res.status(400).json({
-        error: "Grade must be a non-negative number.",
-      });
+    const commentInput = req.body?.comment;
+    if (typeof commentInput !== "string") {
+      return res.status(400).json({ error: "Comment must be a string." });
     }
-
-    let autoGradeValue = submission.autoGrade ?? null;
-    if (autoGradeValue == null && submission.grade != null) {
-      autoGradeValue = submission.grade;
+    const normalizedComment = commentInput.trim();
+    if (!normalizedComment) {
+      return res.status(400).json({ error: "Comment cannot be empty." });
     }
-
-    const shouldCaptureAutoGrade = autoGradeValue != null;
-
-    const autoGradePatch = shouldCaptureAutoGrade
-      ? autoGradeValue
-      : submission.autoGrade ?? null;
 
     await prisma.$executeRaw`
       UPDATE "Submission"
-      SET "grade" = ${normalizedGrade},
-          "unpenalizedGrade" = ${normalizedGrade},
-          "manuallyGraded" = true,
-          "autoGrade" = ${autoGradePatch}
+      SET "staffComment" = ${normalizedComment}
       WHERE "id" = ${submission.id}
     `;
 
@@ -112,11 +105,6 @@ export const patch = [
           select: {
             id: true,
             name: true,
-            course: {
-              select: {
-                name: true,
-              },
-            },
           },
         },
       },
@@ -128,21 +116,11 @@ export const patch = [
 
     const recipientEmail = updatedSubmission?.user?.email;
     if (recipientEmail) {
-      const userNameParts = [
-        updatedSubmission?.user?.firstName,
-        updatedSubmission?.user?.lastName,
-      ].filter(Boolean);
-      const recipientName =
-        userNameParts.length > 0 ? userNameParts.join(" ") : null;
       const assignmentName =
         updatedSubmission?.assignment?.name ?? "assignment";
-      const courseName = updatedSubmission?.assignment?.course?.name ?? null;
-      const staffLabel =
-        enrollment.type === "TEACHER" ? "Teacher" : "Teaching assistant";
-      const greeting = recipientName ? `Hello ${recipientName},` : "Hello,";
-      const courseSegment = courseName ? ` in ${courseName}` : "";
-      const subject = `Grade update for ${assignmentName}`;
-      const text = `${greeting}\n\nA ${staffLabel} manually updated the score for ${assignmentName}${courseSegment}. Please revisit the assignment to see the latest feedback or comments.\n\nBest,\nFeatureBench`;
+      const recipientName = formatRecipientName(updatedSubmission?.user);
+      const subject = `New comment on your submission for ${assignmentName}`;
+      const text = `Hi ${recipientName},\n\nThere is a new comment on your submission for ${assignmentName} on FeatureBench. Log in to see what it was!\n\nThanks,\nThe FeatureBench team`;
 
       await sendEmail({
         to: recipientEmail,

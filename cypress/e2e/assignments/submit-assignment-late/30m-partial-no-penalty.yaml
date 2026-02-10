@@ -71,10 +71,13 @@ steps:
       parentCy: submission-Test Student
   - assertVisible:
       text: "Grade earned: 70/100"
+      allowScroll: true
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
+      allowScroll: true
   ##############################################################################
   # Check that the student's grade is accurately reflected in the gradebook
   - tapOn:
@@ -92,10 +95,13 @@ steps:
       parentCy: "gradebook-row-Test Student"
   - assertVisible:
       text: "Grade earned: 70/100"
+      allowScroll: true
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
+      allowScroll: true
   - assertVisible:
       text: "70.0%"
       selector: '[class^="_averageCell"]'

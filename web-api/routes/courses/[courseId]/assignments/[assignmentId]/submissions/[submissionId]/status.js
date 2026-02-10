@@ -40,6 +40,7 @@ const fetchSubmission = async (submissionId, assignmentId, courseId = null) => {
       grade: true,
       unpenalizedGrade: true,
       feedback: true,
+      staffComment: true,
       matchingSignatureId: true,
       fileKey: true,
       fileUrl: true,

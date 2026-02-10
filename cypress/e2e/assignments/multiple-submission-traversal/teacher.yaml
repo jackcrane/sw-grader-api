@@ -22,16 +22,22 @@ steps:
       text: "Grade earned: 100/100"
   - assertVisible:
       text: "Submission 1 of 2"
+      allowScroll: true
   - tapOn:
       text: "Next"
+      allowScroll: true
   - assertVisible:
       text: "Submission 2 of 2"
+      allowScroll: true
   - assertVisible:
       text: "Grade earned: 70/100"
+      allowScroll: true
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
+      allowScroll: true
   ##############################################################################
   # Roster
   - tapOn:
@@ -44,18 +50,25 @@ steps:
       parentCy: "grade-row-E2E Test Assignment"
   - assertVisible:
       text: "Grade earned: 100/100"
+      allowScroll: true
   - assertVisible:
       text: "Submission 1 of 2"
+      allowScroll: true
   - tapOn:
       text: "Next"
+      allowScroll: true
   - assertVisible:
       text: "Submission 2 of 2"
+      allowScroll: true
   - assertVisible:
       text: "Grade earned: 70/100"
+      allowScroll: true
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
+      allowScroll: true
   ##############################################################################
   # Gradebook
   - tapOn:
@@ -66,13 +79,19 @@ steps:
       text: "Grade earned: 100/100"
   - assertVisible:
       text: "Submission 1 of 2"
+      allowScroll: true
   - tapOn:
       text: "Next"
+      allowScroll: true
   - assertVisible:
       text: "Submission 2 of 2"
+      allowScroll: true
   - assertVisible:
       text: "Grade earned: 70/100"
+      allowScroll: true
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
+      allowScroll: true

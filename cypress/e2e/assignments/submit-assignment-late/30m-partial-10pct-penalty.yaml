@@ -69,6 +69,7 @@ steps:
       text: Late penalty applied (original score 70/100).
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   ##############################################################################
   # Verify the student has an accurate grade and feedback
   - authenticateUser:
@@ -101,6 +102,7 @@ steps:
       text: Late penalty applied (original score 70/100).
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
       allowScroll: true
@@ -125,6 +127,7 @@ steps:
       text: Late penalty applied (original score 70/100).
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
       allowScroll: true
@@ -154,6 +157,7 @@ steps:
       text: Late penalty applied (original score 70/100).
   - assertVisible:
       text: "Hint: This is a test feedback"
+      allowScroll: true
   - tapOn:
       text: "Close"
       allowScroll: true
