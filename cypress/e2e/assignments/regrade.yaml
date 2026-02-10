@@ -22,7 +22,7 @@ steps:
       text: "80"
       dataCy: "manual-grade-input"
   - tapOn:
-      text: "Save"
+      dataCy: "manual-grade-save"
   - assertVisible:
       text: "Grade earned: 80/100"
   - tapOn:
