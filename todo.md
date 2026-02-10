@@ -13,8 +13,8 @@ Main Module:
 - [x] Disable create course button if data is invalid or missing
 - [x] Add a billing history table/balance on course settings for the teacher
 - [x] Invite codes should always be visible in the course details page
-- [ ] Allow TAs/teachers to manually adjust a submission's grade
-- [ ] Fix help links
+- [x] Allow TAs/teachers to manually adjust a submission's grade
+- [x] Fix help links
 - [ ] - [ ] Allow teacher to pre-buy a set number of enrollments
 - [ ] Dockerize worker
 

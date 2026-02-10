@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext } from "react-router-dom";
 import { Prohibit, Hourglass, SignOut } from "@phosphor-icons/react";
 import { H2 } from "../../components/typography/Typography";
@@ -251,12 +251,20 @@ const submissionPreviewInitialState = {
   error: null,
   queueStatus: null,
   latePenaltyLabel: null,
+  submissionId: null,
+  assignmentId: null,
 };
 
 export const CourseGradebook = () => {
   const { canViewRoster, courseId } = useOutletContext();
   const canViewGradebook = Boolean(canViewRoster);
-  const { roster, assignments, loading, error } = useCourseRoster(courseId, {
+  const {
+    roster,
+    assignments,
+    loading,
+    error,
+    refetch: refetchRoster,
+  } = useCourseRoster(courseId, {
     enabled: canViewGradebook,
   });
 
@@ -268,6 +276,9 @@ export const CourseGradebook = () => {
   const [previewSubmissionIndex, setPreviewSubmissionIndex] = useState(0);
   const [previewSubmissionPointsPossible, setPreviewSubmissionPointsPossible] =
     useState(null);
+  const [manualGradeDraft, setManualGradeDraft] = useState("");
+  const [manualGradeError, setManualGradeError] = useState(null);
+  const [manualGradeSaving, setManualGradeSaving] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
   const [canvasGradebookData, setCanvasGradebookData] = useState(() =>
@@ -350,19 +361,30 @@ export const CourseGradebook = () => {
     return <Navigate to={`/${courseId}`} replace />;
   }
 
+  const manualGradeEnabled =
+    Boolean(canViewGradebook && previewModalState.submissionId);
+
   const resetSubmissionNavigation = () => {
     setPreviewSubmissions([]);
     setPreviewSubmissionIndex(0);
     setPreviewSubmissionPointsPossible(null);
   };
 
+  const resetManualGradeControls = useCallback(() => {
+    setManualGradeDraft("");
+    setManualGradeError(null);
+    setManualGradeSaving(false);
+  }, []);
+
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
     setPreviewModalState(submissionPreviewInitialState);
+    resetManualGradeControls();
     resetSubmissionNavigation();
   };
 
   const showLoadingPreview = () => {
+    resetManualGradeControls();
     setPreviewModalOpen(true);
     resetSubmissionNavigation();
     setPreviewModalState({
@@ -376,17 +398,27 @@ export const CourseGradebook = () => {
       error: null,
       queueStatus: null,
       latePenaltyLabel: null,
+      submissionId: null,
+      assignmentId: null,
     });
   };
 
-  const showSubmissionPreview = (submission, pointsPossible = null) => {
+  const showSubmissionPreview = (
+    submission,
+    pointsPossible = null,
+    assignmentIdArg = null
+  ) => {
     if (!submission) return;
     setPreviewModalOpen(true);
-    setPreviewModalState({
+    setPreviewModalState((prev) => ({
+      ...prev,
       status: "success",
       screenshotUrl: submission?.screenshotUrl ?? null,
       gradeValue: submission?.grade ?? null,
-      gradeLabel: formatSubmissionGradeLabel(submission?.grade, pointsPossible),
+      gradeLabel: formatSubmissionGradeLabel(
+        submission?.grade,
+        pointsPossible
+      ),
       feedback: submission?.feedback ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
@@ -397,7 +429,12 @@ export const CourseGradebook = () => {
         unpenalizedGrade: submission?.unpenalizedGrade,
         pointsPossible,
       }),
-    });
+      submissionId: submission?.id ?? null,
+      assignmentId: assignmentIdArg ?? prev.assignmentId,
+    }));
+    setManualGradeDraft(
+      submission?.grade != null ? String(submission.grade) : ""
+    );
   };
 
   const handleViewSubmission = async (
@@ -429,7 +466,11 @@ export const CourseGradebook = () => {
       setPreviewSubmissions(submissions);
       setPreviewSubmissionIndex(defaultIndex);
       setPreviewSubmissionPointsPossible(pointsPossible);
-      showSubmissionPreview(submissions[defaultIndex], pointsPossible);
+      showSubmissionPreview(
+        submissions[defaultIndex],
+        pointsPossible,
+        assignmentId
+      );
     } catch (err) {
       resetSubmissionNavigation();
       setPreviewModalState({
@@ -443,9 +484,114 @@ export const CourseGradebook = () => {
         error: err?.message || "Unable to load submission.",
         queueStatus: null,
         latePenaltyLabel: null,
+        submissionId: null,
+        assignmentId: null,
       });
+      resetManualGradeControls();
     }
   };
+
+  const previewSubmissionId = previewModalState.submissionId;
+  const previewAssignmentId = previewModalState.assignmentId;
+
+  const handleManualGradeChange = useCallback(
+    (value) => {
+      setManualGradeDraft(value ?? "");
+      if (manualGradeError) {
+        setManualGradeError(null);
+      }
+    },
+    [manualGradeError]
+  );
+
+  const handleManualGradeSubmit = useCallback(async () => {
+    if (
+      manualGradeSaving ||
+      !previewAssignmentId ||
+      !previewSubmissionId
+    ) {
+      return;
+    }
+    const trimmedGrade = manualGradeDraft?.toString?.().trim();
+    if (!trimmedGrade) {
+      setManualGradeError("Enter a grade value to override.");
+      return;
+    }
+    const parsed = Number(trimmedGrade);
+    if (!Number.isFinite(parsed)) {
+      setManualGradeError("Grade must be a valid number.");
+      return;
+    }
+    if (parsed < 0) {
+      setManualGradeError("Grade cannot be negative.");
+      return;
+    }
+
+    setManualGradeSaving(true);
+    setManualGradeError(null);
+    try {
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${previewAssignmentId}/submissions/${previewSubmissionId}/grade`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ grade: parsed }),
+        }
+      );
+      const updatedSubmission = payload?.submission ?? null;
+      if (!updatedSubmission) {
+        throw new Error("Updated submission data missing.");
+      }
+
+      setPreviewSubmissions((current) =>
+        current.map((item) =>
+          item?.id === updatedSubmission?.id
+            ? { ...item, ...updatedSubmission }
+            : item
+        )
+      );
+
+      const updatedGradeValue = parseGradeValue(updatedSubmission?.grade);
+      setPreviewModalState((prev) => ({
+        ...prev,
+        gradeValue: updatedGradeValue,
+        gradeLabel: formatSubmissionGradeLabel(
+          updatedSubmission?.grade,
+          previewSubmissionPointsPossible
+        ),
+        feedback: updatedSubmission?.feedback ?? prev.feedback,
+        screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
+        downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
+        downloadFilename:
+          updatedSubmission?.fileName ?? prev.downloadFilename,
+        latePenaltyLabel: getLatePenaltyLabel({
+          grade: updatedSubmission?.grade,
+          unpenalizedGrade: updatedSubmission?.unpenalizedGrade,
+          pointsPossible: previewSubmissionPointsPossible,
+        }),
+      }));
+      setManualGradeDraft(
+        updatedSubmission?.grade != null ? String(updatedSubmission.grade) : ""
+      );
+      await refetchRoster();
+    } catch (err) {
+      setManualGradeError(
+        err?.message || "Failed to save manual grade override."
+      );
+    } finally {
+      setManualGradeSaving(false);
+    }
+  }, [
+    courseId,
+    manualGradeDraft,
+    manualGradeSaving,
+    previewAssignmentId,
+    previewSubmissionId,
+    previewSubmissionPointsPossible,
+    refetchRoster,
+  ]);
 
   const goToPreviousPreviewSubmission = () => {
     if (!previewSubmissions.length) return;
@@ -920,6 +1066,12 @@ export const CourseGradebook = () => {
         queueStatus={previewModalState.queueStatus}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
+        manualGradeEnabled={manualGradeEnabled}
+        manualGradeValue={manualGradeDraft}
+        manualGradeError={manualGradeError}
+        manualGradeSaving={manualGradeSaving}
+        onManualGradeChange={handleManualGradeChange}
+        onManualGradeSubmit={handleManualGradeSubmit}
         navigation={
           previewSubmissions.length > 1
             ? {
