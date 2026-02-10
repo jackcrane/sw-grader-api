@@ -89,6 +89,56 @@
   text-align: left;
   font-size: 0.95rem;
 }
+.commentBlock {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  text-align: left;
+}
+.commentLabel {
+  font-size: 0.85rem;
+  color: #333;
+  margin: 0;
+}
+.commentControls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.commentInput {
+  flex: 1;
+  /* min-height: 96px; */
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  font-size: 0.95rem;
+  background: #fff;
+  resize: vertical;
+  font-family: inherit;
+}
+.commentInput:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 0;
+  border-color: rgba(59, 130, 246, 0.6);
+}
+.commentError {
+  font-size: 0.8rem;
+  color: #b00020;
+  margin: 0;
+}
+.commentReadOnly {
+  background: #f6f6f6;
+  border-radius: 8px;
+  padding: 12px 16px;
+  width: 100%;
+  max-width: 640px;
+  color: #333;
+  text-align: left;
+  font-size: 0.95rem;
+}
 
 .error {
   color: #b00020;

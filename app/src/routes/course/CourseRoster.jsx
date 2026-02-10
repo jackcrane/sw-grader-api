@@ -92,6 +92,7 @@ const submissionPreviewInitialState = {
   downloadUrl: null,
   downloadFilename: null,
   feedback: null,
+  staffComment: null,
   error: null,
   latePenaltyLabel: null,
   submissionId: null,
@@ -130,6 +131,9 @@ export const CourseRoster = () => {
   const [manualGradeDraft, setManualGradeDraft] = useState("");
   const [manualGradeError, setManualGradeError] = useState(null);
   const [manualGradeSaving, setManualGradeSaving] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentError, setCommentError] = useState(null);
+  const [commentSaving, setCommentSaving] = useState(false);
 
   const visibleRoster = useMemo(
     () => roster.filter((entry) => entry.type !== "TEACHER"),
@@ -179,11 +183,17 @@ export const CourseRoster = () => {
     setManualGradeError(null);
     setManualGradeSaving(false);
   }, []);
+  const resetCommentControls = useCallback(() => {
+    setCommentDraft("");
+    setCommentError(null);
+    setCommentSaving(false);
+  }, []);
 
   const closePreviewModal = () => {
     setPreviewModalOpen(false);
     setPreviewModalState(submissionPreviewInitialState);
     resetManualGradeControls();
+    resetCommentControls();
     resetSubmissionNavigation();
   };
 
@@ -201,6 +211,7 @@ export const CourseRoster = () => {
       gradeValue: submission?.grade ?? null,
       gradeLabel: formatGradeLabel(submission?.grade, pointsPossible),
       feedback: submission?.feedback ?? null,
+      staffComment: submission?.staffComment ?? null,
       downloadUrl: submission?.fileUrl ?? null,
       downloadFilename: deriveSubmissionFilename(submission),
       error: null,
@@ -215,10 +226,12 @@ export const CourseRoster = () => {
     setManualGradeDraft(
       submission?.grade != null ? String(submission.grade) : ""
     );
+    setCommentDraft(submission?.staffComment ?? "");
   };
 
   const showLoadingPreview = () => {
     resetManualGradeControls();
+    resetCommentControls();
     setPreviewModalOpen(true);
     resetSubmissionNavigation();
     setPreviewModalState({
@@ -229,6 +242,7 @@ export const CourseRoster = () => {
       downloadUrl: null,
       downloadFilename: null,
       feedback: null,
+      staffComment: null,
       error: null,
       latePenaltyLabel: null,
       submissionId: null,
@@ -369,12 +383,14 @@ export const CourseRoster = () => {
         downloadUrl: null,
         downloadFilename: null,
         feedback: null,
+        staffComment: null,
         error: err?.message || "Unable to load submission.",
         latePenaltyLabel: null,
         submissionId: null,
         assignmentId: null,
       });
       resetManualGradeControls();
+      resetCommentControls();
     }
   };
 
@@ -390,6 +406,80 @@ export const CourseRoster = () => {
     },
     [manualGradeError]
   );
+
+  const handleCommentChange = useCallback(
+    (value) => {
+      setCommentDraft(value ?? "");
+      if (commentError) {
+        setCommentError(null);
+      }
+    },
+    [commentError]
+  );
+
+  const handleCommentSubmit = useCallback(async () => {
+    if (
+      commentSaving ||
+      !previewAssignmentId ||
+      !previewSubmissionId
+    ) {
+      return;
+    }
+    const trimmedComment = commentDraft?.toString?.().trim();
+    if (!trimmedComment) {
+      setCommentError("Enter a comment to share.");
+      return;
+    }
+
+    setCommentSaving(true);
+    setCommentError(null);
+    try {
+      const payload = await fetchJson(
+        `/api/courses/${courseId}/assignments/${previewAssignmentId}/submissions/${previewSubmissionId}/comment`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ comment: trimmedComment }),
+        }
+      );
+      const updatedSubmission = payload?.submission ?? null;
+      if (!updatedSubmission) {
+        throw new Error("Updated submission data missing.");
+      }
+
+      setPreviewSubmissions((current) =>
+        current.map((item) =>
+          item?.id === updatedSubmission?.id
+            ? { ...item, ...updatedSubmission }
+            : item
+        )
+      );
+
+      setPreviewModalState((prev) => ({
+        ...prev,
+        staffComment: updatedSubmission?.staffComment ?? prev.staffComment,
+        screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
+        downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
+        downloadFilename:
+          updatedSubmission?.fileName ?? prev.downloadFilename,
+      }));
+      setCommentDraft(updatedSubmission?.staffComment ?? trimmedComment);
+      await refetchRoster();
+    } catch (err) {
+      setCommentError(err?.message || "Failed to save comment.");
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [
+    commentDraft,
+    commentSaving,
+    courseId,
+    previewAssignmentId,
+    previewSubmissionId,
+    refetchRoster,
+  ]);
 
   const handleManualGradeSubmit = useCallback(async () => {
     if (
@@ -449,6 +539,7 @@ export const CourseRoster = () => {
           previewSubmissionPointsPossible
         ),
         feedback: updatedSubmission?.feedback ?? prev.feedback,
+        staffComment: updatedSubmission?.staffComment ?? prev.staffComment,
         screenshotUrl: updatedSubmission?.screenshotUrl ?? prev.screenshotUrl,
         downloadUrl: updatedSubmission?.fileUrl ?? prev.downloadUrl,
         downloadFilename:
@@ -511,6 +602,7 @@ export const CourseRoster = () => {
     Boolean(viewerEnrollmentType && viewerEnrollmentType !== "STUDENT");
   const manualGradeEnabled =
     viewerCanEditGrades && Boolean(previewModalState.submissionId);
+  const commentEnabled = manualGradeEnabled;
 
   return (
     <section className={styles.roster}>
@@ -714,6 +806,14 @@ export const CourseRoster = () => {
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}
         feedback={previewModalState.feedback}
+        commentValue={
+          commentEnabled
+            ? commentDraft
+            : previewModalState.staffComment ?? ""
+        }
+        commentEnabled={commentEnabled}
+        commentError={commentError}
+        commentSaving={commentSaving}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
         manualGradeEnabled={manualGradeEnabled}
@@ -722,6 +822,8 @@ export const CourseRoster = () => {
         manualGradeSaving={manualGradeSaving}
         onManualGradeChange={handleManualGradeChange}
         onManualGradeSubmit={handleManualGradeSubmit}
+        onCommentChange={handleCommentChange}
+        onCommentSubmit={handleCommentSubmit}
         navigation={
           previewSubmissions.length > 1
             ? {
