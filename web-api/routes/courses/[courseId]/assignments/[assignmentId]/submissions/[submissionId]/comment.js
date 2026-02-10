@@ -81,10 +81,16 @@ export const patch = [
       return res.status(400).json({ error: "Comment cannot be empty." });
     }
 
-    const updatedSubmission = await prisma.submission.update({
-      where: { id: submission.id },
-      data: {
-        staffComment: normalizedComment,
+    await prisma.$executeRaw`
+      UPDATE "Submission"
+      SET "staffComment" = ${normalizedComment}
+      WHERE "id" = ${submission.id}
+    `;
+
+    const updatedSubmission = await prisma.submission.findFirst({
+      where: {
+        id: submission.id,
+        deleted: false,
       },
       include: {
         user: {
@@ -103,6 +109,10 @@ export const patch = [
         },
       },
     });
+
+    if (!updatedSubmission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
 
     const recipientEmail = updatedSubmission?.user?.email;
     if (recipientEmail) {
