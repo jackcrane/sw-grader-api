@@ -134,6 +134,7 @@ export const CourseRoster = () => {
   const [commentDraft, setCommentDraft] = useState("");
   const [commentError, setCommentError] = useState(null);
   const [commentSaving, setCommentSaving] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
 
   const visibleRoster = useMemo(
     () => roster.filter((entry) => entry.type !== "TEACHER"),
@@ -187,6 +188,7 @@ export const CourseRoster = () => {
     setCommentDraft("");
     setCommentError(null);
     setCommentSaving(false);
+    setCommentSaved(false);
   }, []);
 
   const closePreviewModal = () => {
@@ -227,6 +229,7 @@ export const CourseRoster = () => {
       submission?.grade != null ? String(submission.grade) : ""
     );
     setCommentDraft(submission?.staffComment ?? "");
+    setCommentSaved(false);
   };
 
   const showLoadingPreview = () => {
@@ -413,8 +416,11 @@ export const CourseRoster = () => {
       if (commentError) {
         setCommentError(null);
       }
+      if (commentSaved) {
+        setCommentSaved(false);
+      }
     },
-    [commentError]
+    [commentError, commentSaved]
   );
 
   const handleCommentSubmit = useCallback(async () => {
@@ -466,9 +472,11 @@ export const CourseRoster = () => {
           updatedSubmission?.fileName ?? prev.downloadFilename,
       }));
       setCommentDraft(updatedSubmission?.staffComment ?? trimmedComment);
+      setCommentSaved(true);
       await refetchRoster();
     } catch (err) {
       setCommentError(err?.message || "Failed to save comment.");
+      setCommentSaved(false);
     } finally {
       setCommentSaving(false);
     }
@@ -814,6 +822,7 @@ export const CourseRoster = () => {
         commentEnabled={commentEnabled}
         commentError={commentError}
         commentSaving={commentSaving}
+        commentSaved={commentSaved}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}
         manualGradeEnabled={manualGradeEnabled}

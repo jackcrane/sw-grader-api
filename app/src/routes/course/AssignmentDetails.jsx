@@ -118,6 +118,7 @@ export const AssignmentDetails = () => {
   const [commentDraft, setCommentDraft] = useState("");
   const [commentError, setCommentError] = useState(null);
   const [commentSaving, setCommentSaving] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
   const [queueStatus, setQueueStatus] = useState(null);
   const [trackingSubmissionId, setTrackingSubmissionId] = useState(null);
   const [autoTrackEnabled, setAutoTrackEnabled] = useState(true);
@@ -133,6 +134,7 @@ export const AssignmentDetails = () => {
     setCommentDraft("");
     setCommentError(null);
     setCommentSaving(false);
+    setCommentSaved(false);
   }, []);
   const patchSubmission = useCallback(
     (updatedSubmission) => {
@@ -654,6 +656,7 @@ export const AssignmentDetails = () => {
       submission?.grade != null ? String(submission.grade) : ""
     );
     setCommentDraft(submission?.staffComment ?? "");
+    setCommentSaved(false);
   };
 
   const showSubmissionInModal = (
@@ -816,8 +819,11 @@ export const AssignmentDetails = () => {
       if (commentError) {
         setCommentError(null);
       }
+      if (commentSaved) {
+        setCommentSaved(false);
+      }
     },
-    [commentError]
+    [commentError, commentSaved]
   );
 
   const handleCommentSubmit = useCallback(async () => {
@@ -864,10 +870,12 @@ export const AssignmentDetails = () => {
           updatedSubmission?.fileName ?? prev.downloadFilename,
       }));
       setCommentDraft(updatedSubmission?.staffComment ?? trimmedComment);
+      setCommentSaved(true);
       await refetch();
       await refetchAssignments();
     } catch (err) {
       setCommentError(err?.message || "Failed to save comment.");
+      setCommentSaved(false);
     } finally {
       setCommentSaving(false);
     }
@@ -1256,6 +1264,7 @@ export const AssignmentDetails = () => {
         commentEnabled={commentEnabled}
         commentError={commentError}
         commentSaving={commentSaving}
+        commentSaved={commentSaved}
         downloadUrl={previewModalState.downloadUrl}
         downloadFilename={previewModalState.downloadFilename}
         error={previewModalState.error}

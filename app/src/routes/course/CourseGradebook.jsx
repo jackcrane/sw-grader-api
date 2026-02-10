@@ -283,6 +283,7 @@ export const CourseGradebook = () => {
   const [commentDraft, setCommentDraft] = useState("");
   const [commentError, setCommentError] = useState(null);
   const [commentSaving, setCommentSaving] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [canvasGradebookFile, setCanvasGradebookFile] = useState(null);
   const [canvasGradebookData, setCanvasGradebookData] = useState(() =>
@@ -384,6 +385,7 @@ export const CourseGradebook = () => {
     setCommentDraft("");
     setCommentError(null);
     setCommentSaving(false);
+    setCommentSaved(false);
   }, []);
 
   const closePreviewModal = () => {
@@ -450,6 +452,7 @@ export const CourseGradebook = () => {
       submission?.grade != null ? String(submission.grade) : ""
     );
     setCommentDraft(submission?.staffComment ?? "");
+    setCommentSaved(false);
   };
 
   const handleViewSubmission = async (
@@ -526,8 +529,11 @@ export const CourseGradebook = () => {
       if (commentError) {
         setCommentError(null);
       }
+      if (commentSaved) {
+        setCommentSaved(false);
+      }
     },
-    [commentError]
+    [commentError, commentSaved]
   );
 
   const handleCommentSubmit = useCallback(async () => {
@@ -579,9 +585,11 @@ export const CourseGradebook = () => {
           updatedSubmission?.fileName ?? prev.downloadFilename,
       }));
       setCommentDraft(updatedSubmission?.staffComment ?? trimmedComment);
+      setCommentSaved(true);
       await refetchRoster();
     } catch (err) {
       setCommentError(err?.message || "Failed to save comment.");
+      setCommentSaved(false);
     } finally {
       setCommentSaving(false);
     }
@@ -1162,6 +1170,7 @@ export const CourseGradebook = () => {
         commentEnabled={commentEnabled}
         commentError={commentError}
         commentSaving={commentSaving}
+        commentSaved={commentSaved}
         queueStatus={previewModalState.queueStatus}
         onClose={closePreviewModal}
         latePenaltyLabel={previewModalState.latePenaltyLabel}

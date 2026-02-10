@@ -33,6 +33,7 @@ export const SubmissionPreviewModal = ({
   commentEnabled = false,
   commentError = null,
   commentSaving = false,
+  commentSaved = false,
   downloadUrl,
   downloadFilename,
   error,
@@ -225,10 +226,10 @@ export const SubmissionPreviewModal = ({
                     variant="primary"
                     onClick={onCommentSubmit}
                     isLoading={commentSaving}
-                    disabled={!commentHasValue}
+                    disabled={!commentHasValue || commentSaved}
                     data-cy="submission-comment-save"
                   >
-                    Save
+                    {commentSaved ? "saved" : "Save"}
                   </Button>
                 </div>
                 {commentError && (
