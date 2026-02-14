@@ -161,6 +161,10 @@ model Submission {
   grade Float?
   feedback String?
   staffComment String?
+  graderErrorCount Int @default(0)
+  graderLastError String?
+  graderFailedAt DateTime?
+  graderFailureNotifiedAt DateTime?
   matchingSignatureId String?
   matchingSignature AssignmentSignature? @relation(fields: [matchingSignatureId], references: [id], onDelete: Cascade)
   unpenalizedGrade Float?
