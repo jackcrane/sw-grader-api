@@ -94,6 +94,58 @@ const buildFailureFeedback = (reason) => {
   return `Auto-grading failed after ${MAX_GRADER_ERROR_COUNT} attempts. Last error: ${safeReason}`;
 };
 
+const TERMINAL_GRADER_ERROR_PATTERNS = [
+  /could not open this part file/i,
+  /save it in an older solidworks version/i,
+  /error\s*65536/i,
+  /unsupported (file|solidworks) version/i,
+];
+
+const isTerminalGraderError = (reason) => {
+  const text = truncate(reason, 2000);
+  if (!text) return false;
+  return TERMINAL_GRADER_ERROR_PATTERNS.some((pattern) => pattern.test(text));
+};
+
+const finalizeSubmissionFailure = async ({
+  submissionId,
+  reason,
+  markNotified = false,
+}) => {
+  const failureMessage =
+    truncate(reason, 500) ||
+    "The grader was unable to process this submission.";
+  const data = {
+    volume: null,
+    surfaceArea: null,
+    grade: 0,
+    unpenalizedGrade: null,
+    feedback: buildFailureFeedback(failureMessage),
+    matchingSignatureId: null,
+    screenshotKey: null,
+    screenshotUrl: null,
+    featureTree: null,
+    graderFailedAt: new Date(),
+  };
+  if (markNotified) {
+    data.graderFailureNotifiedAt = new Date();
+  }
+  return prisma.submission.update({
+    where: { id: submissionId },
+    data,
+    select: {
+      id: true,
+      userId: true,
+      assignmentId: true,
+      courseId: true,
+      fileName: true,
+      fileKey: true,
+      graderErrorCount: true,
+      graderFailureNotifiedAt: true,
+    },
+  });
+};
+
 const notifySubmissionFailure = async ({ submission, reason, payload }) => {
   const body = [
     `Submission ${submission.id} hit ${MAX_GRADER_ERROR_COUNT} grader webhook errors and was marked failed.`,
@@ -168,30 +220,9 @@ const recordGraderErrorAttempt = async ({
     return { finalFailure: false, errorCount };
   }
 
-  const failed = await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      volume: null,
-      surfaceArea: null,
-      grade: 0,
-      unpenalizedGrade: null,
-      feedback: buildFailureFeedback(safeReason),
-      matchingSignatureId: null,
-      screenshotKey: null,
-      screenshotUrl: null,
-      featureTree: null,
-      graderFailedAt: new Date(),
-    },
-    select: {
-      id: true,
-      userId: true,
-      assignmentId: true,
-      courseId: true,
-      fileName: true,
-      fileKey: true,
-      graderErrorCount: true,
-      graderFailureNotifiedAt: true,
-    },
+  const failed = await finalizeSubmissionFailure({
+    submissionId,
+    reason: safeReason,
   });
 
   const notificationClaim = await prisma.submission.updateMany({
@@ -279,6 +310,52 @@ export const post = [
       }
 
       if (failureOnly) {
+        if (isTerminalGraderError(normalizedError)) {
+          const failed = await finalizeSubmissionFailure({
+            submissionId,
+            reason: normalizedError,
+          });
+
+          const notificationClaim = await prisma.submission.updateMany({
+            where: {
+              id: submissionId,
+              graderFailureNotifiedAt: null,
+            },
+            data: {
+              graderFailureNotifiedAt: new Date(),
+            },
+          });
+
+          if (notificationClaim.count > 0) {
+            await notifySubmissionFailure({
+              submission: failed,
+              reason: normalizedError,
+              payload: req.body,
+            });
+          }
+
+          posthog.capture({
+            distinctId: submission.userId ?? "grader",
+            event: "submission grading failed",
+            properties: {
+              submissionId,
+              assignmentId: submission.assignmentId,
+              courseId: submission.courseId ?? null,
+              reason: normalizedError,
+              terminal: true,
+            },
+          });
+
+          return res.status(200).json({
+            ok: true,
+            submissionId,
+            grade: 0,
+            matchedSignatureId: null,
+            failure: true,
+            terminal: true,
+          });
+        }
+
         const failedAttempt = await recordGraderErrorAttempt({
           submission,
           submissionId,
