@@ -1,0 +1,15 @@
+services:
+  windows:
+    image: dockurr/windows
+    container_name: sw-grader
+    environment:
+      VERSION: "11"
+    ports:
+      - "3389:3389"
+    volumes:
+      - ./setup.ps1:/oem/setup.ps1
+      - windows-storage:/storage
+    restart: unless-stopped
+
+volumes:
+  windows-storage:
